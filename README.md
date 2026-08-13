@@ -4,14 +4,15 @@ Motor de reservas para tours en el Caribe y renta de inmuebles. Dos
 inventarios que se compran igual y se operan distinto, con un solo checkout:
 se cobra un anticipo en línea y el saldo se paga en destino.
 
-Estado: **capa de datos** (Sprint 0) y **vitrina pública en dos idiomas**
-(Sprint 1). Todavía no se puede reservar: el motor de cotización y el checkout
-son los Sprints 2 y 3.
+Estado: capa de datos (Sprint 0), vitrina en dos idiomas (Sprint 1) y motor de
+cotización con calendario (Sprint 2). **Todavía no se puede reservar**: el
+checkout y el cobro del anticipo son el Sprint 3.
 
+- **Plan maestro** (columna vertebral, una sola fuente de verdad): [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
 - Esquema: [`docs/esquema.md`](docs/esquema.md)
-- Plan de entrega en Scrum: [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
-- Sprint en curso: [`docs/sprint-01.md`](docs/sprint-01.md)
+- Sprint en curso: [`docs/sprint-03.md`](docs/sprint-03.md)
+- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md)
 
 ## Cómo correrlo
 
