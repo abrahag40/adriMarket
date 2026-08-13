@@ -72,10 +72,9 @@ productivos → pronóstico conservador de **20 a 24 puntos**. De ahí en adelan
 se usa *yesterday's weather*: el pronóstico es lo que se terminó realmente en el
 sprint anterior.
 
-El Sprint 1 cerró con **22 puntos**, así que ese es el pronóstico del Sprint 2.
-Su refinamiento dejó 24 puntos listos: el excedente es deliberado y la selección
-la hacen los Developers en el Planning, cortando por el final de la lista
-priorizada.
+El Sprint 1 cerró con **22 puntos** y el Sprint 2 con **21**, de 24 refinados: el
+excedente era deliberado y en el Planning se cortó por el final de la lista
+priorizada, dejando fuera los cupones. El pronóstico del Sprint 3 es 21.
 
 ## Pronóstico de release
 
@@ -86,7 +85,7 @@ planear en cada Planning.
 |---|---|---|---|
 | 0 | — | *Ya entregado, fuera de cadencia:* esquema y garantías de inventario | — |
 | 1 | 1–2 | *Cumplido:* un visitante explora los tours y las propiedades reales, en dos idiomas, desde su teléfono | 22 |
-| 2 | 3–4 | El visitante ve disponibilidad y precio exactos para sus fechas y personas | 24 |
+| 2 | 3–4 | *Cumplido:* el visitante ve disponibilidad y precio exactos para sus fechas y personas | 21 |
 | 3 | 5–6 | Un huésped completa una reserva pagando el anticipo y llegan las confirmaciones | 23 |
 | 4 | 7–8 | La operación administra el día a día sin pedirle nada al equipo técnico | 22 |
 | 5 | 9–10 | El cliente publica productos y cambia tarifas sin código ni despliegue | 21 |

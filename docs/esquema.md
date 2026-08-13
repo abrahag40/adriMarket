@@ -46,25 +46,41 @@ tarifa de temporada ya habrá cambiado.
 {
   "currency": "MXN",
   "lines": [
-    { "concept": "3 noches · temporada alta", "cents": 1050000, "kind": "nightly" },
-    { "concept": "huésped extra (1) × 3 noches", "cents": 180000, "kind": "occupancy" },
-    { "concept": "limpieza", "cents": 80000, "kind": "fee" },
-    { "concept": "cupón VERANO10", "cents": -95000, "kind": "discount", "coupon": "VERANO10" },
-    { "concept": "ISH 3% + IVA", "cents": 195000, "kind": "tax" }
+    { "concept": "2026-09-17", "cents": 320000, "kind": "nightly" },
+    { "concept": "2026-09-18", "cents": 390000, "kind": "nightly" },
+    { "concept": "2026-09-19", "cents": 390000, "kind": "nightly" },
+    { "concept": "occupancy:1x3", "cents": 180000, "kind": "occupancy" },
+    { "concept": "cleaning", "cents": 80000, "kind": "fee" },
+    { "concept": "ISH Quintana Roo", "cents": 40800, "kind": "tax" },
+    { "concept": "IVA", "cents": 217600, "kind": "tax" }
   ],
-  "total_cents": 2410000,
-  "deposit_pct": 30,
-  "deposit_cents": 723000,
-  "balance_cents": 1687000,
+  "total_cents": 1618400,
+  "deposit_pct": 40,
+  "deposit_cents": 647360,
+  "balance_cents": 971040,
   "nights": [
     { "night": "2026-09-17", "cents": 320000, "rate_id": "…" }
   ],
-  "quoted_at": "2026-08-13T18:22:10Z"
+  "quoted_at": "2026-09-01T12:00:00.000Z"
 }
 ```
 
-Reglas: `lines` suma exactamente `total_cents`; los descuentos van en negativo;
-`balance_cents` en la reserva es columna derivada y no se escribe a mano.
+**`concept` es una clave, no un texto.** El motor de precios no arma frases
+porque no sabe en qué idioma está leyendo el huésped: emite `occupancy:1x3` y la
+interfaz lo traduce a "1 huésped extra × 3 noches" o "1 extra guest × 3 nights".
+Los nombres de impuestos y cupones sí van tal cual, porque vienen configurados y
+ya son legibles.
+
+Cuando el Sprint 3 congele la cotización en la reserva, guardará además el texto
+ya traducido al idioma del huésped: un comprobante que se relee dos años después
+no debe depender del código de hoy para ser legible.
+
+Reglas invariantes, verificadas en cada caso de prueba:
+
+1. `lines` suma **exactamente** `total_cents`;
+2. `deposit_cents + balance_cents` es **exactamente** `total_cents`;
+3. los descuentos van en negativo;
+4. `balance_cents` en la reserva es columna derivada y no se escribe a mano.
 
 ## Máquina de estados de la reserva
 
@@ -86,7 +102,9 @@ devolución.
 |---|---|
 | `resolve_deposit_pct(product)` | cascada producto → global → 30 |
 | `stay_is_available(unit, range)` | consulta sin efectos |
-| `stay_nightly_rates(unit, range)` | tarifa noche por noche; una noche sin tarifa sale `null` para que la app se niegue en lugar de inventar un precio |
+| `stay_nightly_rates(unit, range)` | tarifa **y restricciones** noche por noche; una noche sin tarifa sale `null` para que la app se niegue en lugar de inventar un precio |
+| `stay_rate_at(unit, date)` | tarifa de un día suelto; se usa con el día de salida, que no es una noche pero cuya tarifa decide si admite salidas |
+| `stay_availability_range(unit, range)` | disponibilidad noche por noche para el calendario, **sin el motivo del bloqueo** |
 | `stay_hold_create(...)` | aparta noches o falla con `AM002` |
 | `tour_seats_left(departure)` | lugares disponibles |
 | `tour_hold_create(...)` | aparta lugares con `FOR UPDATE` o falla con `AM001` |

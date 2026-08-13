@@ -52,6 +52,45 @@ export type Messages = {
   paxFree: string;
   priceNotice: string;
   minutes: (n: number) => string;
+
+  // Selector y cotización · Sprint 2
+  checkIn: string;
+  checkOut: string;
+  guestsLabel: string;
+  quoteHeading: string;
+  quoteTotal: string;
+  quoteDepositNow: (pct: number) => string;
+  quoteBalanceLater: string;
+  quoteNights: (n: number) => string;
+  quoteExtraGuests: (guests: number, nights: number) => string;
+  quoteCleaning: string;
+  quoteUnavailable: string;
+  quoteAvailable: string;
+  quoteRecalculate: string;
+  paxAdults: string;
+  paxChildren: string;
+  paxInfants: string;
+  paxInfantsHint: string;
+  departureLabel: string;
+  seatsLeft: (n: number) => string;
+  soldOut: string;
+  calendarHeading: string;
+  calendarPrev: string;
+  calendarNext: string;
+  calendarBusy: string;
+  calendarFree: string;
+  calendarNoDeparture: string;
+  weekdays: readonly string[];
+  errNoRate: string;
+  errMinNights: (n: number) => string;
+  errClosedToArrival: string;
+  errClosedToDeparture: string;
+  errOverCapacity: (max: number) => string;
+  errPastDates: string;
+  errInvalidRange: string;
+  errNoPax: string;
+  errSoldOut: (left: number) => string;
+  errDepartureClosed: string;
 };
 
 const es: Messages = {
@@ -99,6 +138,46 @@ const es: Messages = {
   priceNotice:
     "El precio exacto depende de tus fechas y del número de personas. Lo verás antes de dar tus datos.",
   minutes: (n) => `${Math.round(n / 60)} h`,
+
+  checkIn: "Llegada",
+  checkOut: "Salida",
+  guestsLabel: "Personas",
+  quoteHeading: "Tu cotización",
+  quoteTotal: "Total",
+  quoteDepositNow: (pct) => `Anticipo hoy (${pct}%)`,
+  quoteBalanceLater: "Saldo al llegar",
+  quoteNights: (n) => (n === 1 ? "1 noche" : `${n} noches`),
+  quoteExtraGuests: (guests, nights) =>
+    `${guests} ${guests === 1 ? "huésped extra" : "huéspedes extra"} × ${nights} ${nights === 1 ? "noche" : "noches"}`,
+  quoteCleaning: "Limpieza",
+  quoteUnavailable: "Esas fechas ya están ocupadas",
+  quoteAvailable: "Disponible",
+  quoteRecalculate: "Cotizar",
+  paxAdults: "Adultos",
+  paxChildren: "Menores",
+  paxInfants: "Infantes",
+  paxInfantsHint: "No ocupan lugar",
+  departureLabel: "Salida",
+  seatsLeft: (n) => (n === 1 ? "1 lugar disponible" : `${n} lugares disponibles`),
+  soldOut: "Sin lugares",
+  calendarHeading: "Disponibilidad",
+  calendarPrev: "Mes anterior",
+  calendarNext: "Mes siguiente",
+  calendarBusy: "Ocupado",
+  calendarFree: "Libre",
+  calendarNoDeparture: "Sin salida",
+  weekdays: ["L", "M", "M", "J", "V", "S", "D"],
+  errNoRate: "No tenemos tarifa publicada para esas fechas. Escríbenos y te cotizamos.",
+  errMinNights: (n) => `Para esas fechas el mínimo es de ${n} noches.`,
+  errClosedToArrival: "Ese día no admite llegadas. Prueba con otro.",
+  errClosedToDeparture: "Ese día no admite salidas. Prueba con otro.",
+  errOverCapacity: (max) => `La capacidad máxima es de ${max} personas.`,
+  errPastDates: "Esas fechas ya pasaron.",
+  errInvalidRange: "La salida debe ser posterior a la llegada.",
+  errNoPax: "Se necesita al menos un adulto.",
+  errSoldOut: (left) =>
+    left === 0 ? "Ya no quedan lugares en esa salida." : `Solo quedan ${left} lugares en esa salida.`,
+  errDepartureClosed: "Esa salida no está disponible.",
 };
 
 const en: Messages = {
@@ -146,6 +225,46 @@ const en: Messages = {
   priceNotice:
     "The exact price depends on your dates and party size. You'll see it before entering any details.",
   minutes: (n) => `${Math.round(n / 60)} h`,
+
+  checkIn: "Check-in",
+  checkOut: "Check-out",
+  guestsLabel: "Guests",
+  quoteHeading: "Your quote",
+  quoteTotal: "Total",
+  quoteDepositNow: (pct) => `Deposit today (${pct}%)`,
+  quoteBalanceLater: "Balance on arrival",
+  quoteNights: (n) => (n === 1 ? "1 night" : `${n} nights`),
+  quoteExtraGuests: (guests, nights) =>
+    `${guests} extra ${guests === 1 ? "guest" : "guests"} × ${nights} ${nights === 1 ? "night" : "nights"}`,
+  quoteCleaning: "Cleaning",
+  quoteUnavailable: "Those dates are already taken",
+  quoteAvailable: "Available",
+  quoteRecalculate: "Get quote",
+  paxAdults: "Adults",
+  paxChildren: "Children",
+  paxInfants: "Infants",
+  paxInfantsHint: "Do not take a seat",
+  departureLabel: "Departure",
+  seatsLeft: (n) => (n === 1 ? "1 seat left" : `${n} seats left`),
+  soldOut: "Sold out",
+  calendarHeading: "Availability",
+  calendarPrev: "Previous month",
+  calendarNext: "Next month",
+  calendarBusy: "Booked",
+  calendarFree: "Free",
+  calendarNoDeparture: "No departure",
+  weekdays: ["M", "T", "W", "T", "F", "S", "S"],
+  errNoRate: "We do not have a published rate for those dates. Write to us for a quote.",
+  errMinNights: (n) => `Those dates require a minimum of ${n} nights.`,
+  errClosedToArrival: "That day does not allow check-ins. Try another one.",
+  errClosedToDeparture: "That day does not allow check-outs. Try another one.",
+  errOverCapacity: (max) => `Maximum capacity is ${max} guests.`,
+  errPastDates: "Those dates are in the past.",
+  errInvalidRange: "Check-out must be after check-in.",
+  errNoPax: "At least one adult is required.",
+  errSoldOut: (left) =>
+    left === 0 ? "That departure is sold out." : `Only ${left} seats left on that departure.`,
+  errDepartureClosed: "That departure is not available.",
 };
 
 const MESSAGES: Record<Locale, Messages> = { es, en };

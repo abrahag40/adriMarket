@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
 import type { Locale, ProductKind } from "@/i18n/config";
+import { taxFactorFor } from "@/modules/pricing/service";
 
 /**
  * Modelos de lectura del catálogo.
@@ -70,7 +71,7 @@ export async function listCatalog(
       cover.url as cover_url,
       cover.alt as cover_alt,
       cap.capacity::int as capacity,
-      price.from_cents::bigint as from_cents
+      round(price.from_cents * tax.factor)::bigint as from_cents
     from products p
     join product_translations t
       on t.product_id = p.id and t.locale = ${locale}
@@ -118,6 +119,19 @@ export async function listCatalog(
         )
       end as from_cents
     ) price on true
+    -- Los precios que se exhiben al huésped incluyen impuestos: la ley obliga a
+    -- exhibir el total, así que un "desde" neto sería un precio que nadie paga.
+    left join lateral (
+      select coalesce(1 + sum(t.rate) / 100, 1) as factor
+        from tax_rates t
+       where t.active
+         and t.kind = 'percent'
+         and not t.included_in_price
+         and (t.applies_to is null or t.applies_to = p.kind)
+         and (t.location_id is null or t.location_id = p.location_id)
+         and (t.valid_from is null or t.valid_from <= current_date)
+         and (t.valid_to is null or t.valid_to >= current_date)
+    ) tax on true
     where p.status = 'published'
       and (${filters.kind ?? null}::product_kind is null or p.kind = ${filters.kind ?? null}::product_kind)
       and (${filters.locationSlug ?? null}::text is null or l.slug = ${filters.locationSlug ?? null}::text)
@@ -192,6 +206,7 @@ export type ProductDetail = {
   locationName: string | null;
   city: string | null;
   state: string | null;
+  timezone: string;
   media: MediaItem[];
   fromCents: number | null;
   hasTranslation: boolean;
@@ -229,12 +244,14 @@ export async function getProductDetail(
     location_name: string | null;
     city: string | null;
     state: string | null;
+    timezone: string;
   }>(sql`
     select
       p.id, p.kind, p.slug, p.currency,
       t.name, t.summary, t.description, t.highlights, t.included, t.excluded,
       t.meta_title, t.meta_description,
-      l.name as location_name, l.city, l.state
+      l.name as location_name, l.city, l.state,
+      coalesce(l.timezone, 'America/Cancun') as timezone
     from products p
     join product_translations t
       on t.product_id = p.id and t.locale = ${locale}
@@ -338,6 +355,10 @@ export async function getProductDetail(
     }
   }
 
+  // Igual que en el listado: el "desde" que se exhibe lleva impuestos.
+  const taxFactor = await taxFactorFor(product.id);
+  const fromCentsWithTax = fromCents === null ? null : Math.round(fromCents * taxFactor);
+
   return {
     id: product.id,
     kind: product.kind,
@@ -354,13 +375,14 @@ export async function getProductDetail(
     locationName: product.location_name,
     city: product.city,
     state: product.state,
+    timezone: product.timezone,
     media: media.map((row) => ({
       url: row.url,
       alt: row.alt,
       width: row.width === null ? null : Number(row.width),
       height: row.height === null ? null : Number(row.height),
     })),
-    fromCents,
+    fromCents: fromCentsWithTax,
     hasTranslation: true,
     stay,
     tour,

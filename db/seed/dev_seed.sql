@@ -132,6 +132,22 @@ insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nig
   ('77777777-7777-7777-7777-777777777777', 'Fin de semana',
    daterange('2026-01-01', '2027-01-01'), array[5,6]::smallint[], 390000, null, 5);
 
+-- Segunda unidad del mismo producto: una casita al fondo, para dos personas.
+-- Hace demostrable la regla de "cotizar la unidad más chica que alcanza":
+-- ofrecer la casa de seis a una pareja desperdicia inventario y encarece la
+-- oferta sin razón.
+insert into stay_units (id, product_id, code, max_guests, base_guests, extra_guest_fee_cents,
+                        cleaning_fee_cents, bedrooms, beds, bathrooms, min_nights) values
+  ('66666666-6666-6666-6666-66666666aaaa', '55555555-5555-5555-5555-555555555555',
+   'casita', 2, 2, 0, 40000, 1, 1, 1, 1);
+
+insert into stay_rate_plans (id, unit_id, name) values
+  ('77777777-7777-7777-7777-77777777aaaa', '66666666-6666-6666-6666-66666666aaaa', 'Tarifa pública');
+
+insert into stay_rates (rate_plan_id, name, season, nightly_cents, priority) values
+  ('77777777-7777-7777-7777-77777777aaaa', 'Base',
+   daterange('2026-01-01', '2027-01-01'), 180000, 0);
+
 -- ---------------------------------------------------------------------------
 -- Tercer producto, en otra ubicación: hace demostrables los filtros
 -- ---------------------------------------------------------------------------
@@ -205,6 +221,12 @@ insert into product_media (product_id, url, alt_es, alt_en, width, height, posit
    'Catamarán navegando frente a la costa', 'Catamaran sailing off the coast', 1200, 800, 0),
   ('99999999-9999-9999-9999-999999999999', '/media/catamaran-2.svg',
    'Snorkel sobre el arrecife', 'Snorkeling over the reef', 1200, 800, 1);
+
+-- Un bloqueo de mantenimiento en fechas fijas: hace demostrable el calendario y
+-- la regla de que el motivo no se expone al huésped.
+insert into stay_blocks (unit_id, stay, reason, note) values
+  ('66666666-6666-6666-6666-666666666666', daterange('2026-10-05', '2026-10-09'),
+   'maintenance', 'Pintura de la terraza');
 
 -- Publicado pero solo en español: sirve para probar que /en responde 404 en
 -- lugar de mostrar contenido a medio traducir.

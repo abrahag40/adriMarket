@@ -110,6 +110,56 @@ expect_contains "/es/estancias/casa-akumal" "Desde" "la ficha muestra precio des
 expect_status "/es/estancias/no-existe-esta-casa" 404 "un slug inexistente responde 404"
 
 echo
+echo "S2-1 · cotización de estancia"
+CASA="/es/estancias/casa-akumal"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "\$16,184" "total de 3 noches con huésped extra, limpieza e impuestos"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "\$6,474" "anticipo del 40% de este producto"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "\$9,710" "saldo a pagar en destino"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "Anticipo hoy (40%)" "se dice qué se paga hoy"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "Saldo al llegar" "se dice qué se paga al llegar"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "Limpieza" "la limpieza aparece como concepto"
+# El precio del catálogo también incluye impuestos: 3,200 netos son 3,808 con
+# ISH e IVA. La ley obliga a exhibir el total.
+expect_contains "$CASA" "\$3,808" "el precio desde se exhibe con impuestos incluidos"
+expect_contains "$CASA?from=2029-03-01&to=2029-03-04&guests=5" "No tenemos tarifa publicada" "sin tarifa no se inventa un precio"
+expect_absent "$CASA?from=2029-03-01&to=2029-03-04&guests=5" "quote-total" "y no se muestra ningún total"
+
+echo
+echo "S2-5 · restricciones de estancia"
+expect_contains "$CASA?from=2026-12-24&to=2026-12-26&guests=5" "mínimo es de 4 noches" "el mínimo de la temporada alta se explica"
+expect_contains "$CASA?from=2026-12-24&to=2026-12-28&guests=5" "quote-total" "con cuatro noches sí cotiza"
+expect_contains "/en/stays/casa-akumal?from=2026-12-24&to=2026-12-26&guests=5" "minimum of 4 nights" "la restricción se explica en inglés"
+
+echo
+echo "S2-2 · cotización de tour por tipo de pasajero"
+TOUR="/en/tours/snorkel-cenotes-tulum"
+expect_contains "$TOUR?adults=2&children=1&infants=1" "Adult × 2" "los adultos se cobran por cabeza"
+expect_contains "$TOUR?adults=2&children=1&infants=1" "Child × 1" "el menor tiene su propia tarifa"
+expect_absent "$TOUR?adults=2&children=1&infants=1" "Infant × 1" "el infante sin costo no genera línea"
+expect_contains "$TOUR?adults=2&children=1&infants=1" "Deposit today (30%)" "el tour hereda el anticipo global"
+expect_contains "$TOUR" "seats left" "el desplegable dice cuántos lugares quedan"
+
+echo
+echo "S2-3 · calendario de disponibilidad"
+expect_contains "$CASA?month=2026-10-01" "cal-busy" "el bloqueo de mantenimiento se ve ocupado"
+expect_absent "$CASA?month=2026-10-01" "Pintura de la terraza" "no se revela el motivo del bloqueo"
+expect_absent "$CASA?month=2026-10-01" "mantenimiento" "tampoco la palabra mantenimiento"
+expect_contains "$CASA?month=2026-10-01" 'cal-busy"><span class="cal-number">5<' "la primera noche bloqueada se ve ocupada"
+expect_contains "$CASA?month=2026-10-01" 'cal-busy"><span class="cal-number">8<' "la última noche bloqueada también"
+expect_contains "$CASA?month=2026-10-01" 'cal-free"><span class="cal-number">9<' "el día de salida queda libre: otro huésped puede llegar ese día"
+expect_contains "$CASA?month=2026-10-01" 'cal-free"><span class="cal-number">4<' "la noche previa al bloqueo sigue libre"
+expect_contains "$CASA?month=2026-10-01" "octubre de 2026" "el mes se nombra en el idioma de la página"
+expect_contains "/en/stays/casa-akumal?month=2026-10-01" "October 2026" "y en inglés"
+
+echo
+echo "S2-4 · el selector funciona sin JavaScript y el precio lo calcula el servidor"
+expect_contains "$CASA" 'method="get"' "el formulario es GET: funciona sin JavaScript"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'value="2026-09-17"' "la selección queda en la URL y se refleja en el campo"
+# El total viene en el HTML de la primera respuesta: no lo calculó el navegador.
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'class="quote-total"' "el desglose llega renderizado del servidor"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=6&month=2026-10-01" "quote-total" "el mes del calendario no rompe la cotización"
+
+echo
 echo "S1-2 · accesibilidad básica"
 expect_contains "/es" "Ir al contenido" "hay enlace para saltar al contenido"
 expect_contains "/en" "Skip to content" "el enlace de salto también está traducido"
@@ -117,6 +167,7 @@ expect_contains "/es" 'id="content"' "el destino del salto existe"
 expect_contains "/es" 'alt="' "las imágenes llevan texto alternativo"
 expect_contains "/es" 'prefers-color-scheme' "los dos temas están definidos"
 expect_contains "/es" '<label for="guests"' "los campos del filtro tienen etiqueta asociada"
+expect_contains "/es/estancias/casa-akumal" '<label for="from"' "los campos del selector también"
 
 echo
 printf '\n%s\n' "----------------------------------------"

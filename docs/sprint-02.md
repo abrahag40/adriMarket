@@ -362,3 +362,85 @@ El SME cotiza en pantalla tres casos de su propia operación —temporada alta, 
 de semana con huésped extra, y un tour con menores e infante— y confirma que los
 números coinciden con lo que cobraría hoy. Si no coinciden, el sprint no está
 terminado, aunque el código esté bien.
+
+---
+
+## Cierre del sprint
+
+**Selección del Planning:** S2-1 a S2-5, **21 puntos** sobre un pronóstico de 22.
+S2-6 (cupones) quedó fuera, como estaba previsto: es lo único que no hacía falta
+para cumplir el Sprint Goal. Pasa al primer lugar del backlog del Sprint 3.
+
+**Sprint Goal: cumplido.** El visitante ve disponibilidad y precio exactos para
+sus fechas y su número de personas, antes de dar un dato.
+
+| Historia | Pts | Estado |
+|---|---|---|
+| S2-1 Cotización de una estancia | 8 | terminada |
+| S2-2 Cotización de tour por tipo de pasajero | 3 | terminada |
+| S2-3 Calendario de disponibilidad | 5 | terminada |
+| S2-4 Selector que cotiza de verdad | 3 | terminada |
+| S2-5 Restricciones aplicadas y explicadas | 2 | terminada |
+| S2-6 Cupones | 3 | **no seleccionada** |
+| **Velocidad real** | **21** | |
+
+Velocidad acumulada: 22 y 21. El pronóstico del Sprint 3 es 21.
+
+### Las tres decisiones, resueltas como supuestos
+
+El cliente pidió avanzar sin cerrarlas, así que se aplicaron las recomendaciones
+del refinamiento, escritas en el código donde importan:
+
+1. **Los precios se exhiben con impuestos incluidos.** Las tarifas se guardan
+   netas y el total que ve el huésped lleva impuestos, itemizados en el
+   desglose. También se corrigió el precio "desde" del catálogo, que en el
+   Sprint 1 se mostraba neto: 3,200 pasó a exhibirse como 3,808.
+2. **Los impuestos no se calculan en cascada.** Cada uno aplica sobre el
+   subtotal de servicio, no sobre el subtotal más los otros impuestos. Está
+   marcado en `applyTaxes` como supuesto pendiente de confirmar con el contador;
+   si la respuesta es la contraria, es una línea y un caso de prueba.
+3. **Las tarifas del seed** sustituyen a las reales. Sigue pendiente, y es lo que
+   convierte la validación del SME en teatro si no llega antes del Review.
+
+**Descuento por estancia larga: fuera del MVP**, según la recomendación A. No
+tiene esquema y es una palanca comercial, no un requisito para vender.
+
+### Evidencia
+
+- **15 casos de aritmética pura**, sin base de datos, incluidos los de redondeo
+  con cifras incómodas. Las dos invariantes se verifican en cada uno.
+- **13 casos de integración** contra Postgres: temporadas, prioridad, elección de
+  unidad, impuestos por tipo de producto, disponibilidad y rotación.
+- **77 criterios de aceptación** sobre el sitio construido, 31 nuevos.
+- Las 12 garantías del Sprint 0 siguen intactas con la migración nueva.
+- Las pruebas se corrieron tres veces seguidas sobre la misma base para
+  comprobar que son repetibles.
+
+### Hallazgos del sprint
+
+1. **Dos de mis propias pruebas dependían de una base virgen.** Al sembrar un
+   bloqueo de mantenimiento, chocaron con la restricción de exclusión. Se
+   volvieron independientes del estado previo: comparan contra el estado inicial
+   en lugar de contra cero, y liberan lo que dejaron corridas anteriores.
+2. **En el teléfono, la caja de reserva quedaba al final de la página**, después
+   de toda la descripción. El huésped tenía que recorrer la lectura opcional
+   antes de ver la decisión que vino a tomar. El encabezado salió de la rejilla
+   para que en una columna el precio quede justo debajo del resumen.
+3. **Una prueba mía afirmaba que no se puede reservar para hoy mismo.** Es falso:
+   una llegada de último momento es negocio normal. El criterio correcto es
+   rechazar noches *anteriores* a hoy, y "hoy" se calcula en la zona de la
+   propiedad — a las 23:30 en Cancún un servidor en UTC ya cree que es mañana.
+
+### Deuda técnica anotada
+
+- Las imágenes siguen sin optimizar (decisión 0001, se paga en el Sprint 5).
+- El calendario carga un mes por consulta, como pide el criterio, pero no
+  precarga el mes siguiente: navegar entre meses cuesta un viaje al servidor.
+  Aceptable con este volumen; se revisa si el embudo muestra fricción ahí.
+
+### Para la Retrospective
+
+La casilla nueva del DoD —"ningún precio se calcula en el navegador"— se cumplió
+y se verifica desde fuera: el desglose completo viene en el HTML de la primera
+respuesta. Los tres hallazgos, otra vez, salieron de ejecutar y mirar, no de
+leer el código.

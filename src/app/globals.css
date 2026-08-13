@@ -631,3 +631,268 @@ main {
 .breadcrumb a {
   color: var(--text-muted);
 }
+
+/* ---------- selector y cotización · Sprint 2 ---------- */
+
+@media (min-width: 900px) {
+  .detail {
+    /* La caja de reserva crece para alojar el calendario compacto. */
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
+.selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.selector-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.field-wide {
+  flex-basis: 100%;
+}
+
+.field input[type="date"] {
+  min-height: var(--tap);
+  padding: 0 10px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  /* Sin esto, Safari en iOS estira el campo fuera de su columna. */
+  width: 100%;
+  min-width: 0;
+}
+
+.field-hint {
+  font-size: var(--step--1);
+  color: var(--text-faint);
+}
+
+.quote {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 16px;
+}
+
+.quote-heading {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-1);
+}
+
+.quote-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+}
+
+.quote-table th,
+.quote-table td {
+  text-align: left;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.quote-table td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.quote-table .quote-total th,
+.quote-table .quote-total td {
+  border-bottom: none;
+  padding-top: 12px;
+  font-weight: 650;
+  font-size: var(--step-0);
+  color: var(--text);
+}
+
+.quote-table summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.quote-nights {
+  list-style: none;
+  padding: 8px 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quote-nights li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.quote-split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.quote-split p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--step--1);
+}
+
+.quote-split strong {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--step-0);
+}
+
+.quote-warning {
+  font-size: var(--step--1);
+  color: var(--text);
+  background: var(--surface-2);
+  border-left: 3px solid var(--coral, var(--accent));
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+/* ---------- calendario ---------- */
+
+.calendar-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--line-soft);
+  padding-top: 16px;
+}
+
+.calendar-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--step--1);
+}
+
+.calendar-nav a {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.calendar-month {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.calendar {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.calendar th {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  padding-bottom: 6px;
+  text-align: center;
+}
+
+.calendar td {
+  padding: 2px;
+  text-align: center;
+  vertical-align: middle;
+  height: 38px;
+}
+
+.cal-day {
+  border-radius: var(--radius-sm);
+  font-size: var(--step--1);
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-free {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.cal-busy {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+
+.cal-unknown {
+  color: var(--text-faint);
+}
+
+.cal-label {
+  display: block;
+  font-size: 10px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.legend-free::before,
+.legend-busy::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.legend-free::before {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+}
+
+.legend-busy::before {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+
+/*
+ * En una sola columna la caja de reserva va arriba, no al final.
+ *
+ * Sin esto, en un teléfono el huésped tiene que recorrer toda la descripción
+ * antes de ver el precio: la decisión que vino a tomar queda escondida detrás
+ * de la lectura opcional.
+ */
+@media (max-width: 899px) {
+  .detail-aside {
+    order: -1;
+    position: static;
+  }
+}

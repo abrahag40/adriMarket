@@ -14,8 +14,16 @@ import {
 import { getMessages, type Messages } from "@/i18n/messages";
 import { absoluteUrl } from "@/site";
 import { getProductDetail, type ProductDetail } from "@/modules/catalog/queries";
+import { StayBooking } from "@/components/stay-booking";
+import { TourBooking } from "@/components/tour-booking";
 
 type RouteParams = Promise<{ locale: string; collection: string; slug: string }>;
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function single(value: string | string[] | undefined): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
 
 /** Igual que el listado: la ficha refleja el estado real del catálogo. */
 export const dynamic = "force-dynamic";
@@ -145,9 +153,17 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
   );
 }
 
-export default async function ProductPage({ params }: { params: RouteParams }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: RouteParams;
+  searchParams: SearchParams;
+}) {
   const { locale, kind, product } = await load(params);
   const t = getMessages(locale);
+  const sp = await searchParams;
+  const basePath = productPath(locale, kind, product.slug);
 
   const [cover, ...rest] = product.media;
   const secondary = rest.slice(0, 2);
@@ -188,19 +204,19 @@ export default async function ProductPage({ params }: { params: RouteParams }) {
         </div>
       ) : null}
 
+      <div className="stack-sm">
+        <h1 className="page-title">{product.name}</h1>
+        {product.locationName ? (
+          <p className="muted">
+            {t.location}: {product.locationName}
+            {product.state ? `, ${product.state}` : ""}
+          </p>
+        ) : null}
+        {product.summary ? <p className="prose">{product.summary}</p> : null}
+      </div>
+
       <div className="detail">
         <div className="stack">
-          <div className="stack-sm">
-            <h1 className="page-title">{product.name}</h1>
-            {product.locationName ? (
-              <p className="muted">
-                {t.location}: {product.locationName}
-                {product.state ? `, ${product.state}` : ""}
-              </p>
-            ) : null}
-            {product.summary ? <p className="prose">{product.summary}</p> : null}
-          </div>
-
           {product.description ? (
             <p className="prose muted">{product.description}</p>
           ) : null}
@@ -258,9 +274,37 @@ export default async function ProductPage({ params }: { params: RouteParams }) {
               <span className="price-unit">{unit}</span>
             </p>
           ) : null}
-          {/* El selector de fechas y el precio exacto llegan en el Sprint 2.
-              Decir aquí qué falta es más honesto que un botón que no reserva. */}
-          <p className="notice">{t.priceNotice}</p>
+
+          {kind === "stay" ? (
+            <StayBooking
+              productId={product.id}
+              locale={locale}
+              basePath={basePath}
+              timezone={product.timezone}
+              maxGuests={product.stay?.maxGuests ?? 2}
+              params={{
+                from: single(sp.from),
+                to: single(sp.to),
+                guests: single(sp.guests),
+                month: single(sp.month),
+              }}
+            />
+          ) : (
+            <TourBooking
+              productId={product.id}
+              locale={locale}
+              basePath={basePath}
+              timezone={product.timezone}
+              capacity={product.tour?.capacity ?? 1}
+              params={{
+                departure: single(sp.departure),
+                adults: single(sp.adults),
+                children: single(sp.children),
+                infants: single(sp.infants),
+                month: single(sp.month),
+              }}
+            />
+          )}
         </aside>
       </div>
     </article>
