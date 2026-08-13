@@ -4,10 +4,14 @@ Motor de reservas para tours en el Caribe y renta de inmuebles. Dos
 inventarios que se compran igual y se operan distinto, con un solo checkout:
 se cobra un anticipo en línea y el saldo se paga en destino.
 
-Este repositorio contiene, por ahora, la **capa de datos**: el esquema, las
-operaciones donde la corrección no es negociable, y las pruebas que lo
-demuestran. La propuesta de arquitectura completa está en
-[`docs/arquitectura.md`](docs/arquitectura.md).
+Estado: **capa de datos** (Sprint 0) y **vitrina pública en dos idiomas**
+(Sprint 1). Todavía no se puede reservar: el motor de cotización y el checkout
+son los Sprints 2 y 3.
+
+- Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
+- Esquema: [`docs/esquema.md`](docs/esquema.md)
+- Plan de entrega en Scrum: [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
+- Sprint en curso: [`docs/sprint-01.md`](docs/sprint-01.md)
 
 ## Cómo correrlo
 
@@ -19,8 +23,18 @@ npm install
 
 npm run db:migrate            # aplica las migraciones pendientes
 npm run db:seed               # datos de desarrollo
-npm run db:test               # pruebas de garantías (en transacción, sin dejar rastro)
-npm run test:integration      # pruebas de la capa de acceso
+npm run dev                   # el sitio en http://localhost:3000
+```
+
+Verificación, que es lo mismo que corre el pipeline:
+
+```bash
+npm run db:test               # garantías del inventario (en transacción, sin dejar rastro)
+npm run test:integration      # capa de acceso: traducción de errores del dominio
+npm run typecheck
+npm run lint
+npm run build && npx next start &
+./scripts/smoke.sh            # criterios de aceptación sobre el sitio construido
 npm run db:bench              # prueba de carga: sobreventa bajo concurrencia
 ```
 
@@ -35,11 +49,31 @@ db/
   seed/             datos de desarrollo
   tests/            pruebas de las garantías y de concurrencia
 src/
+  app/[locale]/     rutas públicas; el prefijo de idioma es parte de la URL
+  components/       componentes de la vitrina
   db/               cliente, tipos propios y esquema generado por introspección
+  i18n/             idiomas, segmentos traducidos y etiquetas de interfaz
   modules/          módulos de dominio (frontera explícita entre ellos)
-scripts/            ciclo de vida de la base y post-proceso de la generación
-docs/               arquitectura y referencia del esquema
+scripts/            ciclo de vida de la base, verificación y generación
+docs/               arquitectura, esquema, plan de entrega y decisiones
 ```
+
+## Decisiones de la vitrina
+
+- **Cada idioma tiene su propia URL** (`/es`, `/en`), con el segmento de
+  colección traducido (`/es/estancias/…` ↔ `/en/stays/…`). Si las dos versiones
+  compartieran dirección, solo una posicionaría en buscadores — y el tráfico
+  orgánico en inglés es justo el que evita pagar comisión a un intermediario.
+- **Un producto sin traducción responde 404** en ese idioma, en lugar de mostrar
+  contenido a medio traducir.
+- **Los filtros viven en la URL** y el formulario funciona sin JavaScript: la
+  búsqueda se puede compartir, recargar y renderizar en el servidor.
+- **El precio de la vitrina es un "desde"**. El total exacto depende de fechas y
+  personas, y tiene una sola fuente autorizada en el servidor (Sprint 2).
+  Mostrar un aproximado que después cambia es la forma más rápida de perder la
+  confianza del huésped.
+- **`canonical` y `hreflang` se emiten absolutos**: los buscadores ignoran
+  `hreflang` relativo. Verificado en `scripts/smoke.sh`, no supuesto.
 
 ## Por qué el SQL se escribe a mano
 

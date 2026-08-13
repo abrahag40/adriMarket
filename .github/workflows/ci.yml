@@ -1,0 +1,148 @@
+# Compuertas del Definition of Done, automatizadas · S1-1
+#
+# El objetivo no es "correr pruebas": es que sea imposible integrar algo que no
+# cumple el DoD. Cada bloque de aquí corresponde a una casilla de
+# docs/plan-de-entrega.md.
+#
+# Las pruebas corren contra un Postgres real, no contra un doble de prueba: las
+# garantías del inventario son restricciones de la base, así que un doble no
+# probaría nada.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  # Un push nuevo cancela la corrida anterior de la misma rama.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgres://postgres:postgres@localhost:5432/adrimarket_ci
+  NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+
+jobs:
+  verificar:
+    name: Compuertas del DoD
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: adrimarket_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ── Compuerta: las migraciones aplican limpias desde cero ──
+      # Se ejecutan sobre una base vacía. Si una migración dependía de algo que
+      # solo existía en la máquina de quien la escribió, aquí se cae.
+      - name: Migraciones desde cero
+        run: ./scripts/db.sh migrate
+
+      - name: Datos de desarrollo
+        run: ./scripts/db.sh seed
+
+      # ── Compuerta: garantías del inventario ──
+      - name: Pruebas de garantías (SQL)
+        run: ./scripts/db.sh test
+
+      # ── Compuerta: tipos ──
+      - name: Typecheck
+        run: npm run typecheck
+
+      # ── Compuerta: linter ──
+      - name: Linter
+        run: npm run lint
+
+      # ── Compuerta: pruebas de integración ──
+      - name: Pruebas de integración
+        run: npm run test:integration
+
+      # ── Compuerta: criterios de aceptación sobre el sitio construido ──
+      - name: Build
+        run: npm run build
+
+      - name: Criterios de aceptación
+        run: |
+          npx next start -p 3000 &
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null http://127.0.0.1:3000/es && break
+            sleep 1
+          done
+          BASE_URL=http://127.0.0.1:3000 ./scripts/smoke.sh
+
+  # La prueba de carga solo corre cuando el cambio toca inventario o pagos:
+  # tarda, y en un cambio de interfaz no aporta información.
+  concurrencia:
+    name: Sobreventa bajo concurrencia
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request'
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: adrimarket_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: ¿El cambio toca inventario o pagos?
+        id: alcance
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          CAMBIOS="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)"
+          echo "$CAMBIOS"
+          if echo "$CAMBIOS" | grep -qE '^(db/|src/modules/(availability|booking|payments)/)'; then
+            echo "corre=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "corre=no" >> "$GITHUB_OUTPUT"
+            echo "::notice::Sin cambios en inventario ni pagos: se omite la prueba de carga."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.alcance.outputs.corre == 'si'
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+        if: steps.alcance.outputs.corre == 'si'
+
+      - name: Preparar base
+        if: steps.alcance.outputs.corre == 'si'
+        run: ./scripts/db.sh migrate && ./scripts/db.sh seed
+
+      - name: Prueba de carga
+        if: steps.alcance.outputs.corre == 'si'
+        run: ./scripts/db.sh bench

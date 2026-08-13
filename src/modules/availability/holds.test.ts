@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, describe, it } from "node:test";
 
-import { db, sqlClient } from "@/db/index.js";
+import { db, sqlClient } from "@/db/index";
 import { sql } from "drizzle-orm";
 
 import {
@@ -13,7 +13,7 @@ import {
   holdTourSeats,
   isStayAvailable,
   tourSeatsLeft,
-} from "./holds.js";
+} from "./holds";
 
 /**
  * Pruebas de integración de la capa de acceso.

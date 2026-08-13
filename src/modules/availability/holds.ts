@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { db, toDateRangeLiteral, type DateRange } from "@/db/index.js";
+import { db, toDateRangeLiteral, type DateRange } from "@/db/index";
 
 /**
  * Apartado de inventario durante el checkout.

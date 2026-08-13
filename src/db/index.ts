@@ -1,11 +1,11 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import * as schema from "./generated/schema.js";
-import * as relations from "./generated/relations.js";
+import * as schema from "./generated/schema";
+import * as relations from "./generated/relations";
 
-export * as schema from "./generated/schema.js";
-export * from "./types.js";
+export * as schema from "./generated/schema";
+export * from "./types";
 
 const connectionString = process.env.DATABASE_URL;
 

@@ -189,3 +189,64 @@ eso también es un resultado y se lleva al Planning siguiente.
 Navegar el catálogo real en un teléfono, en los dos idiomas, con las fotos del
 cliente. El SME debería poder señalar qué está mal de su propio producto — ese
 es el punto del sprint.
+
+---
+
+## Cierre del sprint
+
+**Sprint Goal: cumplido.** Las seis historias terminadas y verificadas.
+
+| Historia | Pts | Estado |
+|---|---|---|
+| S1-1 Andamiaje y compuertas automatizadas | 5 | terminada |
+| S1-2 Sistema de diseño base | 5 | terminada |
+| S1-3 Rutas en dos idiomas con metadatos | 3 | terminada |
+| S1-4 Listado de catálogo con filtros | 5 | terminada |
+| S1-5 Ficha de producto | 3 | terminada |
+| S1-6 Spike: entrega de imágenes | 1 | terminada — [decisión 0001](decisiones/0001-entrega-de-imagenes.md) |
+| **Velocidad real** | **22** | |
+
+La velocidad de 22 puntos es el pronóstico del Sprint 2 (*yesterday's weather*),
+no una meta a superar.
+
+### Evidencia
+
+`scripts/smoke.sh` verifica **46 criterios de aceptación** contra el sitio
+construido, y es lo mismo que corre el pipeline. Las garantías del Sprint 0
+siguen intactas: 12 pruebas de SQL, 8 de integración y la prueba de carga sin
+sobreventa.
+
+### Hallazgos del sprint
+
+Tres cosas salieron de verificar, no de leer el código:
+
+1. **El listado se estaba horneando en el build.** Habría seguido mostrando
+   productos despublicados y precios viejos hasta el siguiente despliegue. Se
+   detectó cambiando un dato en la base y recargando, no leyendo el reporte del
+   build — que además marcaba la ruta como estática cuando ya no lo era.
+2. **`canonical` y `hreflang` salían con URLs relativas.** Los buscadores
+   ignoran `hreflang` relativo, así que la versión en inglés no habría
+   posicionado: exactamente el tráfico que justifica tener dos idiomas.
+3. **Las tarjetas sin foto reservaban un hueco gris.** Se lee como una imagen que
+   no cargó, y en una vitrina eso resta confianza.
+
+### Deuda técnica anotada, con dueño y fecha
+
+- **Imágenes sin optimizar.** La vitrina usa `<img>` con ancho y alto
+  declarados y carga diferida sobre contenido de relleno. Se paga en el Sprint 5
+  con el módulo de subida, según la decisión 0001. No es un descuido: es una
+  espera deliberada a que existan las fotos reales.
+- **Contenido de relleno en las galerías.** Depende de la entrega del SME.
+
+### Para el Sprint Review
+
+Navegar el catálogo en un teléfono, en los dos idiomas, y que el SME señale qué
+está mal de sus propios productos. Eso es lo que el sprint tenía que habilitar.
+
+### Para la Retrospective
+
+Los tres hallazgos comparten una causa: **el reporte de una herramienta no es
+evidencia del comportamiento**. El marcador del build decía "estático", el HTML
+decía que los `hreflang` estaban ahí, y ninguno de los dos era la verdad
+completa. Propuesta para el DoD: cuando un criterio se pueda comprobar desde
+fuera del proceso, se comprueba desde fuera.

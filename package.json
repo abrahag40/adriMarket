@@ -6,22 +6,36 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "db:migrate": "./scripts/db.sh migrate",
     "db:seed": "./scripts/db.sh seed",
     "db:test": "./scripts/db.sh test",
+    "db:bench": "./scripts/db.sh bench",
     "db:reset": "./scripts/db.sh reset",
     "db:pull": "drizzle-kit introspect && rm -rf src/db/generated/meta src/db/generated/*.sql && node scripts/patch-generated.mjs",
-    "typecheck": "tsc --noEmit",
     "test:integration": "tsx --test src/**/*.test.ts"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
     "@types/node": "^22.20.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "drizzle-kit": "^0.31.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.23",
+    "playwright": "^1.62.1",
     "tsx": "^4.23.12",
     "typescript": "^5.7.2"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.2",
-    "postgres": "^3.4.5"
+    "next": "^15.5.23",
+    "postgres": "^3.4.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   }
 }

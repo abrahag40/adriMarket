@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800" role="img" aria-label="Cueva y luz">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a3f52"/>
+      <stop offset="1" stop-color="#0f7d78"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#g)"/>
+  <g fill="#ffffff" opacity="0.22">
+    <circle cx="980" cy="150" r="90"/>
+    <path d="M0 640 C 200 590 380 690 600 640 C 820 590 1000 690 1200 640 L1200 800 L0 800 Z"/>
+    <path d="M0 700 C 240 660 420 740 640 700 C 860 660 1020 740 1200 700 L1200 800 L0 800 Z" opacity="0.6"/>
+  </g>
+  <text x="60" y="120" font-family="Georgia, serif" font-size="52" fill="#ffffff">Cueva y luz</text>
+  <text x="60" y="170" font-family="system-ui, sans-serif" font-size="26" fill="#ffffff" opacity="0.85">Snorkel en cenotes · 2 de 3</text>
+  <text x="60" y="750" font-family="ui-monospace, monospace" font-size="20" fill="#ffffff" opacity="0.7">CONTENIDO DE RELLENO · PENDIENTE FOTO REAL</text>
+</svg>
