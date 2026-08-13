@@ -1,0 +1,5 @@
+-- Todos los clientes pelean por el MISMO rango de fechas.
+-- Solo uno debe ganarlo, sin importar cuántos lo intenten.
+BEGIN;
+SELECT bench_try_stay('2030-06-10'::date, 3);
+COMMIT;

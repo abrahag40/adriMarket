@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.local
+.next/
+dist/
+*.log
+
+# Baseline que genera drizzle-kit al introspectar: no se aplica nunca, las
+# migraciones reales están escritas a mano en db/migrations.
+src/db/generated/meta/
+src/db/generated/*.sql

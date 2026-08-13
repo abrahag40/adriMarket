@@ -1,0 +1,5 @@
+-- Cada cliente intenta apartar 1 lugar de la misma salida.
+-- Con -c 40 -t 5 son 200 intentos sobre un cupo de 20.
+BEGIN;
+SELECT bench_try_seat(1);
+COMMIT;

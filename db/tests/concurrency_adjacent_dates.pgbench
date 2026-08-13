@@ -1,0 +1,6 @@
+-- Cada cliente pide un rango contiguo distinto: nadie debe chocar.
+-- Detecta falsos conflictos (rechazar fechas que en realidad están libres).
+\set base 2000 + :client_id * 3
+BEGIN;
+SELECT bench_try_stay('2031-01-01'::date + :base, 3);
+COMMIT;
