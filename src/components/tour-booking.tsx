@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { BookingSelector } from "@/components/booking-selector";
 import { TourCalendar } from "@/components/availability-calendar";
 import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown";
@@ -22,6 +24,7 @@ function count(value: string | undefined, fallback: number, max: number): number
 
 export async function TourBooking({
   productId,
+  slug,
   locale,
   basePath,
   timezone,
@@ -29,6 +32,7 @@ export async function TourBooking({
   params,
 }: {
   productId: string;
+  slug: string;
   locale: Locale;
   basePath: string;
   timezone: string;
@@ -77,7 +81,17 @@ export async function TourBooking({
         child: children,
         infant: infants,
       });
-      quoteNode = <QuoteBreakdown quote={result.quote} locale={locale} />;
+      const checkoutHref =
+        `/${locale}/checkout?kind=tour&slug=${encodeURIComponent(slug)}` +
+        `&departure=${selected.departureId}&adults=${adults}&children=${children}&infants=${infants}`;
+      quoteNode = (
+        <>
+          <QuoteBreakdown quote={result.quote} locale={locale} />
+          <Link className="btn btn-block" href={checkoutHref}>
+            {t.bookNow}
+          </Link>
+        </>
+      );
     } catch (error) {
       if (error instanceof QuoteError) {
         quoteNode = <p className="quote-warning">{describeQuoteError(error, t)}</p>;

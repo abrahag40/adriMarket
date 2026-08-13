@@ -46,6 +46,21 @@ expect_count() {
   if [[ "$got" == "$want" ]]; then ok "$label ($got)"; else no "$label ($got, esperado $want)"; fi
 }
 
+expect_status_method() {
+  local method="$1" path="$2" want="$3" label="$4" got
+  got="$(curl -s -o /dev/null -w '%{http_code}' -X "$method" -H 'Content-Type: application/json' -d '{}' "$BASE_URL$path")"
+  if [[ "$got" == "$want" ]]; then ok "$label ($path → $got)"; else no "$label ($path → $got, esperado $want)"; fi
+}
+
+# El middleware del Sprint 1 redirigía /api hacia /es/api: un proveedor de pagos
+# no sigue redirecciones ni firma la URL nueva, así que la reserva nunca se
+# confirmaba. Esta comprobación existe para que no vuelva a pasar.
+expect_not_redirect() {
+  local method="$1" path="$2" label="$3" got
+  got="$(curl -s -o /dev/null -w '%{http_code}' -X "$method" -H 'Content-Type: application/json' -d '{}' "$BASE_URL$path")"
+  if [[ "$got" == 3* ]]; then no "$label (→ $got)"; else ok "$label (→ $got, no es redirección)"; fi
+}
+
 expect_redirect() {
   local path="$1" header="$2" want="$3" label="$4" got
   got="$(curl -s -o /dev/null -w '%{redirect_url}' -H "$header" "$BASE_URL$path")"
@@ -158,6 +173,36 @@ expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'value="2026-09-1
 # El total viene en el HTML de la primera respuesta: no lo calculó el navegador.
 expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'class="quote-total"' "el desglose llega renderizado del servidor"
 expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=6&month=2026-10-01" "quote-total" "el mes del calendario no rompe la cotización"
+
+echo
+echo "S3 · checkout y cobro del anticipo"
+CHECKOUT="/es/checkout?kind=stay&slug=casa-akumal&from=2026-09-17&to=2026-09-20&guests=5"
+expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'href="/es/checkout' "la ficha ofrece reservar cuando hay disponibilidad"
+expect_contains "$CHECKOUT" "Confirma tu reserva" "el checkout responde"
+expect_contains "$CHECKOUT" "\$6,474" "el checkout vuelve a calcular el anticipo en el servidor"
+expect_contains "$CHECKOUT" 'name="fullName"' "pide los datos del titular"
+expect_contains "$CHECKOUT" "Acepto la política de cancelación" "exige aceptar la política"
+expect_contains "$CHECKOUT" "noindex" "el checkout no se indexa"
+expect_status "/es/reserva/AM-NOEXISTE" 404 "un código de reserva inexistente responde 404"
+# El checkout de un tour pide nombre y edad de los menores, no documento. La
+# salida se toma del desplegable de la ficha, que es de donde la tomaría un
+# huésped: inventarla haría que la comprobación probara otra cosa.
+DEPARTURE="$(body "/es/tours/snorkel-cenotes-tulum" | grep -oE 'value="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | cut -d'"' -f2)"
+if [[ -n "$DEPARTURE" ]]; then
+  TOURCHK="/es/checkout?kind=tour&slug=snorkel-cenotes-tulum&departure=$DEPARTURE&adults=2&children=1&infants=0"
+  expect_contains "$TOURCHK" "Edad" "en un tour se pide la edad del menor"
+  expect_absent "$TOURCHK" "Documento" "y nunca un documento de identidad"
+  expect_contains "$TOURCHK" 'name="paxName"' "cada pasajero se captura por separado"
+  expect_contains "$TOURCHK" 'name="paxAge"' "y el menor lleva campo de edad"
+else
+  no "no se pudo extraer una salida de la ficha del tour"
+fi
+
+echo
+echo "S3 · el webhook y el worker"
+expect_status_method POST "/api/webhooks/local" 400 "una firma inválida se rechaza"
+expect_not_redirect POST "/api/webhooks/local" "el webhook no se redirige por el prefijo de idioma"
+expect_status_method POST "/api/jobs/tick" 401 "el latido del worker exige secreto"
 
 echo
 echo "S1-2 · accesibilidad básica"

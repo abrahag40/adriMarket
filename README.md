@@ -4,15 +4,14 @@ Motor de reservas para tours en el Caribe y renta de inmuebles. Dos
 inventarios que se compran igual y se operan distinto, con un solo checkout:
 se cobra un anticipo en línea y el saldo se paga en destino.
 
-Estado: capa de datos (Sprint 0), vitrina en dos idiomas (Sprint 1) y motor de
-cotización con calendario (Sprint 2). **Todavía no se puede reservar**: el
-checkout y el cobro del anticipo son el Sprint 3.
+Estado: **se puede reservar y cobrar el anticipo** (Sprints 0 a 3), verificado de
+extremo a extremo. Falta la cuenta de la pasarela para ejecutarlo contra el
+servicio real, y el panel de operación es el Sprint 4.
 
 - **Plan maestro** (columna vertebral, una sola fuente de verdad): [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
 - Esquema: [`docs/esquema.md`](docs/esquema.md)
-- Sprint en curso: [`docs/sprint-03.md`](docs/sprint-03.md)
-- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md)
+- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md)
 
 ## Cómo correrlo
 
@@ -36,6 +35,7 @@ npm run typecheck
 npm run lint
 npm run build && npx next start &
 ./scripts/smoke.sh            # criterios de aceptación sobre el sitio construido
+npm run test:e2e              # recorrido completo del checkout en navegador real
 npm run db:bench              # prueba de carga: sobreventa bajo concurrencia
 ```
 
@@ -124,6 +124,20 @@ mostrar al huésped.
 | `AM001` | cupo agotado en la salida |
 | `AM002` | fechas ya ocupadas en la unidad |
 | `AM003` | transición de estado inválida |
+
+## Pagos y avisos: proveedores intercambiables
+
+`src/modules/payments` y `src/modules/notifications` hablan con Stripe y Resend
+por HTTP, detrás de una interfaz. Sin llaves configuradas se usan proveedores
+locales que **no son dobles de prueba**: firman y verifican con el mismo
+mecanismo que los reales, y el aviso se guarda renderizado en la bandeja en lugar
+de enviarse. El camino que se ejercita —firma, idempotencia, confirmación
+transaccional, reintentos— es el de producción; lo único que no ocurre es el
+cobro y el envío.
+
+Con `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` presentes se usa Stripe. La
+selección es por configuración y no por una bandera de "modo desarrollo": sin
+llaves no hay nada que cobrar, y con llaves siempre se usa la real.
 
 ## Convenciones
 

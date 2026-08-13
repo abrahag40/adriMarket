@@ -70,7 +70,8 @@ function findSqlState(error: unknown): { code: string; message: string } | null 
   return null;
 }
 
-function rethrow(error: unknown): never {
+/** Traduce un error de Postgres a error de dominio, o lo re-lanza tal cual. */
+export function rethrowDomainError(error: unknown): never {
   const domain = findSqlState(error);
   if (domain) {
     throw new InventoryUnavailableError(domain.code as UnavailableCode, domain.message);
@@ -104,7 +105,7 @@ export async function holdStay(
     `);
     return rows[0]!.hold_id;
   } catch (error) {
-    rethrow(error);
+    rethrowDomainError(error);
   }
 }
 
@@ -132,7 +133,7 @@ export async function holdTourSeats(
     `);
     return rows[0]!.hold_id;
   } catch (error) {
-    rethrow(error);
+    rethrowDomainError(error);
   }
 }
 
@@ -149,7 +150,7 @@ export async function confirmBooking(bookingId: string, actor = "system"): Promi
     `);
     return rows[0]!.status;
   } catch (error) {
-    rethrow(error);
+    rethrowDomainError(error);
   }
 }
 

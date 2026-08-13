@@ -35,5 +35,9 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Se excluyen recursos estáticos y de sistema: no tienen idioma.
-  matcher: ["/((?!_next|media|favicon.ico|robots.txt|sitemap.xml).*)"],
+  //
+  // `api` es la exclusión que importa y la que faltaba: sin ella, el webhook de
+  // la pasarela recibe un 307 hacia /es/api/... y la reserva nunca se confirma.
+  // Un proveedor de pagos no sigue redirecciones ni firma la URL nueva.
+  matcher: ["/((?!api|_next|media|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

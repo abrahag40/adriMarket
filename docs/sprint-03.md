@@ -270,3 +270,88 @@ transacción, apartado que vence sin pago, y el mismo webhook llegando diez vece
 
 Los caminos que fallan son la demostración que importa. El camino feliz lo logra
 cualquiera.
+
+---
+
+## Cierre del sprint
+
+**Sprint Goal: cumplido.** Un huésped completa una reserva pagando el anticipo, y
+tanto él como la operación reciben la confirmación. 21 puntos, cinco elementos.
+
+| Historia | Pts | Estado |
+|---|---|---|
+| S3-1 Checkout con datos, pax y política aceptada | 3 | terminada |
+| S3-2 Apartado del inventario y cobro del anticipo | 8 | terminada, con salvedad |
+| S3-3 Webhook firmado y confirmación idempotente | 5 | terminada |
+| S3-4 Correos de confirmación desde la bandeja | 3 | terminada |
+| S3-5 Worker de expiración y reintentos | 2 | terminada |
+| **Velocidad real** | **21** | |
+
+Velocidad acumulada: 22, 21, 21. El pronóstico del Sprint 4 sigue en 21.
+
+### La salvedad, dicha completa
+
+**La cuenta de Stripe nunca llegó**, así que la implementación de Stripe está
+escrita contra su API documentada pero **no se ha ejecutado contra el servicio**.
+Lo mismo con Resend: hace falta el dominio con SPF, DKIM y DMARC.
+
+Lo que sí quedó verificado, y no es poco:
+
+- **La verificación de firma**, con vectores propios: cuerpo alterado, secreto
+  distinto, firma vieja, marca de tiempo del futuro, rotación de secreto y
+  cabeceras mal formadas. Es la parte que decide quién puede confirmar reservas.
+- **Todo el flujo de reserva**, con una pasarela local que firma sus eventos con
+  el mismo mecanismo y los procesa por el mismo camino. No es un doble que diga
+  "sí": lo único que no ocurre es el cobro.
+- **El contenido exacto de los correos**, porque el transporte local guarda el
+  mensaje renderizado en la bandeja en lugar de mandarlo.
+
+La interfaz de proveedor que venía de la arquitectura se ganó el sueldo: se
+diseñó para poder agregar Mercado Pago sin tocar el checkout, y terminó
+permitiendo entregar el sprint sin la cuenta del cliente.
+
+**Tarea del día 1 del Sprint 4:** primera prueba con llaves reales y un cargo de
+prueba pequeño, más entrega de correo verificada a Gmail, Outlook e iCloud.
+
+### Evidencia
+
+- **8 casos de firma** de webhook, sin base de datos.
+- **16 casos de integración** del checkout completo, repetibles sobre la misma
+  base.
+- **91 criterios de aceptación** sobre el sitio construido, 12 nuevos.
+- **Recorrido de extremo a extremo en navegador real** (`npm run test:e2e`): de la
+  ficha al checkout, formulario incompleto, reserva creada, pago simulado y
+  reserva confirmada al volver a la URL.
+- Las 12 garantías del Sprint 0 y la prueba de carga, intactas.
+- 60 pruebas automatizadas en total, typecheck y linter limpios.
+
+### Hallazgos del sprint
+
+1. **El middleware del Sprint 1 redirigía las rutas de API.** `/api/webhooks/...`
+   respondía 307 hacia `/es/api/webhooks/...`, y **un proveedor de pagos no sigue
+   redirecciones ni firma la URL nueva**: en producción ninguna reserva se habría
+   confirmado. Se encontró al probar el endpoint con curl, no leyendo el código.
+   Hay una comprobación en `scripts/smoke.sh` para que no vuelva a pasar.
+2. **Mi propio código se contradecía con su comentario.** Una función decía
+   consultar la configuración de cupo y en realidad suponía que solo los infantes
+   no ocupan lugar. Ahora el número de lugares lo decide el motor de precios, que
+   ya consultó esa configuración: una sola copia de la regla.
+3. **`jsonb_build_object` no puede inferir el tipo de un parámetro.** Postgres se
+   niega a adivinar y aborta. Casts explícitos.
+4. **La página de confirmación no mostraba las fechas.** Es la página que el
+   huésped guarda, y aterrizaba sin lo primero que quiere ver.
+
+### Deuda técnica anotada
+
+- Stripe y Resend sin ejecutar contra el servicio real (arriba).
+- La simulación de pago vive en la aplicación y **se niega a actuar si hay llaves
+  de Stripe presentes**. Conviene quitarla del build de producción en el Sprint 7.
+- Imágenes sin optimizar (decisión 0001, se paga en el Sprint 6).
+
+### Para la Retrospective
+
+El hallazgo del middleware es el mismo patrón de los tres sprints anteriores: **lo
+que no se ejecuta, no está verificado**. El código era correcto leyéndolo; el
+sistema estaba roto. Cuatro sprints, cuatro veces la misma lección — vale la pena
+dejar de tratarla como anécdota y aceptar que la barra de "probado desde fuera"
+es la única que ha encontrado algo.

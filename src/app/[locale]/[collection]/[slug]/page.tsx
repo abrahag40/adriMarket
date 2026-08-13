@@ -278,6 +278,7 @@ export default async function ProductPage({
           {kind === "stay" ? (
             <StayBooking
               productId={product.id}
+              slug={product.slug}
               locale={locale}
               basePath={basePath}
               timezone={product.timezone}
@@ -292,6 +293,7 @@ export default async function ProductPage({
           ) : (
             <TourBooking
               productId={product.id}
+              slug={product.slug}
               locale={locale}
               basePath={basePath}
               timezone={product.timezone}

@@ -1,6 +1,7 @@
-import { formatMoney, LOCALE_TAG, type Locale } from "@/i18n/config";
+import { formatMoney, type Locale } from "@/i18n/config";
 import { getMessages, type Messages } from "@/i18n/messages";
-import type { Quote, QuoteError, QuoteLine } from "@/modules/pricing/types";
+import { describeLine } from "@/modules/pricing/labels";
+import type { Quote, QuoteError } from "@/modules/pricing/types";
 
 /**
  * Desglose de la cotización.
@@ -10,45 +11,6 @@ import type { Quote, QuoteError, QuoteLine } from "@/modules/pricing/types";
  * texto porque no sabe en qué idioma está leyendo el huésped, y porque el mismo
  * desglose se va a re-renderizar años después en un comprobante.
  */
-
-function formatNight(night: string, locale: Locale): string {
-  return new Intl.DateTimeFormat(LOCALE_TAG[locale], {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(new Date(`${night}T00:00:00Z`));
-}
-
-function describeLine(line: QuoteLine, locale: Locale, t: Messages): string {
-  switch (line.kind) {
-    case "nightly":
-      return formatNight(line.concept, locale);
-
-    case "occupancy": {
-      // occupancy:<huéspedes extra>x<noches>
-      const [, detail = ""] = line.concept.split(":");
-      const [guests = "0", nights = "0"] = detail.split("x");
-      return t.quoteExtraGuests(Number(guests), Number(nights));
-    }
-
-    case "pax": {
-      // pax:<tipo>:<cantidad>
-      const [, type = "", count = "0"] = line.concept.split(":");
-      const label =
-        type === "adult" ? t.paxAdult : type === "child" ? t.paxChild : t.paxInfant;
-      return `${label} × ${count}`;
-    }
-
-    case "fee":
-      return line.concept === "cleaning" ? t.quoteCleaning : line.concept;
-
-    case "discount":
-    case "tax":
-      // El nombre del impuesto o del cupón viene configurado, ya legible.
-      return line.concept;
-  }
-}
 
 /** Traduce un error de cotización al idioma de la página. */
 export function describeQuoteError(error: QuoteError, t: Messages): string {

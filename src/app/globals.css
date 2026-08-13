@@ -896,3 +896,117 @@ main {
     position: static;
   }
 }
+
+/* ---------- checkout · Sprint 3 ---------- */
+
+.btn-block {
+  width: 100%;
+}
+
+.checkout-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 52ch;
+}
+
+.checkout-fieldset {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.checkout-fieldset legend {
+  font-weight: 650;
+  padding-inline: 6px;
+}
+
+.field input[type="text"],
+.field input[type="email"],
+.field input[type="tel"],
+.field input[type="number"] {
+  min-height: var(--tap);
+  padding: 0 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  min-width: 0;
+}
+
+.field-narrow {
+  flex: 0 0 96px;
+  min-width: 96px;
+}
+
+.pax-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: var(--tap);
+  font-size: var(--step--1);
+}
+
+.check input {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.policy-text {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.small {
+  font-size: var(--step--1);
+}
+
+.status-ok,
+.status-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  padding: 8px 14px;
+  border-radius: 100px;
+  align-self: flex-start;
+}
+
+.status-ok {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status-wait {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+/* La pasarela de prueba se distingue a propósito: nadie debe confundirla con
+   un cobro real. */
+.simulator {
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

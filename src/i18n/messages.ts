@@ -91,6 +91,38 @@ export type Messages = {
   errNoPax: string;
   errSoldOut: (left: number) => string;
   errDepartureClosed: string;
+
+  // Checkout · Sprint 3
+  bookNow: string;
+  checkoutTitle: string;
+  checkoutHolder: string;
+  fieldName: string;
+  fieldEmail: string;
+  fieldPhone: string;
+  paxHeading: string;
+  paxName: string;
+  paxAge: string;
+  acceptPolicy: string;
+  acceptPrivacy: string;
+  payDeposit: (amount: string) => string;
+  holdNotice: (minutes: number) => string;
+  checkoutError: string;
+  requiredField: string;
+  invalidEmail: string;
+  mustAcceptPolicy: string;
+  bookingTitle: (code: string) => string;
+  bookingHold: string;
+  bookingConfirmed: string;
+  bookingExpired: string;
+  bookingCancelled: string;
+  depositPaid: string;
+  balanceOnArrival: string;
+  simulateHeading: string;
+  simulateSuccess: string;
+  simulateFailure: string;
+  simulateNotice: string;
+  backToCatalog: string;
+  reportAt: (time: string) => string;
 };
 
 const es: Messages = {
@@ -178,6 +210,39 @@ const es: Messages = {
   errSoldOut: (left) =>
     left === 0 ? "Ya no quedan lugares en esa salida." : `Solo quedan ${left} lugares en esa salida.`,
   errDepartureClosed: "Esa salida no está disponible.",
+
+  bookNow: "Reservar",
+  checkoutTitle: "Confirma tu reserva",
+  checkoutHolder: "Datos de quien reserva",
+  fieldName: "Nombre completo",
+  fieldEmail: "Correo",
+  fieldPhone: "Teléfono",
+  paxHeading: "Pasajeros",
+  paxName: "Nombre",
+  paxAge: "Edad",
+  acceptPolicy: "Acepto la política de cancelación",
+  acceptPrivacy: "Acepto el aviso de privacidad",
+  payDeposit: (amount) => `Pagar anticipo de ${amount}`,
+  holdNotice: (minutes) =>
+    `Apartamos tus fechas ${minutes} minutos mientras completas el pago.`,
+  checkoutError: "No pudimos crear tu reserva.",
+  requiredField: "Falta este dato.",
+  invalidEmail: "Ese correo no parece válido.",
+  mustAcceptPolicy: "Hay que aceptar la política para continuar.",
+  bookingTitle: (code) => `Reserva ${code}`,
+  bookingHold: "Esperando el pago del anticipo",
+  bookingConfirmed: "Reserva confirmada",
+  bookingExpired: "El apartado venció y las fechas se liberaron",
+  bookingCancelled: "Reserva cancelada",
+  depositPaid: "Anticipo pagado",
+  balanceOnArrival: "Saldo a pagar en destino",
+  simulateHeading: "Pasarela de prueba",
+  simulateSuccess: "Simular pago exitoso",
+  simulateFailure: "Simular pago rechazado",
+  simulateNotice:
+    "Sin llaves de la pasarela real, este paso simula su respuesta. El evento se firma y se procesa por el mismo camino que en producción.",
+  backToCatalog: "Volver al catálogo",
+  reportAt: (time) => `Preséntate a las ${time} (15 minutos antes)`,
 };
 
 const en: Messages = {
@@ -265,6 +330,38 @@ const en: Messages = {
   errSoldOut: (left) =>
     left === 0 ? "That departure is sold out." : `Only ${left} seats left on that departure.`,
   errDepartureClosed: "That departure is not available.",
+
+  bookNow: "Book now",
+  checkoutTitle: "Confirm your booking",
+  checkoutHolder: "Who is booking",
+  fieldName: "Full name",
+  fieldEmail: "Email",
+  fieldPhone: "Phone",
+  paxHeading: "Guests",
+  paxName: "Name",
+  paxAge: "Age",
+  acceptPolicy: "I accept the cancellation policy",
+  acceptPrivacy: "I accept the privacy notice",
+  payDeposit: (amount) => `Pay ${amount} deposit`,
+  holdNotice: (minutes) => `We hold your dates for ${minutes} minutes while you pay.`,
+  checkoutError: "We could not create your booking.",
+  requiredField: "This is required.",
+  invalidEmail: "That email does not look valid.",
+  mustAcceptPolicy: "You need to accept the policy to continue.",
+  bookingTitle: (code) => `Booking ${code}`,
+  bookingHold: "Waiting for the deposit payment",
+  bookingConfirmed: "Booking confirmed",
+  bookingExpired: "The hold expired and the dates were released",
+  bookingCancelled: "Booking cancelled",
+  depositPaid: "Deposit paid",
+  balanceOnArrival: "Balance to pay on arrival",
+  simulateHeading: "Test gateway",
+  simulateSuccess: "Simulate a successful payment",
+  simulateFailure: "Simulate a declined payment",
+  simulateNotice:
+    "Without real gateway keys, this step simulates its response. The event is signed and processed through the same path as production.",
+  backToCatalog: "Back to catalog",
+  reportAt: (time) => `Please arrive at ${time} (15 minutes early)`,
 };
 
 const MESSAGES: Record<Locale, Messages> = { es, en };

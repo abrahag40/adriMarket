@@ -17,7 +17,8 @@
     "db:bench": "./scripts/db.sh bench",
     "db:reset": "./scripts/db.sh reset",
     "db:pull": "drizzle-kit introspect && rm -rf src/db/generated/meta src/db/generated/*.sql && node scripts/patch-generated.mjs",
-    "test:integration": "tsx --test src/**/*.test.ts"
+    "test:integration": "tsx --test src/**/*.test.ts",
+    "test:e2e": "node scripts/e2e.mjs"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

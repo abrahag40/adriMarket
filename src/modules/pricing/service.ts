@@ -237,6 +237,14 @@ export type TourQuoteResult = {
   departureId: string;
   startsAt: string;
   seatsLeft: number;
+  /**
+   * Lugares que ocupa este grupo, según `counts_toward_capacity`.
+   *
+   * Se expone para que el apartado use el mismo número que la validación del
+   * precio. Recalcularlo en el checkout sería duplicar la regla del infante que
+   * no ocupa asiento, y dos copias de una regla se separan tarde o temprano.
+   */
+  seatsNeeded: number;
 };
 
 /**
@@ -293,14 +301,16 @@ export async function quoteTour(
     taxesFor(productId),
   ]);
 
+  const prices = priceRows.map((row) => ({
+    paxType: row.pax_type,
+    priceCents: Number(row.price_cents),
+    countsTowardCapacity: row.counts_toward_capacity,
+  }));
+
   const quote = buildTourQuote({
     currency: departure.currency,
     pax,
-    prices: priceRows.map((row) => ({
-      paxType: row.pax_type,
-      priceCents: Number(row.price_cents),
-      countsTowardCapacity: row.counts_toward_capacity,
-    })),
+    prices,
     seatsLeft: Number(departure.seats_left),
     departureOpen: departure.status === "open",
     startsAt: new Date(departure.starts_at),
@@ -309,10 +319,16 @@ export async function quoteTour(
     now,
   });
 
+  const seatsNeeded = (Object.keys(pax) as (keyof PaxCounts)[]).reduce((seats, type) => {
+    const price = prices.find((entry) => entry.paxType === type);
+    return price?.countsTowardCapacity ? seats + pax[type] : seats;
+  }, 0);
+
   return {
     quote,
     departureId: departure.departure_id,
     startsAt: departure.starts_at,
     seatsLeft: Number(departure.seats_left),
+    seatsNeeded,
   };
 }

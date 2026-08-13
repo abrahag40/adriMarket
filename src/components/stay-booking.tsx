@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { BookingSelector } from "@/components/booking-selector";
 import { StayCalendar } from "@/components/availability-calendar";
 import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown";
@@ -23,6 +25,7 @@ function validDate(value: string | undefined): string | null {
 
 export async function StayBooking({
   productId,
+  slug,
   locale,
   basePath,
   timezone,
@@ -30,6 +33,7 @@ export async function StayBooking({
   params,
 }: {
   productId: string;
+  slug: string;
   locale: Locale;
   basePath: string;
   timezone: string;
@@ -69,8 +73,18 @@ export async function StayBooking({
   if (from && to) {
     try {
       const result = await quoteStay(productId, { from, to }, guests);
+      const checkoutHref =
+        `/${locale}/checkout?kind=stay&slug=${encodeURIComponent(slug)}` +
+        `&from=${from}&to=${to}&guests=${guests}`;
       quoteNode = (
-        <QuoteBreakdown quote={result.quote} locale={locale} available={result.available} />
+        <>
+          <QuoteBreakdown quote={result.quote} locale={locale} available={result.available} />
+          {result.available ? (
+            <Link className="btn btn-block" href={checkoutHref}>
+              {t.bookNow}
+            </Link>
+          ) : null}
+        </>
       );
     } catch (error) {
       if (error instanceof QuoteError) {

@@ -30,8 +30,9 @@ responden preguntas distintas:
 | 0 | — | Esquema y garantías de inventario | — | entregado, fuera de cadencia |
 | 1 | 1–2 | Vitrina pública en dos idiomas | 22 | **cumplido** |
 | 2 | 3–4 | Disponibilidad y precio exactos | 21 | **cumplido** |
+| 3 | 5–6 | Checkout y cobro del anticipo | 21 | **cumplido**, con Stripe pendiente de llaves |
 
-**Velocidad observada: 22 y 21.** Pronóstico para adelante: **21 puntos por
+**Velocidad observada: 22, 21 y 21.** Pronóstico para adelante: **21 puntos por
 sprint**. No es una meta a superar; es el insumo del pronóstico.
 
 Lo que ya funciona y está verificado: catálogo en español e inglés, motor de
@@ -39,7 +40,12 @@ cotización con temporadas y restricciones, calendario de disponibilidad,
 garantías de inventario probadas bajo concurrencia real, y una barra de
 verificación de 77 criterios que corre en el pipeline.
 
-Lo que todavía **no** existe: cobrar. Nadie puede reservar.
+Ya se puede reservar y cobrar el anticipo: el flujo completo está verificado de
+extremo a extremo con la pasarela local. **Falta la cuenta de Stripe** para
+ejecutarlo contra el servicio real, que es la primera tarea del Sprint 4.
+
+Lo que todavía **no** existe: que la operación administre el día a día sin el
+equipo técnico. Eso es el Sprint 4.
 
 ---
 
@@ -307,7 +313,7 @@ Lo que hay que arrancar **antes** de necesitarlo, con su tiempo de espera real:
 
 | Dependencia | Tiempo típico | Arrancar en | Se necesita en | Dueño |
 |---|---|---|---|---|
-| **Cuenta de Stripe** (verificación del negocio) | 2 a 4 semanas | ya iniciado, Sprint 1 | Sprint 3 | PO |
+| **Cuenta de Stripe** (verificación del negocio) | 2 a 4 semanas | ya iniciado | **vencida: se necesitaba en el Sprint 3** | PO |
 | **Dominio, correo y registros SPF/DKIM/DMARC** | 1 a 3 días | Sprint 3, día 1 | Sprint 3 | Developers |
 | **WhatsApp Business y plantillas** (aprobación de Meta) | 1 a 3 semanas | Sprint 5 | Sprint 7 | PO |
 | **Tarifas y temporadas reales** | — | vencido | Sprint 2 | PO / SME |
