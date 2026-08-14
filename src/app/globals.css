@@ -1010,3 +1010,251 @@ main {
   flex-direction: column;
   gap: 12px;
 }
+
+/* ---------- panel de operación · Sprint 4 ---------- */
+
+.admin {
+  padding-block: 20px;
+  max-width: 900px;
+}
+
+.admin-narrow {
+  max-width: 30rem;
+  margin-inline: auto;
+  padding-block: 48px;
+}
+
+.admin-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.admin-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 14px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--step--1);
+}
+
+.admin-tab-on {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+.admin-who {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+
+/* El botón de salir es discreto pero se puede tocar: 44 px de alto, como todo
+   lo demás del panel, porque se opera con el pulgar y de pie. */
+.admin-exit {
+  min-height: 44px;
+  padding: 0 12px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-exit:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.admin-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Tarjetas y no tabla: una fila de ocho columnas en un teléfono obliga a
+   desplazarse en horizontal para leer un solo registro. */
+.admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--bg);
+  text-decoration: none;
+  color: var(--text);
+  min-height: var(--tap);
+}
+
+a.admin-card:hover {
+  border-color: var(--accent);
+}
+
+.admin-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-code {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-card-title {
+  font-family: var(--serif);
+  font-size: var(--step-1);
+}
+
+.admin-card-meta,
+.admin-card-due {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+
+.admin-card-due {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.admin-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--line);
+}
+
+.admin-badge-ok { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.admin-badge-wait { background: var(--surface-2); color: var(--text-muted); }
+.admin-badge-done { background: var(--surface); color: var(--text-muted); }
+.admin-badge-off { background: var(--surface); color: var(--text-faint); }
+
+.admin-panel {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg);
+}
+
+.admin-log {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--step--1);
+}
+
+.admin-log li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-log-type { font-weight: 650; }
+.admin-log-meta { color: var(--text-muted); }
+
+.scroll-x {
+  overflow-x: auto;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+}
+
+.occupancy {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.occupancy th {
+  padding: 6px 4px;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* La columna de la unidad se queda fija y acotada. Sin el tope, un nombre largo
+   se come media pantalla del teléfono y del mes solo se ven diez días; el nombre
+   completo sigue disponible en el title de la celda. */
+.occupancy th[scope="row"] {
+  text-align: left;
+  padding-inline: 10px;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  max-width: 42vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--bg);
+  border-right: 1px solid var(--line-soft);
+}
+
+@media (min-width: 700px) {
+  .occupancy th[scope="row"] {
+    max-width: none;
+  }
+}
+
+.occupancy td {
+  width: 22px;
+  height: 26px;
+  border: 1px solid var(--line-soft);
+}
+
+.occ-free { background: var(--bg); }
+.occ-booked { background: var(--accent); }
+.occ-blocked { background: var(--surface-2); border-color: var(--line) !important; }
+
+.legend-booked::before,
+.legend-blocked::before,
+.legend-free-adm::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  border: 1px solid var(--line);
+}
+
+.legend-booked::before { background: var(--accent); border-color: var(--accent); }
+.legend-blocked::before { background: var(--surface-2); }
+.legend-free-adm::before { background: var(--bg); }
+
+.field input[type="search"] {
+  min-height: var(--tap);
+  padding: 0 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  min-width: 0;
+}

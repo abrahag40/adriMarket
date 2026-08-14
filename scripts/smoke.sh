@@ -205,6 +205,31 @@ expect_not_redirect POST "/api/webhooks/local" "el webhook no se redirige por el
 expect_status_method POST "/api/jobs/tick" 401 "el latido del worker exige secreto"
 
 echo
+echo "S4 · el panel no se entra sin sesión"
+# El panel se protege en el servidor, no escondiendo enlaces. Cada ruta se
+# comprueba por separado: proteger el índice y olvidar una sección es la forma
+# más común de dejar una puerta abierta.
+for ruta in /admin /admin/reservas /admin/calendario /admin/bloqueos; do
+  expect_redirect "$ruta" "Accept-Language: es-MX" "/admin/entrar" "sin sesión, $ruta manda a la pantalla de acceso"
+done
+expect_status "/admin/entrar" 200 "la pantalla de acceso responde"
+expect_contains "/admin/entrar" 'name="email"' "pide el correo del staff"
+expect_contains "/admin/entrar" "noindex" "el panel no se indexa"
+
+# El panel NO lleva prefijo de idioma. Antes de arreglarlo, el middleware lo
+# mandaba a /es/admin —que no existe— y la operación no podía entrar. Es el
+# mismo error que ya había roto el webhook: se comprueba para que no vuelva.
+expect_not_redirect GET "/admin/entrar" "el panel no se redirige por el prefijo de idioma"
+expect_redirect "/admin" "Accept-Language: en-US,en;q=0.9" "/admin/entrar" "tampoco con el navegador en inglés"
+
+# Un enlace inventado no entrega sesión, y la respuesta no dice por qué.
+expect_redirect "/admin/entrar/token-inventado" "Accept-Language: es-MX" "/admin/entrar?vencido=1" "un enlace inválido no abre sesión"
+
+# La pantalla de acceso responde igual exista o no el correo: si distinguiera,
+# sería una forma de averiguar quién trabaja aquí.
+expect_absent "/admin/entrar" "no existe" "la pantalla de acceso no delata correos"
+
+echo
 echo "S1-2 · accesibilidad básica"
 expect_contains "/es" "Ir al contenido" "hay enlace para saltar al contenido"
 expect_contains "/en" "Skip to content" "el enlace de salto también está traducido"

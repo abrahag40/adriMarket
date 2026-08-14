@@ -3,9 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { LOCALES, negotiateLocale } from "@/i18n/config";
 
 /**
- * Toda ruta pública vive bajo un prefijo de idioma. Este middleware solo
- * resuelve la entrada sin prefijo: manda al visitante a la versión que su
+ * Toda ruta **de la vitrina** vive bajo un prefijo de idioma. Este middleware
+ * solo resuelve la entrada sin prefijo: manda al visitante a la versión que su
  * navegador prefiere.
+ *
+ * El panel de operación (`/admin`) no lleva prefijo: lo usa una sola operación,
+ * en un solo idioma, y no se indexa. Traducirlo sería trabajo sin destinatario.
  *
  * Es una redirección 307 y no 308 a propósito: la preferencia de idioma del
  * visitante puede cambiar, y no queremos que quede cacheada de forma permanente
@@ -36,8 +39,13 @@ export function middleware(request: NextRequest) {
 export const config = {
   // Se excluyen recursos estáticos y de sistema: no tienen idioma.
   //
-  // `api` es la exclusión que importa y la que faltaba: sin ella, el webhook de
-  // la pasarela recibe un 307 hacia /es/api/... y la reserva nunca se confirma.
-  // Un proveedor de pagos no sigue redirecciones ni firma la URL nueva.
-  matcher: ["/((?!api|_next|media|favicon.ico|robots.txt|sitemap.xml).*)"],
+  // Dos exclusiones que no son cosmética y que las dos aparecieron ejecutando,
+  // no leyendo:
+  //
+  // - `api`: sin ella el webhook de la pasarela recibe un 307 hacia /es/api/… y
+  //   la reserva nunca se confirma. Un proveedor de pagos no sigue redirecciones
+  //   ni vuelve a firmar la URL nueva.
+  // - `admin`: sin ella el panel entero responde 307 hacia /es/admin, que no
+  //   existe. La operación no puede entrar.
+  matcher: ["/((?!api|admin|_next|media|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

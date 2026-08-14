@@ -5,8 +5,14 @@
  * Es la evidencia que se presenta en el Sprint Review: un navegador real hace
  * una reserva completa, incluidos los caminos que no salen bien.
  *
- *   npm run build && npx next start -p 3100 &
+ *   NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
+ *   npx next start -p 3100 &
  *   BASE_URL=http://127.0.0.1:3100 node scripts/e2e.mjs ./capturas
+ *
+ * `NEXT_PUBLIC_SITE_URL` se fija **al construir** y no al arrancar: Next reemplaza
+ * esas variables durante la compilación. La pasarela recibe una URL de retorno
+ * absoluta, así que si no coincide con el puerto donde se sirve, el navegador
+ * vuelve a un servidor que no existe y el recorrido muere justo después de pagar.
  *
  * Requiere la pasarela local (sin llaves de Stripe): el paso del cobro simula la
  * respuesta del proveedor, firmada y procesada por el mismo camino que en
@@ -25,10 +31,35 @@ function ok(label) { console.log(`  ✔ ${label}`); }
 function fail(label) { console.log(`  ✘ ${label}`); process.exitCode = 1; }
 
 // 1. Ficha → cotización → reservar
-await page.goto(`${base}/es/estancias/casa-akumal?from=2026-11-12&to=2026-11-15&guests=5`, { waitUntil: "networkidle" });
-// Rango propio del recorrido, distinto del que usa scripts/smoke.sh: este
-// crea una reserva de verdad y dejaría esas fechas ocupadas para el otro.
-// Mismo patrón jueves–domingo, así que el total es el mismo.
+//
+// El rango no se escribe a mano: este recorrido **vende** esas noches, así que
+// fijarlas hace que solo se pueda correr una vez. Se buscan jueves libres, que
+// dan siempre el mismo total (una noche base más dos de fin de semana) mientras
+// no se entre en temporada alta, del 15 de diciembre en adelante.
+const jueves = [];
+for (let d = new Date(Date.UTC(2026, 8, 24)); d < new Date(Date.UTC(2026, 11, 10)); d.setUTCDate(d.getUTCDate() + 1)) {
+  if (d.getUTCDay() === 4) jueves.push(new Date(d));
+}
+
+const iso = (date) => date.toISOString().slice(0, 10);
+let rango = null;
+for (const salida of jueves) {
+  const regreso = new Date(salida);
+  regreso.setUTCDate(regreso.getUTCDate() + 3);
+  const candidato = { from: iso(salida), to: iso(regreso) };
+  await page.goto(
+    `${base}/es/estancias/casa-akumal?from=${candidato.from}&to=${candidato.to}&guests=5`,
+    { waitUntil: "networkidle" },
+  );
+  if ((await page.getByRole("link", { name: "Reservar" }).count()) > 0) {
+    rango = candidato;
+    break;
+  }
+}
+
+if (rango) ok(`fechas libres para el recorrido: ${rango.from} a ${rango.to}`);
+else fail("no quedó ningún jueves libre en el rango de prueba");
+
 const total = await page.locator(".quote-total td").innerText();
 if (total.includes("16,184")) ok(`la ficha cotiza ${total}`);
 else fail(`total inesperado: ${total}`);

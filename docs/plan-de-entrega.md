@@ -31,21 +31,27 @@ responden preguntas distintas:
 | 1 | 1–2 | Vitrina pública en dos idiomas | 22 | **cumplido** |
 | 2 | 3–4 | Disponibilidad y precio exactos | 21 | **cumplido** |
 | 3 | 5–6 | Checkout y cobro del anticipo | 21 | **cumplido**, con Stripe pendiente de llaves |
+| 4 | 7–8 | Panel de operación | 21 | **cumplido** |
 
-**Velocidad observada: 22, 21 y 21.** Pronóstico para adelante: **21 puntos por
-sprint**. No es una meta a superar; es el insumo del pronóstico.
+**Velocidad observada: 22, 21, 21 y 21.** Pronóstico para adelante: **21 puntos
+por sprint**. No es una meta a superar; es el insumo del pronóstico.
 
 Lo que ya funciona y está verificado: catálogo en español e inglés, motor de
 cotización con temporadas y restricciones, calendario de disponibilidad,
 garantías de inventario probadas bajo concurrencia real, y una barra de
-verificación de 77 criterios que corre en el pipeline.
+verificación de 102 criterios que corre en el pipeline.
 
 Ya se puede reservar y cobrar el anticipo: el flujo completo está verificado de
 extremo a extremo con la pasarela local. **Falta la cuenta de Stripe** para
-ejecutarlo contra el servicio real, que es la primera tarea del Sprint 4.
+ejecutarlo contra el servicio real; lleva un sprint de retraso y ahora bloquea la
+operación real, no la demostración.
 
-Lo que todavía **no** existe: que la operación administre el día a día sin el
-equipo técnico. Eso es el Sprint 4.
+Y ya se puede **operar**: recepción entra con su cuenta, ve el día, cobra el saldo
+en destino, bloquea noches y consulta el calendario, todo desde el teléfono y sin
+el equipo técnico.
+
+Lo que todavía **no** existe: que la operación resuelva sola una cancelación, un
+cambio de fecha o un cierre de puerto. Eso es el Sprint 5.
 
 ---
 
@@ -249,6 +255,9 @@ y el DoD exige la prueba de concurrencia. Se recorta alcance en otros sprints.
 
 **Se demuestra:** recepción opera un día completo simulado —una llegada, un
 bloqueo por mantenimiento y un cobro de saldo— sin intervención del equipo.
+
+**Cerrado.** 21 de 21 puntos. El detalle, los hallazgos y el supuesto que se
+asumió por la decisión 6 sin responder están en [`sprint-04.md`](sprint-04.md).
 
 ### Sprint 5 · semanas 9–10 · 21 pts · **el que trajo el SME**
 
@@ -496,7 +505,7 @@ razón — no calladamente en una hoja aparte.
 | 3 | Política de cancelación con porcentajes y plazos concretos | PO con el SME | antes del Sprint 3 | A1: el texto legal que el huésped acepta en el checkout |
 | 4 | ¿Se factura CFDI? | PO | antes del Release 2 | Un módulo con proveedor de timbrado |
 | 5 | ¿El SME da descuentos por estancia larga hoy? | SME | antes del Sprint 6 | Si es sí, entra esquema nuevo y 3 puntos |
-| 6 | ¿Quién opera el panel a diario y desde qué dispositivo? | PO | antes del Sprint 4 | Si es recepción desde el celular, el panel se diseña distinto |
+| 6 | ¿Quién opera el panel a diario y desde qué dispositivo? | PO | **venció sin respuesta** | Se asumió *recepción desde el celular* y el panel se construyó móvil primero (ver `docs/sprint-04.md`). Confirmar o desmentir |
 | 7 | Fotos y textos reales | SME | antes del Sprint 6 | Que la vitrina venda algo parecido a lo que existe |
 
 Las decisiones **2 y 3 son las urgentes**. La 3 no es un detalle legal: es lo que

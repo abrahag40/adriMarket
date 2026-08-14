@@ -4,14 +4,14 @@ Motor de reservas para tours en el Caribe y renta de inmuebles. Dos
 inventarios que se compran igual y se operan distinto, con un solo checkout:
 se cobra un anticipo en línea y el saldo se paga en destino.
 
-Estado: **se puede reservar y cobrar el anticipo** (Sprints 0 a 3), verificado de
-extremo a extremo. Falta la cuenta de la pasarela para ejecutarlo contra el
-servicio real, y el panel de operación es el Sprint 4.
+Estado: **se puede reservar, cobrar el anticipo y operar el día a día**
+(Sprints 0 a 4), verificado de extremo a extremo. Falta la cuenta de la pasarela
+para ejecutarlo contra el servicio real.
 
 - **Plan maestro** (columna vertebral, una sola fuente de verdad): [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
 - Esquema: [`docs/esquema.md`](docs/esquema.md)
-- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md)
+- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md)
 
 ## Cómo correrlo
 
@@ -33,11 +33,18 @@ npm run db:test               # garantías del inventario (en transacción, sin 
 npm run test:integration      # capa de acceso: traducción de errores del dominio
 npm run typecheck
 npm run lint
-npm run build && npx next start &
-./scripts/smoke.sh            # criterios de aceptación sobre el sitio construido
-npm run test:e2e              # recorrido completo del checkout en navegador real
+NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
+npx next start -p 3100 &
+BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh   # criterios sobre el sitio construido
+BASE_URL=http://127.0.0.1:3100 npm run test:e2e        # el checkout, en navegador real
+BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin  # un día de operación en el panel
 npm run db:bench              # prueba de carga: sobreventa bajo concurrencia
 ```
+
+`NEXT_PUBLIC_SITE_URL` se fija **al construir**, no al arrancar: Next reemplaza
+esas variables durante la compilación. La pasarela recibe una URL de retorno
+absoluta, así que si no coincide con el puerto donde se sirve, el navegador
+vuelve de pagar a un servidor que no existe.
 
 `npm run db:reset` recrea todo desde cero. Se niega a correr contra una URL que
 no sea local.
@@ -51,6 +58,7 @@ db/
   tests/            pruebas de las garantías y de concurrencia
 src/
   app/[locale]/     rutas públicas; el prefijo de idioma es parte de la URL
+  app/admin/        panel de operación; sin prefijo de idioma y sin indexar
   components/       componentes de la vitrina
   db/               cliente, tipos propios y esquema generado por introspección
   i18n/             idiomas, segmentos traducidos y etiquetas de interfaz
@@ -138,6 +146,27 @@ cobro y el envío.
 Con `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` presentes se usa Stripe. La
 selección es por configuración y no por una bandera de "modo desarrollo": sin
 llaves no hay nada que cobrar, y con llaves siempre se usa la real.
+
+## El panel de operación
+
+Vive en `/admin`, **fuera del árbol de idioma**: es una herramienta interna, en
+español, que no se indexa. El middleware de idioma lo excluye explícitamente —sin
+esa exclusión el panel responde 307 hacia `/es/admin`, que no existe, y la
+operación no puede entrar.
+
+- **Se entra con un enlace por correo, no con contraseña.** No se guardan
+  contraseñas: un operador chico no tiene cómo responder a una filtración, y la
+  mejor forma de no tener ese problema es no tener el dato. De enlace y sesión
+  solo se guarda el hash.
+- **La sesión vive en la base**, no solo en una cookie firmada, porque una cookie
+  firmada no se puede revocar y aquí hace falta cerrarle el acceso a alguien el
+  mismo día que se va.
+- **Los permisos se resuelven en el servidor.** Ocultar un botón no es un
+  permiso: cada acción vuelve a preguntar quién la pide.
+- **Está diseñado móvil primero** —tarjetas en vez de tablas, 44 px de alto en
+  todo lo que se toca, teléfonos como enlaces `tel:`— por un supuesto declarado:
+  recepción lo opera desde el celular. Un panel pensado para el celular funciona
+  en un escritorio; al revés no.
 
 ## Convenciones
 

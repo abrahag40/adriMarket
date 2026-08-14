@@ -212,7 +212,20 @@ describe("crear la reserva con apartado", () => {
     const range = freshRange();
     await createBookingWithHold({ kind: "stay", productId: CASA, range, guests: 5 }, holder, []);
 
-    const antes = await db.execute<{ n: number }>(sql`select count(*)::int as n from bookings`);
+    // Se cuenta solo lo de estas fechas y no la tabla entera: contar global
+    // hace que la prueba mida lo que hacen las demás pruebas al mismo tiempo.
+    const cuenta = async (): Promise<number> => {
+      const rows = await db.execute<{ n: number }>(sql`
+        select count(distinct b.id)::int as n
+          from bookings b
+          join booking_items i on i.booking_id = b.id
+         where i.product_id = ${CASA}::uuid
+           and i.stay_range = daterange(${range.from}, ${range.to})
+      `);
+      return rows[0]!.n;
+    };
+
+    const antes = await cuenta();
 
     await assert.rejects(
       () => createBookingWithHold({ kind: "stay", productId: CASA, range, guests: 5 }, holder, []),
@@ -223,10 +236,9 @@ describe("crear la reserva con apartado", () => {
       },
     );
 
-    const despues = await db.execute<{ n: number }>(sql`select count(*)::int as n from bookings`);
     assert.equal(
-      despues[0]?.n,
-      antes[0]?.n,
+      await cuenta(),
+      antes,
       "una reserva a medias esperando un pago imposible es peor que ninguna",
     );
   });
@@ -490,8 +502,22 @@ describe("avisos", () => {
     const event = await payDeposit(booking);
     await processPaymentWebhook(event.body, event.signature);
 
-    const primera = await processOutbox();
-    assert.ok(primera.sent >= 2, `se esperaban al menos 2 envíos, hubo ${primera.sent}`);
+    // La bandeja se despacha por lotes, así que se insiste hasta que no quede
+    // nada pendiente de ESTA reserva: si se llamara una sola vez, la prueba
+    // dependería de cuánta cola dejaron las demás.
+    const pendientes = async (): Promise<number> => {
+      const rows = await db.execute<{ n: number }>(sql`
+        select count(*)::int as n from outbox
+         where booking_id = ${booking.bookingId}::uuid and status <> 'sent'
+      `);
+      return rows[0]!.n;
+    };
+
+    let enviados = 0;
+    for (let vuelta = 0; vuelta < 20 && (await pendientes()) > 0; vuelta += 1) {
+      enviados += (await processOutbox()).sent;
+    }
+    assert.ok(enviados >= 2, `se esperaban al menos 2 envíos, hubo ${enviados}`);
 
     const rows = await db.execute<{ status: string; rendered: string | null }>(sql`
       select status::text as status, payload -> 'rendered' ->> 'text' as rendered
@@ -503,13 +529,16 @@ describe("avisos", () => {
       "se guarda el correo exacto que recibió el huésped, no solo que se envió",
     );
 
-    const segunda = await processOutbox();
-    const deEstaReserva = await db.execute<{ n: number }>(sql`
-      select count(*)::int as n from outbox
-       where booking_id = ${booking.bookingId}::uuid and status = 'sent'
+    // Otra pasada no puede tocar lo ya enviado. Se mide sobre esta reserva y no
+    // sobre el total de la pasada: la bandeja es de todos.
+    await processOutbox();
+    const deEstaReserva = await db.execute<{ n: number; enviados: number }>(sql`
+      select count(*)::int as n,
+             count(*) filter (where status = 'sent')::int as enviados
+        from outbox where booking_id = ${booking.bookingId}::uuid
     `);
-    assert.equal(deEstaReserva[0]?.n, rows.length, "la segunda pasada no reenvía nada");
-    assert.equal(segunda.sent, 0);
+    assert.equal(deEstaReserva[0]?.n, rows.length, "la segunda pasada no encoló nada nuevo");
+    assert.equal(deEstaReserva[0]?.enviados, rows.length, "la segunda pasada no reenvía nada");
   });
 
   it("un aviso que falla se reintenta con espera creciente y no en silencio", async () => {

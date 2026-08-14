@@ -213,7 +213,14 @@ describe("cotización de tour contra la base", () => {
     assert.equal(iva[0]?.cents, 76_800);
     assert.equal(quote.total_cents, 556_800);
     assert.equal(quote.deposit_pct, 30, "el tour hereda el anticipo global");
-    assert.equal(seatsLeft, 12);
+
+    // El cupo de una salida se edita (la prueba de carga lo cambia, y la
+    // operación también podrá). Lo que debe cumplirse no es un número fijo del
+    // seed sino que la cotización reporte lo que dice el inventario.
+    const restantes = await db.execute<{ n: number }>(sql`
+      select tour_seats_left(${first.departureId}::uuid) as n
+    `);
+    assert.equal(seatsLeft, restantes[0]!.n, "el cupo reportado debe venir del inventario");
   });
 
   it("rechaza más lugares que el cupo disponible", async () => {

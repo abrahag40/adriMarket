@@ -13,6 +13,47 @@
 
 begin;
 
+-- Unidad exclusiva de la prueba.
+--
+-- Las pruebas 1 a 4 usaban una unidad del seed con fechas fijas, y eso las hacía
+-- depender de que nadie más hubiera vendido esas noches: una reserva dejada por
+-- el recorrido de navegador bastaba para tumbarlas. El fallo era de la prueba,
+-- no del inventario. Se clona una unidad propia dentro de la transacción, así
+-- las fechas son libres por construcción y no por suerte.
+create temporary table test_fixture as
+select gen_random_uuid() as unit_id;
+
+insert into stay_units (id, product_id, code, max_guests, base_guests,
+                        extra_guest_fee_cents, cleaning_fee_cents, min_nights)
+select f.unit_id, u.product_id, 'TEST-' || left(f.unit_id::text, 8),
+       u.max_guests, u.base_guests, u.extra_guest_fee_cents, u.cleaning_fee_cents, 1
+  from test_fixture f
+  join stay_units u on u.id = '66666666-6666-6666-6666-666666666666';
+
+-- La tarifa cuelga de la unidad, así que la copia también se clona: si no, la
+-- prueba 11 mediría una unidad sin precios en lugar de la resolución por
+-- temporada y día de semana que quiere verificar.
+create temporary table test_plan_map as
+select p.id as source_plan, gen_random_uuid() as clone_plan
+  from stay_rate_plans p
+ where p.unit_id = '66666666-6666-6666-6666-666666666666';
+
+insert into stay_rate_plans (id, unit_id, name, currency, active)
+select m.clone_plan, f.unit_id, p.name, p.currency, p.active
+  from test_plan_map m
+  join stay_rate_plans p on p.id = m.source_plan
+  cross join test_fixture f;
+
+insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights,
+                        closed_to_arrival, closed_to_departure, priority)
+select m.clone_plan, r.name, r.season, r.dows, r.nightly_cents, r.min_nights,
+       r.closed_to_arrival, r.closed_to_departure, r.priority
+  from test_plan_map m
+  join stay_rates r on r.rate_plan_id = m.source_plan;
+
+create or replace function test_unit() returns uuid
+language sql stable as $$ select unit_id from test_fixture $$;
+
 -- Ayudante: arma una reserva en hold con un renglón, como lo haría el
 -- checkout. Devuelve el id del renglón.
 create or replace function test_make_item(
@@ -70,7 +111,7 @@ $$;
 
 do $$
 declare
-  v_unit  uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit  uuid := test_unit();
   v_item  uuid;
   v_caught boolean := false;
 begin
@@ -98,7 +139,7 @@ $$;
 -- casi todas las implementaciones que usan fecha_inicio <= X <= fecha_fin.
 do $$
 declare
-  v_unit uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit uuid := test_unit();
   v_item uuid;
   v_id   uuid;
 begin
@@ -116,7 +157,7 @@ $$;
 
 do $$
 declare
-  v_unit uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit uuid := test_unit();
   v_item uuid;
   v_caught boolean := false;
 begin
@@ -143,7 +184,7 @@ $$;
 
 do $$
 declare
-  v_unit    uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit    uuid := test_unit();
   v_item    uuid;
   v_booking uuid;
   v_range   daterange := daterange('2026-11-10', '2026-11-13');
@@ -239,7 +280,7 @@ $$;
 do $$
 declare
   v_dep    uuid;
-  v_unit   uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit   uuid := test_unit();
   v_range  daterange := daterange('2026-12-01', '2026-12-04');
   v_result jsonb;
 begin
@@ -269,7 +310,7 @@ $$;
 
 do $$
 declare
-  v_unit    uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit    uuid := test_unit();
   v_item    uuid;
   v_booking uuid;
   v_caught  boolean := false;
@@ -297,7 +338,7 @@ $$;
 
 do $$
 declare
-  v_unit    uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit    uuid := test_unit();
   v_item    uuid;
   v_booking uuid;
   v_row     record;
@@ -347,7 +388,7 @@ $$;
 
 do $$
 declare
-  v_unit    uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit    uuid := test_unit();
   v_item    uuid;
   v_booking uuid;
   v_avisos  integer;
@@ -395,7 +436,7 @@ $$;
 
 do $$
 declare
-  v_unit  uuid := '66666666-6666-6666-6666-666666666666';
+  v_unit  uuid := test_unit();
   v_total bigint;
   v_sin_tarifa integer;
 begin

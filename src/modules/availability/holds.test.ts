@@ -30,6 +30,10 @@ import {
 
 // Cada corrida crea su propio inventario. Una prueba que depende de que la
 // base esté recién creada falla en cuanto alguien la corre dos veces.
+//
+// Se crea como borrador y no como publicado: es inventario falso, y publicado
+// aparecería en la vitrina. Contra una base compartida eso sería ofrecerle al
+// huésped una casa que no existe.
 let UNIT: string;
 let departureId: string;
 
@@ -39,7 +43,7 @@ async function createFixtures(): Promise<void> {
   const unit = await db.execute<{ id: string }>(sql`
     with p as (
       insert into products (kind, slug, status, currency, deposit_pct)
-      values ('stay', ${`it-stay-${suffix}`}, 'published', 'MXN', 40)
+      values ('stay', ${`it-stay-${suffix}`}, 'draft', 'MXN', 40)
       returning id
     )
     insert into stay_units (product_id, code, max_guests, base_guests, min_nights)
@@ -51,7 +55,7 @@ async function createFixtures(): Promise<void> {
   const departure = await db.execute<{ id: string }>(sql`
     with p as (
       insert into products (kind, slug, status, currency)
-      values ('tour', ${`it-tour-${suffix}`}, 'published', 'MXN')
+      values ('tour', ${`it-tour-${suffix}`}, 'draft', 'MXN')
       returning id
     ), o as (
       insert into tour_options (product_id, code, name_es, default_capacity)
