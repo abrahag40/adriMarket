@@ -101,6 +101,13 @@ export async function tourDepartures(
     where o.product_id = ${productId}::uuid
       and o.active
       and d.status = 'open'
+      -- Una salida que ya partió no está a la venta, aunque siga siendo de hoy.
+      --
+      -- El filtro es por fecha y esto es por instante, a propósito: el calendario
+      -- razona en días, pero a las tres de la tarde la salida de las nueve ya se
+      -- fue. Sin esta línea la vitrina la preseleccionaba, el motor la rechazaba
+      -- por fecha pasada y el huésped se quedaba sin precio a la vista.
+      and d.starts_at > now()
       and (d.starts_at at time zone coalesce(l.timezone, 'America/Cancun'))::date
             >= ${from}::date
       and (d.starts_at at time zone coalesce(l.timezone, 'America/Cancun'))::date

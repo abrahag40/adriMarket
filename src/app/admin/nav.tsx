@@ -16,6 +16,7 @@ export function AdminNav({ user, active }: { user: StaffUser; active: string }) 
     { href: "/admin", label: "Hoy" },
     { href: "/admin/reservas", label: "Reservas" },
     { href: "/admin/calendario", label: "Calendario" },
+    { href: "/admin/salidas", label: "Salidas" },
     { href: "/admin/bloqueos", label: "Bloqueos" },
   ];
 

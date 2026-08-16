@@ -34,8 +34,11 @@ function fail(label) {
   process.exitCode = 1;
 }
 
+// `-q` no es cosmética: sin ella psql agrega la etiqueta del comando —"INSERT
+// 0 1"— después de la fila devuelta, y el valor leído sale con basura pegada.
+// Un correo así no coincide con nadie y el guion falla lejos de la causa.
 function query(sql) {
-  return execFileSync("psql", [DB, "-tAX", "-v", "ON_ERROR_STOP=1", "-c", sql], {
+  return execFileSync("psql", [DB, "-tAXq", "-v", "ON_ERROR_STOP=1", "-c", sql], {
     encoding: "utf8",
   }).trim();
 }

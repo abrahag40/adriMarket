@@ -32,14 +32,15 @@ responden preguntas distintas:
 | 2 | 3–4 | Disponibilidad y precio exactos | 21 | **cumplido** |
 | 3 | 5–6 | Checkout y cobro del anticipo | 21 | **cumplido**, con Stripe pendiente de llaves |
 | 4 | 7–8 | Panel de operación | 21 | **cumplido** |
+| 5 | 9–10 | Cancelaciones, cambios y manifiesto | 21 | **cumplido** |
 
-**Velocidad observada: 22, 21, 21 y 21.** Pronóstico para adelante: **21 puntos
-por sprint**. No es una meta a superar; es el insumo del pronóstico.
+**Velocidad observada: 22, 21, 21, 21 y 21.** Pronóstico para adelante: **21
+puntos por sprint**. No es una meta a superar; es el insumo del pronóstico.
 
 Lo que ya funciona y está verificado: catálogo en español e inglés, motor de
 cotización con temporadas y restricciones, calendario de disponibilidad,
 garantías de inventario probadas bajo concurrencia real, y una barra de
-verificación de 102 criterios que corre en el pipeline.
+verificación de 105 criterios que corre en el pipeline.
 
 Ya se puede reservar y cobrar el anticipo: el flujo completo está verificado de
 extremo a extremo con la pasarela local. **Falta la cuenta de Stripe** para
@@ -50,8 +51,13 @@ Y ya se puede **operar**: recepción entra con su cuenta, ve el día, cobra el s
 en destino, bloquea noches y consulta el calendario, todo desde el teléfono y sin
 el equipo técnico.
 
-Lo que todavía **no** existe: que la operación resuelva sola una cancelación, un
-cambio de fecha o un cierre de puerto. Eso es el Sprint 5.
+Y ya se resuelve lo que la realidad pone: un cierre de puerto cancela la salida
+completa, avisa a todos y devuelve el anticipo; una cancelación del huésped se
+calcula con la política **congelada en su reserva**; una reserva se mueve de fecha
+conservando lo pagado; y el guía abre su manifiesto en el teléfono.
+
+Lo que todavía **no** existe: que el cliente publique un producto y cambie sus
+tarifas sin el equipo técnico. Eso es el Sprint 6.
 
 ---
 
@@ -274,6 +280,10 @@ asumió por la decisión 6 sin responder están en [`sprint-04.md`](sprint-04.md
 
 **Se demuestra:** el SME cancela una salida por mal tiempo en el panel y verifica
 que los dieciocho pasajeros recibieron aviso y reembolso, sin tocar la base.
+
+**Cerrado.** 21 de 21 puntos. El detalle, los hallazgos y cómo se construyó el
+mecanismo de reembolso sin los porcentajes del cliente están en
+[`sprint-05.md`](sprint-05.md).
 
 ### Sprint 6 · semanas 11–12 · 21 pts
 
@@ -502,7 +512,7 @@ razón — no calladamente en una hoja aparte.
 |---|---|---|---|---|
 | 1 | Sobre qué base se calcula cada impuesto (¿IVA sobre subtotal, o sobre subtotal + ISH?) | PO con el contador | antes del Sprint 3 | Los montos de toda reserva. Hoy es un supuesto en el código |
 | 2 | Tarifas y temporadas reales del año | PO / SME | **vencida** | Que el Sprint Review sea real y no una demostración con datos inventados |
-| 3 | Política de cancelación con porcentajes y plazos concretos | PO con el SME | antes del Sprint 3 | A1: el texto legal que el huésped acepta en el checkout |
+| 3 | Política de cancelación con porcentajes y plazos concretos | PO con el SME | **venció; el mecanismo está construido y espera los números** | Cuánto se le devuelve a quien cancela. Se cargan como datos y solo aplican a reservas nuevas (ver `docs/sprint-05.md`) |
 | 4 | ¿Se factura CFDI? | PO | antes del Release 2 | Un módulo con proveedor de timbrado |
 | 5 | ¿El SME da descuentos por estancia larga hoy? | SME | antes del Sprint 6 | Si es sí, entra esquema nuevo y 3 puntos |
 | 6 | ¿Quién opera el panel a diario y desde qué dispositivo? | PO | **venció sin respuesta** | Se asumió *recepción desde el celular* y el panel se construyó móvil primero (ver `docs/sprint-04.md`). Confirmar o desmentir |

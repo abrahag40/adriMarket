@@ -340,3 +340,204 @@ export async function listManualBlocks(): Promise<ManualBlock[]> {
     note: row.note,
   }));
 }
+
+// ---------------------------------------------------------------------------
+// Manifiesto del guía · S5-4
+// ---------------------------------------------------------------------------
+
+export type DepartureRow = {
+  id: string;
+  productName: string;
+  optionName: string;
+  startsAt: string;
+  timezone: string;
+  status: string;
+  capacity: number;
+  seatsTaken: number;
+  meetingPoint: string | null;
+};
+
+/** Salidas de un rango de fechas, para el panel y para elegir a cuál mover. */
+export async function listDepartures(from: string, to: string): Promise<DepartureRow[]> {
+  const rows = await db.execute<{
+    id: string;
+    product_name: string;
+    option_name: string;
+    starts_at: string;
+    timezone: string;
+    status: string;
+    capacity: number;
+    seats_taken: number;
+    meeting_point: string | null;
+  }>(sql`
+    select d.id,
+           coalesce(nullif(t.name, ''), pr.slug) as product_name,
+           o.name_es as option_name,
+           d.starts_at::text, d.status::text as status,
+           d.capacity, d.seats_taken, o.meeting_point,
+           coalesce(l.timezone, 'America/Cancun') as timezone
+      from tour_departures d
+      join tour_options o on o.id = d.tour_option_id
+      join products pr on pr.id = o.product_id
+      left join product_translations t on t.product_id = pr.id and t.locale = 'es'
+      left join locations l on l.id = pr.location_id
+     where d.starts_at >= ${from}::timestamptz
+       and d.starts_at < ${to}::timestamptz
+     order by d.starts_at
+     limit 200
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    productName: row.product_name,
+    optionName: row.option_name,
+    startsAt: row.starts_at,
+    timezone: row.timezone,
+    status: row.status,
+    capacity: Number(row.capacity),
+    seatsTaken: Number(row.seats_taken),
+    meetingPoint: row.meeting_point,
+  }));
+}
+
+export async function departureById(departureId: string): Promise<DepartureRow | null> {
+  const rows = await db.execute<{
+    id: string;
+    product_name: string;
+    option_name: string;
+    starts_at: string;
+    timezone: string;
+    status: string;
+    capacity: number;
+    seats_taken: number;
+    meeting_point: string | null;
+  }>(sql`
+    select d.id,
+           coalesce(nullif(t.name, ''), pr.slug) as product_name,
+           o.name_es as option_name,
+           d.starts_at::text, d.status::text as status,
+           d.capacity, d.seats_taken, o.meeting_point,
+           coalesce(l.timezone, 'America/Cancun') as timezone
+      from tour_departures d
+      join tour_options o on o.id = d.tour_option_id
+      join products pr on pr.id = o.product_id
+      left join product_translations t on t.product_id = pr.id and t.locale = 'es'
+      left join locations l on l.id = pr.location_id
+     where d.id = ${departureId}::uuid
+     limit 1
+  `);
+
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    productName: row.product_name,
+    optionName: row.option_name,
+    startsAt: row.starts_at,
+    timezone: row.timezone,
+    status: row.status,
+    capacity: Number(row.capacity),
+    seatsTaken: Number(row.seats_taken),
+    meetingPoint: row.meeting_point,
+  };
+}
+
+export type ManifestPax = {
+  fullName: string;
+  paxType: string;
+  age: number | null;
+  isLead: boolean;
+};
+
+export type ManifestBooking = {
+  code: string;
+  holderName: string;
+  holderPhone: string | null;
+  seats: number;
+  balanceDueCents: number;
+  currency: string;
+  pax: ManifestPax[];
+};
+
+export type Manifest = {
+  departure: DepartureRow;
+  bookings: ManifestBooking[];
+  totalPax: number;
+  totalDueCents: number;
+};
+
+/**
+ * Manifiesto de una salida.
+ *
+ * Lo que el guía necesita a las siete de la mañana, en el teléfono y sin
+ * computadora: quién viene, cuántos son, las edades de los menores (para
+ * chalecos), el teléfono del titular y **quién debe saldo**. Hoy eso es una
+ * captura de pantalla de un grupo de WhatsApp.
+ *
+ * Solo entran reservas vivas. Una cancelada en el manifiesto es peor que no
+ * tenerlo: el guía espera a alguien que no va a llegar.
+ */
+export async function departureManifest(departureId: string): Promise<Manifest | null> {
+  const departure = await departureById(departureId);
+  if (!departure) return null;
+
+  const rows = await db.execute<{
+    booking_id: string;
+    code: string;
+    holder_name: string;
+    holder_phone: string | null;
+    seats: number;
+    currency: string;
+    balance_due: string;
+  }>(sql`
+    select b.id as booking_id, b.code, c.full_name as holder_name, c.phone as holder_phone,
+           i.seats, b.currency,
+           (select coalesce(sum(p.amount_cents), 0) from payments p
+             where p.booking_id = b.id and p.purpose = 'balance' and p.status = 'pending')::text
+             as balance_due
+      from booking_items i
+      join bookings b on b.id = i.booking_id
+      join customers c on c.id = b.customer_id
+     where i.tour_departure_id = ${departureId}::uuid
+       and b.status in ('confirmed', 'in_progress', 'completed')
+     order by c.full_name
+  `);
+
+  const bookings: ManifestBooking[] = [];
+  for (const row of rows) {
+    const pax = await db.execute<{
+      full_name: string;
+      pax_type: string;
+      age: number | null;
+      is_lead: boolean;
+    }>(sql`
+      select full_name, pax_type::text as pax_type, is_lead,
+             case when birthdate is null then null
+                  else extract(year from age(birthdate))::int end as age
+        from booking_guests where booking_id = ${row.booking_id}::uuid
+       order by is_lead desc, full_name
+    `);
+
+    bookings.push({
+      code: row.code,
+      holderName: row.holder_name,
+      holderPhone: row.holder_phone,
+      seats: Number(row.seats),
+      currency: row.currency,
+      balanceDueCents: Number(row.balance_due),
+      pax: pax.map((guest) => ({
+        fullName: guest.full_name,
+        paxType: guest.pax_type,
+        age: guest.age === null ? null : Number(guest.age),
+        isLead: guest.is_lead,
+      })),
+    });
+  }
+
+  return {
+    departure,
+    bookings,
+    totalPax: bookings.reduce((sum, booking) => sum + booking.seats, 0),
+    totalDueCents: bookings.reduce((sum, booking) => sum + booking.balanceDueCents, 0),
+  };
+}

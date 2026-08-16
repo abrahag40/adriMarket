@@ -4,7 +4,13 @@ import { db } from "@/db/index";
 import { isLocale, type Locale } from "@/i18n/config";
 import { formatMoney } from "@/i18n/config";
 
-import { adminNotification, guestConfirmation, type BookingNotification } from "./templates";
+import {
+  adminNotification,
+  cancellationNotice,
+  guestConfirmation,
+  reminderNotice,
+  type BookingNotification,
+} from "./templates";
 
 /**
  * Envío de la bandeja de salida · S3-4 y S3-5
@@ -207,6 +213,42 @@ async function notificationData(bookingId: string): Promise<BookingNotification 
 
 export type OutboxReport = { sent: number; failed: number; dead: number };
 
+/**
+ * Elige la plantilla y le pasa lo que la fila trae encima.
+ *
+ * Los datos de la reserva se leen frescos, pero **lo que dependía del momento en
+ * que se encoló viaja en el payload**: cuánto se devolvió y por qué, o de qué
+ * umbral es el recordatorio. Recalcularlo al enviar daría otro número si algo
+ * cambió en el intervalo, y el correo tiene que decir lo que se decidió.
+ *
+ * Una plantilla desconocida es un error y no un correo genérico: mandar algo
+ * distinto de lo que se encoló es peor que no mandar nada.
+ */
+function renderTemplate(
+  template: string,
+  data: BookingNotification,
+  payload: { refund_cents?: number; reason?: string | null; hours_before?: number } | null,
+): { subject: string; text: string } {
+  switch (template) {
+    case "booking_confirmed_guest":
+      return guestConfirmation(data);
+    case "booking_confirmed_admin":
+      return adminNotification(data);
+    case "booking_cancelled_by_operator":
+    case "booking_cancelled_by_guest":
+      return cancellationNotice({
+        ...data,
+        refundCents: Number(payload?.refund_cents ?? 0),
+        reason: payload?.reason ?? null,
+        byOperator: template === "booking_cancelled_by_operator",
+      });
+    case "booking_reminder":
+      return reminderNotice({ ...data, hoursBefore: Number(payload?.hours_before ?? 24) });
+    default:
+      throw new Error(`plantilla desconocida: ${template}`);
+  }
+}
+
 export async function processOutbox(limit = 25): Promise<OutboxReport> {
   const report: OutboxReport = { sent: 0, failed: 0, dead: 0 };
   const mail = transport();
@@ -217,8 +259,9 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
     to_address: string;
     booking_id: string | null;
     attempts: number;
+    payload: { refund_cents?: number; reason?: string | null; hours_before?: number } | null;
   }>(sql`
-    select id, template, to_address, booking_id, attempts
+    select id, template, to_address, booking_id, attempts, payload
       from outbox
      where status in ('pending', 'failed')
        and next_attempt_at <= now()
@@ -233,10 +276,7 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
       const data = await notificationData(row.booking_id);
       if (!data) throw new Error(`no se encontró la reserva ${row.booking_id}`);
 
-      const message =
-        row.template === "booking_confirmed_admin"
-          ? adminNotification(data)
-          : guestConfirmation(data);
+      const message = renderTemplate(row.template, data, row.payload);
 
       if (!row.to_address) throw new Error("aviso sin destinatario");
 
@@ -286,12 +326,32 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
   return report;
 }
 
-/** Render sin enviar, para pruebas y para previsualizar en el panel. */
+/**
+ * Render sin enviar, para pruebas y para previsualizar en el panel.
+ *
+ * Toma el mismo camino que el despacho —la misma función de selección— para que
+ * lo que se previsualiza sea lo que se manda. Una previsualización que se arma
+ * aparte deja de parecerse al correo real en cuanto alguien toca uno de los dos.
+ */
 export async function renderNotification(
   bookingId: string,
-  template: "booking_confirmed_guest" | "booking_confirmed_admin",
+  template: string,
+  payload: { refund_cents?: number; reason?: string | null; hours_before?: number } = {},
 ): Promise<{ subject: string; text: string } | null> {
   const data = await notificationData(bookingId);
   if (!data) return null;
-  return template === "booking_confirmed_admin" ? adminNotification(data) : guestConfirmation(data);
+  return renderTemplate(template, data, payload);
+}
+
+/**
+ * Encola los recordatorios de 72 y 24 horas · S5-5
+ *
+ * La decisión de a quién le toca vive en la base, junto a la clave que impide el
+ * duplicado. Aquí solo se dispara desde el latido.
+ */
+export async function enqueueReminders(): Promise<{ queued: number }> {
+  const rows = await db.execute<{ reminders_queued: number }>(sql`
+    select reminders_queued from notifications_enqueue_reminders()
+  `);
+  return { queued: Number(rows[0]?.reminders_queued ?? 0) };
 }

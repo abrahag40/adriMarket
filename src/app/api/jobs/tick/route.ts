@@ -1,12 +1,16 @@
 import { expireHolds } from "@/modules/availability/holds";
-import { processOutbox } from "@/modules/notifications/send";
+import { enqueueReminders, processOutbox } from "@/modules/notifications/send";
 
 /**
  * Latido del worker · S3-5
  *
- * Un solo punto de entrada que hace las dos tareas periódicas: liberar
- * apartados vencidos y despachar la bandeja de salida. En producción lo llama un
- * cron cada minuto; en desarrollo se llama a mano con curl.
+ * Un solo punto de entrada que hace las tres tareas periódicas: liberar
+ * apartados vencidos, encolar los recordatorios que ya entraron en su ventana y
+ * despachar la bandeja de salida. En producción lo llama un cron cada minuto; en
+ * desarrollo se llama a mano con curl.
+ *
+ * El orden importa: los recordatorios se encolan **antes** de despachar, así
+ * salen en el mismo latido en vez de esperar al siguiente.
  *
  * Está protegido por un secreto compartido en cabecera. Sin él, cualquiera
  * podría disparar el worker a voluntad — no es catastrófico, pero es carga
@@ -22,7 +26,8 @@ export async function POST(request: Request) {
   }
 
   const expired = await expireHolds();
+  const reminders = await enqueueReminders();
   const outbox = await processOutbox();
 
-  return Response.json({ expired, outbox });
+  return Response.json({ expired, reminders, outbox });
 }

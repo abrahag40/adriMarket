@@ -46,7 +46,11 @@ export type BookingNotification = {
 /** Hora de presentación: 15 minutos antes de la salida (regla del SME). */
 const REPORT_MINUTES_EARLY = 15;
 
-function formatDateTime(instant: string, timezone: string, locale: Locale): string {
+function formatDateTime(
+  instant: string,
+  timezone: string,
+  locale: Locale,
+): string {
   return new Intl.DateTimeFormat(LOCALE_TAG[locale], {
     dateStyle: "full",
     timeStyle: "short",
@@ -61,17 +65,27 @@ function formatDate(date: string, locale: Locale): string {
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
-function reportTime(startsAt: string, timezone: string, locale: Locale): string {
-  const instant = new Date(new Date(startsAt).getTime() - REPORT_MINUTES_EARLY * 60_000);
+function reportTime(
+  startsAt: string,
+  timezone: string,
+  locale: Locale,
+): string {
+  const instant = new Date(
+    new Date(startsAt).getTime() - REPORT_MINUTES_EARLY * 60_000,
+  );
   return new Intl.DateTimeFormat(LOCALE_TAG[locale], {
     timeStyle: "short",
     timeZone: timezone,
   }).format(instant);
 }
 
-export function guestConfirmation(data: BookingNotification): { subject: string; text: string } {
+export function guestConfirmation(data: BookingNotification): {
+  subject: string;
+  text: string;
+} {
   const es = data.locale === "es";
-  const money = (cents: number) => formatMoney(cents, data.currency, data.locale);
+  const money = (cents: number) =>
+    formatMoney(cents, data.currency, data.locale);
 
   const lines: string[] = [];
 
@@ -99,7 +113,11 @@ export function guestConfirmation(data: BookingNotification): { subject: string;
         : `PLEASE ARRIVE AT ${reportTime(data.startsAt, data.timezone, data.locale)} (15 minutes early).`,
     );
     if (data.meetingPoint) {
-      lines.push(es ? `Punto de encuentro: ${data.meetingPoint}` : `Meeting point: ${data.meetingPoint}`);
+      lines.push(
+        es
+          ? `Punto de encuentro: ${data.meetingPoint}`
+          : `Meeting point: ${data.meetingPoint}`,
+      );
     }
   }
 
@@ -121,7 +139,8 @@ export function guestConfirmation(data: BookingNotification): { subject: string;
     lines.push("");
     lines.push(es ? "Pasajeros:" : "Guests:");
     for (const guest of data.guests) {
-      const age = guest.age !== null ? ` (${guest.age} ${es ? "años" : "years"})` : "";
+      const age =
+        guest.age !== null ? ` (${guest.age} ${es ? "años" : "years"})` : "";
       lines.push(`  · ${guest.fullName}${age}`);
     }
   }
@@ -134,7 +153,11 @@ export function guestConfirmation(data: BookingNotification): { subject: string;
   lines.push(`  ${es ? "Total" : "Total"}: ${money(data.totalCents)}`);
 
   lines.push("");
-  lines.push(es ? `Anticipo pagado: ${money(data.depositCents)}` : `Deposit paid: ${money(data.depositCents)}`);
+  lines.push(
+    es
+      ? `Anticipo pagado: ${money(data.depositCents)}`
+      : `Deposit paid: ${money(data.depositCents)}`,
+  );
   // El dato que más reclamos evita.
   lines.push(
     es
@@ -170,7 +193,10 @@ export function guestConfirmation(data: BookingNotification): { subject: string;
   };
 }
 
-export function adminNotification(data: BookingNotification): { subject: string; text: string } {
+export function adminNotification(data: BookingNotification): {
+  subject: string;
+  text: string;
+} {
   const money = (cents: number) => formatMoney(cents, data.currency, "es");
   const lines: string[] = [];
 
@@ -197,5 +223,249 @@ export function adminNotification(data: BookingNotification): { subject: string;
   lines.push(`Anticipo cobrado: ${money(data.depositCents)}`);
   lines.push(`Por cobrar en destino: ${money(data.balanceCents)}`);
 
-  return { subject: `Reserva ${data.code} · ${data.productName}`, text: lines.join("\n") };
+  return {
+    subject: `Reserva ${data.code} · ${data.productName}`,
+    text: lines.join("\n"),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cancelación · S5-1 y S5-2
+// ---------------------------------------------------------------------------
+
+export type CancellationNotification = BookingNotification & {
+  /** Lo que se devuelve, ya calculado con la política congelada. */
+  refundCents: number;
+  reason: string | null;
+  /** Distingue el cierre de puerto de una cancelación del huésped. */
+  byOperator: boolean;
+};
+
+/**
+ * Aviso de cancelación.
+ *
+ * Los dos casos usan la misma plantilla con dos aperturas distintas, y la
+ * diferencia no es de tono: **cuando cancela el operador hay que decir que no
+ * fue culpa del huésped y que se le devuelve todo**. Un correo que le anuncia
+ * una devolución parcial a alguien que no canceló nada es la forma más rápida de
+ * convertir un huracán en una queja pública.
+ */
+export function cancellationNotice(data: CancellationNotification): {
+  subject: string;
+  text: string;
+} {
+  const es = data.locale === "es";
+  const money = (cents: number) =>
+    formatMoney(cents, data.currency, data.locale);
+  const lines: string[] = [];
+
+  lines.push(es ? `Hola ${data.holderName},` : `Hi ${data.holderName},`);
+  lines.push("");
+
+  if (data.byOperator) {
+    lines.push(
+      es
+        ? `Tuvimos que cancelar tu reserva ${data.code} y lo sentimos mucho. No es algo que hayas hecho: la cancelamos nosotros.`
+        : `We had to cancel your booking ${data.code}, and we're sorry. This is on us, not on you.`,
+    );
+    if (data.reason) {
+      lines.push("");
+      lines.push(es ? `Motivo: ${data.reason}` : `Reason: ${data.reason}`);
+    }
+  } else {
+    lines.push(
+      es
+        ? `Tu reserva ${data.code} quedó cancelada.`
+        : `Your booking ${data.code} has been cancelled.`,
+    );
+  }
+
+  lines.push("");
+  lines.push(data.productName);
+
+  if (data.kind === "tour" && data.startsAt) {
+    lines.push(
+      es
+        ? `Salida cancelada: ${formatDateTime(data.startsAt, data.timezone, data.locale)}`
+        : `Cancelled departure: ${formatDateTime(data.startsAt, data.timezone, data.locale)}`,
+    );
+  }
+  if (data.kind === "stay" && data.checkIn) {
+    lines.push(
+      es
+        ? `Llegada cancelada: ${formatDate(data.checkIn, data.locale)}`
+        : `Cancelled check-in: ${formatDate(data.checkIn, data.locale)}`,
+    );
+  }
+
+  lines.push("");
+  if (data.refundCents > 0) {
+    lines.push(
+      es
+        ? `DEVOLUCIÓN: ${money(data.refundCents)}`
+        : `REFUND: ${money(data.refundCents)}`,
+    );
+    lines.push(
+      es
+        ? "Se devuelve al mismo medio de pago. Puede tardar unos días hábiles en reflejarse, según tu banco."
+        : "It goes back to the same payment method. Depending on your bank it can take a few business days to show up.",
+    );
+    if (data.byOperator) {
+      lines.push(
+        es
+          ? "Es el total de lo que pagaste: cuando cancelamos nosotros no aplica la política de cancelación."
+          : "That is everything you paid: when we cancel, the cancellation policy does not apply.",
+      );
+    }
+  } else {
+    lines.push(
+      es
+        ? "Según la política de cancelación que aceptaste al reservar, esta cancelación no genera devolución."
+        : "Under the cancellation policy you accepted when booking, this cancellation is not refundable.",
+    );
+  }
+
+  if (!data.byOperator && data.policyText) {
+    lines.push("");
+    lines.push(es ? "La política que aplicó:" : "The policy that applied:");
+    lines.push(data.policyText);
+  }
+
+  lines.push("");
+  lines.push(
+    es
+      ? "Si quieres viajar en otra fecha, contéstanos este correo y lo vemos."
+      : "If you'd like to travel on another date, just reply to this email.",
+  );
+  lines.push("");
+  lines.push("adriMarket");
+
+  return {
+    subject: es
+      ? `Reserva cancelada ${data.code} · ${data.productName}`
+      : `Booking cancelled ${data.code} · ${data.productName}`,
+    text: lines.join("\n"),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Recordatorio · S5-5
+// ---------------------------------------------------------------------------
+
+export type ReminderNotification = BookingNotification & {
+  /** Umbral que disparó el aviso. Sirve para la bitácora, no para el texto. */
+  hoursBefore: number;
+};
+
+/**
+ * Cuándo es el servicio, dicho con la fecha y no con una frase relativa.
+ *
+ * Antes decía "en tres días" para todo el recordatorio de 72 horas, y esa
+ * ventana sigue abierta hasta que faltan 24: a alguien que viajaba mañana le
+ * llegaba un "te esperamos en tres días". **La fecha nunca se equivoca**, y
+ * además es lo que el huésped necesita para organizarse.
+ */
+function serviceDay(data: ReminderNotification): string {
+  if (data.startsAt) {
+    return new Intl.DateTimeFormat(LOCALE_TAG[data.locale], {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: data.timezone,
+    }).format(new Date(data.startsAt));
+  }
+  if (data.checkIn) {
+    return new Intl.DateTimeFormat(LOCALE_TAG[data.locale], {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      timeZone: "UTC",
+    }).format(new Date(`${data.checkIn}T00:00:00Z`));
+  }
+  return "";
+}
+
+/**
+ * Recordatorio de 72 y 24 horas.
+ *
+ * No repite la confirmación: dice **solo lo que hay que hacer y a qué hora**. En
+ * un tour, la hora de presentación y el punto de encuentro; en una estancia, la
+ * hora de entrada y el efectivo que hay que traer —el saldo y el depósito de
+ * garantía—, que es lo que de verdad se olvida.
+ */
+export function reminderNotice(data: ReminderNotification): {
+  subject: string;
+  text: string;
+} {
+  const es = data.locale === "es";
+  const money = (cents: number) =>
+    formatMoney(cents, data.currency, data.locale);
+  const lines: string[] = [];
+
+  const cuando = serviceDay(data);
+
+  lines.push(es ? `Hola ${data.holderName},` : `Hi ${data.holderName},`);
+  lines.push("");
+  lines.push(
+    es
+      ? `Te esperamos el ${cuando}. Tu reserva ${data.code} sigue confirmada.`
+      : `See you on ${cuando}. Your booking ${data.code} is confirmed.`,
+  );
+  lines.push("");
+  lines.push(data.productName);
+
+  if (data.kind === "tour" && data.startsAt) {
+    lines.push("");
+    // La regla del SME, otra vez: la hora que importa es la de presentación.
+    lines.push(
+      es
+        ? `PRESÉNTATE A LAS ${reportTime(data.startsAt, data.timezone, data.locale)} (15 minutos antes de la salida).`
+        : `ARRIVE AT ${reportTime(data.startsAt, data.timezone, data.locale)} (15 minutes before departure).`,
+    );
+    lines.push(
+      es
+        ? `Salida: ${formatDateTime(data.startsAt, data.timezone, data.locale)}`
+        : `Departure: ${formatDateTime(data.startsAt, data.timezone, data.locale)}`,
+    );
+    if (data.meetingPoint) {
+      lines.push(
+        es
+          ? `Punto de encuentro: ${data.meetingPoint}`
+          : `Meeting point: ${data.meetingPoint}`,
+      );
+    }
+  }
+
+  if (data.kind === "stay" && data.checkIn) {
+    lines.push("");
+    lines.push(
+      es
+        ? `Llegada: ${formatDate(data.checkIn, data.locale)}${data.checkinTime ? ` a partir de las ${data.checkinTime.slice(0, 5)}` : ""}`
+        : `Check-in: ${formatDate(data.checkIn, data.locale)}${data.checkinTime ? ` from ${data.checkinTime.slice(0, 5)}` : ""}`,
+    );
+  }
+
+  if (data.balanceCents > 0) {
+    lines.push("");
+    lines.push(
+      es
+        ? `SALDO A PAGAR EN DESTINO: ${money(data.balanceCents)}`
+        : `BALANCE TO PAY ON ARRIVAL: ${money(data.balanceCents)}`,
+    );
+  }
+
+  if (data.securityDepositNote) {
+    lines.push("");
+    lines.push(data.securityDepositNote);
+  }
+
+  lines.push("");
+  lines.push("adriMarket");
+
+  return {
+    subject: es
+      ? `Te esperamos el ${cuando} · ${data.code}`
+      : `See you on ${cuando} · ${data.code}`,
+    text: lines.join("\n"),
+  };
 }

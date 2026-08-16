@@ -6,6 +6,9 @@ import { redirect } from "next/navigation";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
+import { formatMoney } from "@/i18n/config";
+import { cancelBooking, cancelDeparture } from "@/modules/booking/cancel";
+import { rescheduleStay, rescheduleTour } from "@/modules/booking/reschedule";
 import { SESSION_COOKIE, revokeSession } from "@/modules/identity/auth";
 import { requireStaff } from "@/modules/identity/session";
 
@@ -165,4 +168,158 @@ export async function releaseBlock(
   revalidatePath("/admin/bloqueos");
   revalidatePath("/admin/calendario");
   return { error: null, ok: "Bloqueo liberado." };
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 5 · cancelar, cancelar salida, reprogramar
+// ---------------------------------------------------------------------------
+
+/**
+ * Cancelación a solicitud del huésped.
+ *
+ * Es de gerencia y no de recepción: devuelve dinero. Un cobro mal hecho se
+ * corrige; una devolución mal hecha ya salió de la cuenta.
+ */
+export async function cancelBookingAction(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const code = String(form.get("code") ?? "").toUpperCase();
+  const reason = String(form.get("reason") ?? "").trim();
+  const byOperator = String(form.get("byOperator") ?? "") === "1";
+
+  if (reason.length < 3) {
+    return { error: "Escribe el motivo: queda en la bitácora de la reserva.", ok: null };
+  }
+
+  const rows = await db.execute<{ id: string; currency: string }>(sql`
+    select id, currency from bookings where code = ${code}
+  `);
+  const booking = rows[0];
+  if (!booking) return { error: "No se encontró esa reserva.", ok: null };
+
+  try {
+    const refund = await cancelBooking({
+      bookingId: booking.id,
+      reason,
+      byOperator,
+      staffId: staff.id,
+    });
+    revalidatePath(`/admin/reservas/${code}`);
+    revalidatePath("/admin/reservas");
+    return {
+      error: null,
+      ok:
+        refund > 0
+          ? `Reserva cancelada. Devolución registrada: ${formatMoney(refund, booking.currency, "es")}.`
+          : "Reserva cancelada. Según la política, no corresponde devolución.",
+    };
+  } catch (error: unknown) {
+    const message = describe(error);
+    if (message.includes("estado")) {
+      return { error: "La reserva no está en un estado que permita cancelar.", ok: null };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Cancelación de una salida completa: el cierre de puerto.
+ *
+ * Siempre cuenta como cancelación del operador, sin casilla que lo decida. Si
+ * fuera opcional, un día alguien la dejaría sin marcar y se le aplicaría la
+ * política de cancelación a dieciocho personas que no cancelaron nada.
+ */
+export async function cancelDepartureAction(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const departureId = String(form.get("departureId") ?? "");
+  const reason = String(form.get("reason") ?? "").trim();
+
+  if (!/^[0-9a-f-]{36}$/i.test(departureId)) return { error: "Salida no válida.", ok: null };
+  if (reason.length < 3) {
+    return { error: "Escribe el motivo: se lo vamos a decir a cada pasajero.", ok: null };
+  }
+
+  const result = await cancelDeparture(departureId, reason, staff.id);
+
+  revalidatePath("/admin/salidas");
+  revalidatePath("/admin/reservas");
+  return {
+    error: null,
+    ok:
+      result.bookingsCancelled === 0
+        ? "La salida quedó cancelada. No había reservas que avisar."
+        : `Salida cancelada: ${result.bookingsCancelled} reserva(s) avisadas y devolución total registrada.`,
+  };
+}
+
+/** Cambio de fecha. Recepción puede hacerlo: no mueve dinero fuera. */
+export async function rescheduleAction(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("front_desk");
+
+  const code = String(form.get("code") ?? "").toUpperCase();
+  const kind = String(form.get("kind") ?? "");
+
+  const rows = await db.execute<{ id: string; currency: string }>(sql`
+    select id, currency from bookings where code = ${code}
+  `);
+  const booking = rows[0];
+  if (!booking) return { error: "No se encontró esa reserva.", ok: null };
+
+  try {
+    const result =
+      kind === "tour"
+        ? await rescheduleTour(booking.id, String(form.get("departureId") ?? ""), staff.id)
+        : await rescheduleStay(
+            booking.id,
+            { from: String(form.get("from") ?? ""), to: String(form.get("to") ?? "") },
+            staff.id,
+          );
+
+    revalidatePath(`/admin/reservas/${code}`);
+    revalidatePath("/admin/calendario");
+
+    if (result.differenceCents === 0) {
+      return { error: null, ok: "Reserva movida. El precio no cambió." };
+    }
+    const diff = formatMoney(Math.abs(result.differenceCents), booking.currency, "es");
+    return {
+      error: null,
+      ok:
+        result.differenceCents > 0
+          ? `Reserva movida. La tarifa nueva es mayor: ${diff} se suman al saldo en destino.`
+          : `Reserva movida. La tarifa nueva es menor: ${diff} se restan del saldo en destino.`,
+    };
+  } catch (error: unknown) {
+    const message = describe(error);
+    if (message.includes("AM002") || message.includes("ocupad")) {
+      return { error: "Esas noches ya están ocupadas. La reserva quedó como estaba.", ok: null };
+    }
+    // El motor de precios detecta el cupo agotado antes que la base y lanza su
+    // propio error, así que hay que reconocer los dos nombres. Con solo el de la
+    // base, el panel respondía con una excepción en vez de una frase.
+    if (
+      message.includes("AM001") ||
+      message.includes("cupo") ||
+      message.includes("sold_out")
+    ) {
+      return { error: "Esa salida ya no tiene lugares. La reserva quedó como estaba.", ok: null };
+    }
+    if (message.includes("estado")) {
+      return { error: "La reserva no está en un estado que permita reprogramar.", ok: null };
+    }
+    if (message.includes("no está abierta")) {
+      return { error: "Esa salida no está abierta.", ok: null };
+    }
+    throw error;
+  }
 }

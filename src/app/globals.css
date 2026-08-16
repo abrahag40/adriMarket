@@ -1258,3 +1258,46 @@ a.admin-card:hover {
   width: 100%;
   min-width: 0;
 }
+
+/* ---------------------------------------------------------------------------
+   Sprint 5 · salidas, manifiesto y acciones destructivas
+   --------------------------------------------------------------------------- */
+
+/* Los botones de una tarjeta se envuelven en lugar de encogerse: en un teléfono
+   angosto, dos botones a la fuerza en una línea quedan por debajo del área
+   táctil mínima y se toca el equivocado. */
+.admin-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.admin-card-actions .btn {
+  min-height: var(--tap);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* La hora de presentación y el total por cobrar son lo que el guía busca de un
+   vistazo, de pie y a contraluz. Van en grande a propósito. */
+.manifest-time {
+  font-size: var(--step-2);
+  font-weight: 600;
+  margin: 0;
+}
+
+.field-check label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.field-check input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex: none;
+}

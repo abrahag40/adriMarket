@@ -191,10 +191,23 @@ describe("cotización de estancia contra la base", () => {
 });
 
 describe("cotización de tour contra la base", () => {
+  /**
+   * Salidas que todavía no ocurren.
+   *
+   * Tomar "la primera del seed" hacía que la prueba se pudriera con el
+   * calendario: el seed genera salidas relativas a hoy y, pasados unos días, la
+   * primera ya está en el pasado y el motor la rechaza —correctamente— con
+   * `past_dates`. El fallo era de la prueba, no del motor.
+   */
+  async function futureDepartures() {
+    const all = await tourDepartures(TOUR, "2026-01-01", "2030-01-01");
+    return all.filter((row) => new Date(row.startsAt) > REAL_NOW);
+  }
+
   it("cobra por tipo de pasajero y no cobra al infante", async () => {
-    const departures = await tourDepartures(TOUR, "2026-01-01", "2030-01-01");
+    const departures = await futureDepartures();
     const first = departures[0];
-    assert.ok(first, "el seed genera salidas");
+    assert.ok(first, "el seed genera salidas futuras");
 
     const { quote, seatsLeft } = await quoteTour(
       TOUR,
@@ -224,7 +237,7 @@ describe("cotización de tour contra la base", () => {
   });
 
   it("rechaza más lugares que el cupo disponible", async () => {
-    const departures = await tourDepartures(TOUR, "2026-01-01", "2030-01-01");
+    const departures = await futureDepartures();
     const target = departures[1];
     assert.ok(target);
 
@@ -291,18 +304,26 @@ describe("calendario de disponibilidad", () => {
 
   it("agrupa las salidas de tour por fecha en la zona del producto", async () => {
     const departures = await tourDepartures(TOUR, "2026-01-01", "2030-01-01");
-    assert.ok(departures.length >= 30, "el seed genera un mes de salidas");
+    assert.ok(departures.length >= 20, "el seed genera salidas futuras suficientes");
 
     for (const day of departures) {
-      // La salida es a las 09:00 de Cancún; agrupada en UTC caería el mismo día
-      // por casualidad, pero una salida nocturna caería en el siguiente.
-      const hourInCancun = new Intl.DateTimeFormat("en-CA", {
+      // Lo que se verifica es la propiedad, no la hora del seed: **la fecha con
+      // la que se agrupa es la del destino**. Afirmar "todas salen a las 09:00"
+      // medía un dato del seed y se rompía en cuanto otra prueba creaba una
+      // salida a otra hora — sin que nada del agrupamiento estuviera mal.
+      const dateInCancun = new Intl.DateTimeFormat("en-CA", {
         timeZone: "America/Cancun",
-        hour: "2-digit",
-        hour12: false,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       }).format(new Date(day.startsAt));
-      assert.equal(hourInCancun, "09", "la salida es a las 09:00 hora de Cancún");
+      assert.equal(
+        day.date,
+        dateInCancun,
+        "una salida nocturna agrupada en UTC caería en el día siguiente",
+      );
       assert.ok(day.seatsLeft <= day.capacity);
+      assert.ok(new Date(day.startsAt) > new Date(), "una salida que ya partió no se ofrece");
     }
   });
 });

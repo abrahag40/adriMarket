@@ -19,7 +19,8 @@
     "db:pull": "drizzle-kit introspect && rm -rf src/db/generated/meta src/db/generated/*.sql && node scripts/patch-generated.mjs",
     "test:integration": "tsx --test src/**/*.test.ts",
     "test:e2e": "node scripts/e2e.mjs",
-    "test:e2e:admin": "node scripts/e2e-admin.mjs"
+    "test:e2e:admin": "node scripts/e2e-admin.mjs",
+    "test:e2e:sme": "node scripts/e2e-sme.mjs"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

@@ -209,7 +209,7 @@ echo "S4 · el panel no se entra sin sesión"
 # El panel se protege en el servidor, no escondiendo enlaces. Cada ruta se
 # comprueba por separado: proteger el índice y olvidar una sección es la forma
 # más común de dejar una puerta abierta.
-for ruta in /admin /admin/reservas /admin/calendario /admin/bloqueos; do
+for ruta in /admin /admin/reservas /admin/calendario /admin/bloqueos /admin/salidas; do
   expect_redirect "$ruta" "Accept-Language: es-MX" "/admin/entrar" "sin sesión, $ruta manda a la pantalla de acceso"
 done
 expect_status "/admin/entrar" 200 "la pantalla de acceso responde"
@@ -228,6 +228,18 @@ expect_redirect "/admin/entrar/token-inventado" "Accept-Language: es-MX" "/admin
 # La pantalla de acceso responde igual exista o no el correo: si distinguiera,
 # sería una forma de averiguar quién trabaja aquí.
 expect_absent "/admin/entrar" "no existe" "la pantalla de acceso no delata correos"
+
+echo
+echo "S5 · el manifiesto tampoco es público"
+# El manifiesto lleva nombres, edades de menores y teléfonos. Es el documento
+# con más datos personales de todo el sistema y no puede quedar detrás de
+# adivinar un UUID.
+expect_redirect "/admin/salidas/00000000-0000-0000-0000-000000000000" "Accept-Language: es-MX" \
+  "/admin/entrar" "sin sesión, el manifiesto manda a la pantalla de acceso"
+# Y el destino es la pantalla de acceso, no /es/admin/...: el prefijo de idioma
+# no debe tocar el panel.
+expect_redirect "/admin/salidas" "Accept-Language: en-US,en;q=0.9" "/admin/entrar" \
+  "las salidas no se redirigen por el prefijo de idioma"
 
 echo
 echo "S1-2 · accesibilidad básica"

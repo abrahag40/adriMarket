@@ -2,17 +2,22 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { formatMoney } from "@/i18n/config";
-import { bookingDetail } from "@/modules/admin/queries";
+import { bookingDetail, listDepartures } from "@/modules/admin/queries";
+import { refundQuote } from "@/modules/booking/cancel";
 import { hasRole } from "@/modules/identity/auth";
 import { requireStaff } from "@/modules/identity/session";
 
 import { instantLabel, nightLabel, statusOf } from "../../labels";
 import { AdminNav } from "../../nav";
 import { CollectForm } from "./collect-form";
+import { ManageForms } from "./manage-forms";
 
 export const dynamic = "force-dynamic";
 
 const PAX_LABEL: Record<string, string> = { adult: "Adulto", child: "Menor", infant: "Infante" };
+
+/** Estados en los que la reserva todavía se puede mover o cancelar. */
+const ACTIVE = ["hold", "confirmed", "in_progress"];
 
 /**
  * Ficha de la reserva · S4-2 y S4-5
@@ -28,6 +33,24 @@ export default async function ReservaPage({ params }: { params: Promise<{ code: 
   if (!booking) notFound();
 
   const money = (cents: number) => formatMoney(cents, booking.currency, "es");
+
+  // Se cotiza el reembolso al abrir la ficha, no al cancelar: quien atiende
+  // tiene que poder decir la cifra antes de que el huésped decida.
+  const refund = ACTIVE.includes(booking.status)
+    ? await refundQuote(booking.id)
+    : { refundCents: 0, refundPct: 0, paidCents: 0, hoursBefore: 0 };
+
+  // Para mover un tour hace falta la lista de salidas a las que se puede ir.
+  const departures =
+    booking.kind === "tour" && ACTIVE.includes(booking.status)
+      ? (await listDepartures(new Date().toISOString(), "infinity"))
+          .filter((row) => row.status === "open" && row.seatsTaken < row.capacity)
+          .slice(0, 60)
+          .map((row) => ({
+            id: row.id,
+            label: `${instantLabel(row.startsAt, row.timezone)} · ${row.capacity - row.seatsTaken} libres`,
+          }))
+      : [];
 
   return (
     <div className="stack">
@@ -127,6 +150,21 @@ export default async function ReservaPage({ params }: { params: Promise<{ code: 
           <p className="muted">Tu rol no permite registrar cobros.</p>
         ) : null}
       </section>
+
+      {ACTIVE.includes(booking.status) ? (
+        <ManageForms
+          code={booking.code}
+          kind={booking.kind}
+          refund={{
+            refundCents: refund.refundCents,
+            refundPct: refund.refundPct,
+            label: money(refund.refundCents),
+            hoursBefore: refund.hoursBefore,
+          }}
+          canCancel={hasRole(user, "manager")}
+          departures={departures}
+        />
+      ) : null}
 
       <section className="admin-panel">
         <h2 className="section-title">Bitácora</h2>

@@ -4,14 +4,14 @@ Motor de reservas para tours en el Caribe y renta de inmuebles. Dos
 inventarios que se compran igual y se operan distinto, con un solo checkout:
 se cobra un anticipo en línea y el saldo se paga en destino.
 
-Estado: **se puede reservar, cobrar el anticipo y operar el día a día**
-(Sprints 0 a 4), verificado de extremo a extremo. Falta la cuenta de la pasarela
-para ejecutarlo contra el servicio real.
+Estado: **se puede reservar, cobrar el anticipo, operar el día a día y resolver
+cancelaciones y cambios de fecha** (Sprints 0 a 5), verificado de extremo a
+extremo. Falta la cuenta de la pasarela para ejecutarlo contra el servicio real.
 
 - **Plan maestro** (columna vertebral, una sola fuente de verdad): [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
 - Esquema: [`docs/esquema.md`](docs/esquema.md)
-- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md)
+- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md) · [`sprint-05.md`](docs/sprint-05.md)
 
 ## Cómo correrlo
 
@@ -38,6 +38,7 @@ npx next start -p 3100 &
 BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh   # criterios sobre el sitio construido
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e        # el checkout, en navegador real
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin  # un día de operación en el panel
+BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme    # el día que cierran el puerto
 npm run db:bench              # prueba de carga: sobreventa bajo concurrencia
 ```
 
@@ -132,6 +133,24 @@ mostrar al huésped.
 | `AM001` | cupo agotado en la salida |
 | `AM002` | fechas ya ocupadas en la unidad |
 | `AM003` | transición de estado inválida |
+
+## Cancelar, devolver y mover
+
+Tres reglas que vienen del SME y no del esquema:
+
+- **Una cancelación del operador no es una cancelación del huésped.** Cuando la
+  capitanía cierra el puerto se devuelve todo lo pagado y la política de
+  cancelación no aplica. Cobrarle una penalización a alguien por un huracán es el
+  error que el diseño existe para impedir.
+- **El reembolso sale de la política congelada en la reserva**, nunca de la
+  vigente. El huésped aceptó un texto concreto en el checkout; que el cliente la
+  edite después no cambia lo ya acordado.
+- **Mover una reserva conserva el anticipo cobrado.** La diferencia de tarifa se
+  ajusta en el saldo que se paga en destino, y todo ocurre en una transacción: si
+  las fechas nuevas no están libres, el huésped no se queda sin las que tenía.
+
+Los reembolsos se **registran** en la base a la espera de que la pasarela ejecute
+el movimiento, igual que los cobros.
 
 ## Pagos y avisos: proveedores intercambiables
 
