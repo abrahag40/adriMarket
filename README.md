@@ -4,14 +4,15 @@ Motor de reservas para tours en el Caribe y renta de inmuebles. Dos
 inventarios que se compran igual y se operan distinto, con un solo checkout:
 se cobra un anticipo en línea y el saldo se paga en destino.
 
-Estado: **se puede reservar, cobrar el anticipo, operar el día a día y resolver
-cancelaciones y cambios de fecha** (Sprints 0 a 5), verificado de extremo a
-extremo. Falta la cuenta de la pasarela para ejecutarlo contra el servicio real.
+Estado: **se puede reservar, cobrar el anticipo, operar el día a día, resolver
+cancelaciones y cambios de fecha, y publicar catálogo desde el panel**
+(Sprints 0 a 6), verificado de extremo a extremo. Falta la cuenta de la pasarela
+para ejecutarlo contra el servicio real.
 
 - **Plan maestro** (columna vertebral, una sola fuente de verdad): [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
 - Esquema: [`docs/esquema.md`](docs/esquema.md)
-- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md) · [`sprint-05.md`](docs/sprint-05.md)
+- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md) · [`sprint-05.md`](docs/sprint-05.md) · [`sprint-06.md`](docs/sprint-06.md)
 
 ## Cómo correrlo
 
@@ -39,6 +40,7 @@ BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh   # criterios sobre el sitio c
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e        # el checkout, en navegador real
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin  # un día de operación en el panel
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme    # el día que cierran el puerto
+BASE_URL=http://127.0.0.1:3100 npm run test:e2e:publicar # publicar un tour sin ayuda
 npm run db:bench              # prueba de carga: sobreventa bajo concurrencia
 ```
 
@@ -60,6 +62,7 @@ db/
 src/
   app/[locale]/     rutas públicas; el prefijo de idioma es parte de la URL
   app/admin/        panel de operación; sin prefijo de idioma y sin indexar
+  app/media/        entrega de las fotos subidas (no van en public/, ver abajo)
   components/       componentes de la vitrina
   db/               cliente, tipos propios y esquema generado por introspección
   i18n/             idiomas, segmentos traducidos y etiquetas de interfaz
@@ -186,6 +189,26 @@ operación no puede entrar.
   todo lo que se toca, teléfonos como enlaces `tel:`— por un supuesto declarado:
   recepción lo opera desde el celular. Un panel pensado para el celular funciona
   en un escritorio; al revés no.
+
+## Las fotos
+
+Se generan **al subir**, no al leer: anchos de 400, 800, 1600 y 2400 px en AVIF
+con respaldo en WebP, y la vitrina emite `<picture>` con `srcset`. El porqué está
+en [`docs/decisiones/0001-entrega-de-imagenes.md`](docs/decisiones/0001-entrega-de-imagenes.md):
+se paga almacenamiento, que crece con el catálogo, en lugar de cómputo, que crece
+con el tráfico justo cuando el negocio va bien.
+
+Dos cosas que no son obvias:
+
+- **Viven fuera de `public/`** (en `var/media` por omisión, configurable con
+  `MEDIA_DIR`) y se sirven por `src/app/media/[...path]/route.ts`. Next resuelve
+  el contenido de `public/` en tiempo de compilación, así que una foto escrita ahí
+  después del build responde 404 hasta el siguiente despliegue. En producción esa
+  ruta la reemplaza el CDN sobre el mismo almacén, sin cambiar las URL.
+- **Las variantes las genera el latido**, no la petición del panel. Codificar AVIF
+  tarda segundos por imagen; quince fotos serían ciento veinte codificaciones y
+  una pantalla colgada. La foto se ve en cuanto se sube; los tamaños llegan
+  después.
 
 ## Convenciones
 

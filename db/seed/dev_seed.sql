@@ -124,13 +124,20 @@ insert into stay_rate_plans (id, unit_id, name) values
 
 -- Temporada baja todo el año, alta en invierno, y fin de semana encima de
 -- ambas por priority. Así se define un puente sin partir la temporada.
+-- La temporada base cubre tres años a propósito.
+--
+-- Los recorridos de navegador consumen noches de verdad: el del checkout vende
+-- una estancia y el del panel mueve otra de fecha. Con un solo año tarifado,
+-- unas cuantas corridas agotan las fechas libres y los criterios de aceptación
+-- empiezan a fallar por falta de inventario y no por un defecto. Cada recorrido
+-- trabaja en su propio año.
 insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights, priority) values
   ('77777777-7777-7777-7777-777777777777', 'Base',
-   daterange('2026-01-01', '2027-01-01'), null, 320000, 2, 0),
+   daterange('2026-01-01', '2029-01-01'), null, 320000, 2, 0),
   ('77777777-7777-7777-7777-777777777777', 'Temporada alta',
    daterange('2026-12-15', '2027-01-07'), null, 580000, 4, 10),
   ('77777777-7777-7777-7777-777777777777', 'Fin de semana',
-   daterange('2026-01-01', '2027-01-01'), array[5,6]::smallint[], 390000, null, 5);
+   daterange('2026-01-01', '2029-01-01'), array[5,6]::smallint[], 390000, null, 5);
 
 -- Segunda unidad del mismo producto: una casita al fondo, para dos personas.
 -- Hace demostrable la regla de "cotizar la unidad más chica que alcanza":
@@ -146,7 +153,7 @@ insert into stay_rate_plans (id, unit_id, name) values
 
 insert into stay_rates (rate_plan_id, name, season, nightly_cents, priority) values
   ('77777777-7777-7777-7777-77777777aaaa', 'Base',
-   daterange('2026-01-01', '2027-01-01'), 180000, 0);
+   daterange('2026-01-01', '2029-01-01'), 180000, 0);
 
 -- ---------------------------------------------------------------------------
 -- Tercer producto, en otra ubicación: hace demostrables los filtros
@@ -247,7 +254,7 @@ insert into stay_rate_plans (id, unit_id, name) values
 
 insert into stay_rates (rate_plan_id, name, season, nightly_cents, priority) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Base',
-   daterange('2026-01-01', '2027-01-01'), 145000, 0);
+   daterange('2026-01-01', '2029-01-01'), 145000, 0);
 
 -- Un borrador para probar que lo no publicado no se filtra a la vitrina.
 insert into products (id, kind, slug, status, location_id, currency) values

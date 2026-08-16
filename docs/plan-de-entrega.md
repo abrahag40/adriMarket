@@ -33,14 +33,15 @@ responden preguntas distintas:
 | 3 | 5–6 | Checkout y cobro del anticipo | 21 | **cumplido**, con Stripe pendiente de llaves |
 | 4 | 7–8 | Panel de operación | 21 | **cumplido** |
 | 5 | 9–10 | Cancelaciones, cambios y manifiesto | 21 | **cumplido** |
+| 6 | 11–12 | Publicar y ajustar sin el equipo técnico | 21 | **cumplido** |
 
-**Velocidad observada: 22, 21, 21, 21 y 21.** Pronóstico para adelante: **21
+**Velocidad observada: 22, 21, 21, 21, 21 y 21.** Pronóstico para adelante: **21
 puntos por sprint**. No es una meta a superar; es el insumo del pronóstico.
 
 Lo que ya funciona y está verificado: catálogo en español e inglés, motor de
 cotización con temporadas y restricciones, calendario de disponibilidad,
 garantías de inventario probadas bajo concurrencia real, y una barra de
-verificación de 105 criterios que corre en el pipeline.
+verificación de 113 criterios que corre en el pipeline.
 
 Ya se puede reservar y cobrar el anticipo: el flujo completo está verificado de
 extremo a extremo con la pasarela local. **Falta la cuenta de Stripe** para
@@ -56,8 +57,13 @@ completa, avisa a todos y devuelve el anticipo; una cancelación del huésped se
 calcula con la política **congelada en su reserva**; una reserva se mueve de fecha
 conservando lo pagado; y el guía abre su manifiesto en el teléfono.
 
-Lo que todavía **no** existe: que el cliente publique un producto y cambie sus
-tarifas sin el equipo técnico. Eso es el Sprint 6.
+Y el cliente ya publica solo: da de alta un producto, escribe sus textos en dos
+idiomas, sube fotos que se sirven optimizadas, genera las salidas del mes en lote
+y cambia su anticipo — todo desde el panel y sin despliegue. Cada cambio queda en
+la bitácora con nombre y fecha.
+
+Lo que todavía **no** existe: estar en producción vendiendo, con avisos por
+WhatsApp y monitoreo. Eso es el Sprint 7, el último.
 
 ---
 
@@ -301,6 +307,10 @@ mecanismo de reembolso sin los porcentajes del cliente están en
 **Se demuestra:** el SME publica un tour nuevo con sus salidas del mes y le sube
 el anticipo al 50%, en vivo y sin ayuda. Si necesita ayuda, no está terminado.
 
+**Cerrado.** 21 de 21 puntos, con dos salvedades dichas sin adornos: los cupones
+se administran pero no se canjean todavía, y el panel no crea opciones de tour ni
+unidades de estancia. El detalle está en [`sprint-06.md`](sprint-06.md).
+
 ### Sprint 7 · semanas 13–14 · 20 pts
 
 > **Sprint Goal.** El sistema está en producción vendiendo, con avisos por
@@ -514,9 +524,9 @@ razón — no calladamente en una hoja aparte.
 | 2 | Tarifas y temporadas reales del año | PO / SME | **vencida** | Que el Sprint Review sea real y no una demostración con datos inventados |
 | 3 | Política de cancelación con porcentajes y plazos concretos | PO con el SME | **venció; el mecanismo está construido y espera los números** | Cuánto se le devuelve a quien cancela. Se cargan como datos y solo aplican a reservas nuevas (ver `docs/sprint-05.md`) |
 | 4 | ¿Se factura CFDI? | PO | antes del Release 2 | Un módulo con proveedor de timbrado |
-| 5 | ¿El SME da descuentos por estancia larga hoy? | SME | antes del Sprint 6 | Si es sí, entra esquema nuevo y 3 puntos |
+| 5 | ¿El SME da descuentos por estancia larga hoy? | SME | **venció sin respuesta; no se implementó nada** | Si es sí, entra esquema nuevo y 3 puntos en el Sprint 7 |
 | 6 | ¿Quién opera el panel a diario y desde qué dispositivo? | PO | **venció sin respuesta** | Se asumió *recepción desde el celular* y el panel se construyó móvil primero (ver `docs/sprint-04.md`). Confirmar o desmentir |
-| 7 | Fotos y textos reales | SME | antes del Sprint 6 | Que la vitrina venda algo parecido a lo que existe |
+| 7 | Fotos y textos reales | SME | **ya no bloquea al equipo**: se suben desde el panel (Sprint 6) | Que la vitrina venda algo parecido a lo que existe |
 
 Las decisiones **2 y 3 son las urgentes**. La 3 no es un detalle legal: es lo que
 se le cobra a un huésped que cancela, y sin ella el checkout del Sprint 3 tendría

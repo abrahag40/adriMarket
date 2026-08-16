@@ -14,6 +14,7 @@ import {
 import { getMessages, type Messages } from "@/i18n/messages";
 import { absoluteUrl } from "@/site";
 import { getProductDetail, type ProductDetail } from "@/modules/catalog/queries";
+import { ResponsiveImage } from "@/components/responsive-image";
 import { StayBooking } from "@/components/stay-booking";
 import { TourBooking } from "@/components/tour-booking";
 
@@ -179,25 +180,27 @@ export default async function ProductPage({
       {cover ? (
         <div className="gallery">
           <figure className="gallery-main">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            {/* La principal se carga de inmediato: es lo que el huésped vino a
+                ver, y diferirla retrasa justo eso. */}
+            <ResponsiveImage
               src={cover.url}
               alt={cover.alt ?? product.name}
               width={cover.width ?? 1200}
               height={cover.height ?? 800}
-              decoding="async"
+              variants={cover.variants}
+              sizes="(min-width: 900px) 66vw, 100vw"
+              priority
             />
           </figure>
           {secondary.map((item) => (
             <figure key={item.url}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <ResponsiveImage
                 src={item.url}
                 alt={item.alt ?? ""}
                 width={item.width ?? 800}
                 height={item.height ?? 600}
-                loading="lazy"
-                decoding="async"
+                variants={item.variants}
+                sizes="(min-width: 900px) 33vw, 50vw"
               />
             </figure>
           ))}

@@ -76,12 +76,13 @@ const setup = query(`
     -- Salida propia del recorrido: cancelar una del seed dejaría el sitio sin
     -- inventario para las demás pruebas.
     --
-    -- Mañana a las 9:00 **hora de Cancún**, no "dentro de 30 horas": el
-    -- manifiesto es la pantalla que se le enseña al cliente, y una salida de
-    -- snorkel a las 3:41 de la mañana lo vuelve increíble.
-    -- Mañana a las 8:00 de Cancún, o el minuto libre más cercano: el seed ya
-    -- tiene la salida de las 9:00 y (opción, instante) es único. Correr esto dos
-    -- veces tampoco puede chocar consigo mismo.
+    -- Mañana a las 8:00 **hora de Cancún**, o el minuto libre más cercano.
+    --
+    -- La hora importa porque el manifiesto es la pantalla que se le enseña al
+    -- cliente, y una salida de snorkel "dentro de 30 horas" cae a las 3:41 de la
+    -- mañana. Y el minuto libre importa porque el seed ya tiene la de las 9:00 y
+    -- (opción, instante) es único: sin el salto, esto choca con el seed la
+    -- primera vez y consigo mismo la segunda.
     v_start := ((now() at time zone 'America/Cancun')::date + 1 + time '08:00')
                  at time zone 'America/Cancun';
     while exists (select 1 from tour_departures
@@ -302,11 +303,19 @@ const stayCode = query(`
   begin
     select product_id into v_product from stay_units where id = v_unit;
 
-    -- Igual que arriba: las noches de origen también se piden libres.
+    -- Las noches se piden libres, y en **2028**: los recorridos de la vitrina
+    -- venden en 2026 y los criterios de aceptación de smoke.sh usan fechas fijas
+    -- de septiembre de 2026. Compartir año hace que unas corridas le quiten las
+    -- fechas a las otras y que los fallos no digan nada del sistema.
     select d::date into v_from
-      from generate_series(current_date + 100, date '2026-12-11', interval '1 day') d
+      from generate_series(date '2028-03-01', date '2028-11-30', interval '1 day') d
      where stay_is_available(v_unit, daterange(d::date, d::date + 3))
      limit 1;
+
+    if v_from is null then
+      raise exception 'No quedan noches libres para el recorrido: corre npm run db:reset'
+        using errcode = 'AM003';
+    end if;
 
     insert into customers (full_name, email, phone)
     values ('Marta Solís', 'marta+' || gen_random_uuid() || '@example.com', '+529981234000')
@@ -348,14 +357,13 @@ await page.goto(`${base}/admin/reservas/${stayCode}`, { waitUntil: "networkidle"
 await page.getByRole("button", { name: /Cambiar fecha/i }).click();
 await page.waitForTimeout(300);
 
-// Se mueve una semana adelante, dentro de la misma temporada.
 // Las noches destino se piden libres a la base, no se escriben a mano: una
 // corrida anterior movió una reserva justo ahí, y fechas fijas hacen que el
-// recorrido falle por dónde cayó y no por lo que mide. Se queda antes del 15 de
-// diciembre para no cruzar a temporada alta, que tiene mínimo de 4 noches.
+// recorrido falle por dónde cayó y no por lo que mide. El rango de origen ya
+// quedó ocupado, así que la búsqueda devuelve otro.
 const nuevo = query(`
   select d::date::text || '|' || (d::date + 3)::text
-    from generate_series(current_date + 107, date '2026-12-11', interval '1 day') d
+    from generate_series(date '2028-03-01', date '2028-11-30', interval '1 day') d
    where stay_is_available('66666666-6666-6666-6666-666666666666',
                            daterange(d::date, d::date + 3))
    limit 1

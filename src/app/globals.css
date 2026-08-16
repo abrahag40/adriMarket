@@ -295,6 +295,13 @@ main {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* El reparto horizontal solo aplica dentro de una fila de filtros.
+   `flex: 1 1 150px` en un contenedor en columna fija 150 px de **alto** a cada
+   campo, y un formulario apilado queda con huecos enormes entre etiqueta y
+   etiqueta. Se vio al mirar la captura del catálogo: las pruebas pasaban todas. */
+.filters-row > .field {
   min-width: 150px;
   flex: 1 1 150px;
 }
@@ -925,9 +932,13 @@ main {
   padding-inline: 6px;
 }
 
+/* `time` estaba fuera de la lista y quedaba con la altura por omisión del
+   navegador: más bajo que sus vecinos, y como la fila alinea por abajo, las
+   etiquetas de al lado quedaban a distinta altura. Se vio en la captura. */
 .field input[type="text"],
 .field input[type="email"],
 .field input[type="tel"],
+.field input[type="time"],
 .field input[type="number"] {
   min-height: var(--tap);
   padding: 0 12px;
@@ -1300,4 +1311,122 @@ a.admin-card:hover {
   height: 20px;
   margin-top: 2px;
   flex: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Sprint 6 · catálogo, tarifas y bitácora
+   --------------------------------------------------------------------------- */
+
+/* Aviso de lo que impide publicar. Va en la tarjeta del listado para que se vea
+   antes de entrar, no después de intentar. */
+.admin-card-warn {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.media-grid {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.media-grid li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.media-grid img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-soft);
+}
+
+.media-ok,
+.media-wait {
+  font-size: var(--step--1);
+}
+
+.media-ok {
+  color: var(--text-faint);
+}
+
+/* Se distingue del estado final: lo que sigue trabajando no puede verse igual
+   que lo que ya terminó. */
+.media-wait {
+  color: var(--accent);
+}
+
+.dow-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Cada día es un blanco de 44 px: se marcan con el pulgar. */
+.dow-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding-inline: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+
+.dow-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.dow-check:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.admin-log-diff {
+  display: block;
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.field textarea {
+  min-height: 110px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: var(--step-0);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.field input[type="file"] {
+  min-height: var(--tap);
+  padding: 10px 0;
+  font: inherit;
+  font-size: var(--step--1);
+  color: var(--text);
+}
+
+fieldset.field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+fieldset.field legend {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  padding: 0;
 }

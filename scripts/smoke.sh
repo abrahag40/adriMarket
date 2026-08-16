@@ -100,9 +100,19 @@ expect_contains "/es?guests=49" "Nada coincide con esos filtros" "sin resultados
 expect_contains "/es?guests=49" "Quitar filtros" "sin resultados se ofrece la salida"
 expect_status "/es?guests=abc&kind=inventado" 200 "un filtro inválido se ignora en lugar de reventar"
 expect_status "/es?guests=-5" 200 "un número negativo se ignora"
-# Tres de los cuatro productos publicados tienen foto. El cuarto no debe
-# reservar un hueco vacío en su tarjeta.
-expect_count "/es" 'class="card-media"' 3 "solo las tarjetas con foto reservan espacio de imagen"
+# Un producto sin fotos no reserva el hueco de la imagen: un rectángulo gris se
+# lee como "no cargó" y en una vitrina eso resta confianza.
+#
+# Se comprueba producto por producto y no contando el listado completo. Contar
+# medía cuánto inventario hay —que cambia cada vez que alguien publica algo— en
+# vez de la propiedad, y se rompía sola.
+# Se comprueba en la ficha y no en el listado: el listado no tiene filtro de
+# texto, así que no se puede aislar un producto y la comprobación acaba mirando
+# a varios a la vez.
+expect_absent "/es/estancias/depa-centro-tulum" 'class="gallery"' \
+  "el producto sin fotos no reserva espacio de imagen"
+expect_contains "/es/estancias/casa-akumal" 'class="gallery"' "y el que sí tiene fotos lo reserva"
+expect_contains "/es?guests=6" 'class="card-media"' "las tarjetas con foto la muestran"
 
 echo
 echo "S1-4 · solo lo publicado llega a la vitrina"
@@ -176,6 +186,13 @@ expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=6&month=2026-10-01" 
 
 echo
 echo "S3 · checkout y cobro del anticipo"
+# Este bloque necesita que 2026-09-17→20 esté libre en la Casa Akumal, porque
+# comprueba montos exactos y no puede consultar la base para elegir fechas.
+#
+# **Ese rango está reservado para smoke.sh.** Los recorridos de navegador trabajan
+# en otros años a propósito: el del checkout busca jueves libres desde el 24 de
+# septiembre y los del panel operan en 2028. Un recorrido nuevo que venda aquí
+# rompe cinco criterios sin que nada del sistema esté mal.
 CHECKOUT="/es/checkout?kind=stay&slug=casa-akumal&from=2026-09-17&to=2026-09-20&guests=5"
 expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'href="/es/checkout' "la ficha ofrece reservar cuando hay disponibilidad"
 expect_contains "$CHECKOUT" "Confirma tu reserva" "el checkout responde"
@@ -209,7 +226,8 @@ echo "S4 · el panel no se entra sin sesión"
 # El panel se protege en el servidor, no escondiendo enlaces. Cada ruta se
 # comprueba por separado: proteger el índice y olvidar una sección es la forma
 # más común de dejar una puerta abierta.
-for ruta in /admin /admin/reservas /admin/calendario /admin/bloqueos /admin/salidas; do
+for ruta in /admin /admin/reservas /admin/calendario /admin/bloqueos /admin/salidas \
+            /admin/catalogo /admin/ajustes /admin/bitacora; do
   expect_redirect "$ruta" "Accept-Language: es-MX" "/admin/entrar" "sin sesión, $ruta manda a la pantalla de acceso"
 done
 expect_status "/admin/entrar" 200 "la pantalla de acceso responde"
@@ -240,6 +258,16 @@ expect_redirect "/admin/salidas/00000000-0000-0000-0000-000000000000" "Accept-La
 # no debe tocar el panel.
 expect_redirect "/admin/salidas" "Accept-Language: en-US,en;q=0.9" "/admin/entrar" \
   "las salidas no se redirigen por el prefijo de idioma"
+
+echo
+echo "S6 · lo que se publica desde el panel"
+# Un borrador no puede llegar a la vitrina por descuido: es la única barrera
+# entre "estoy preparando algo" y "lo estoy vendiendo".
+expect_absent "/es" "borrador-no-publicado" "un borrador no aparece en el listado"
+expect_status "/es/tours/borrador-no-publicado" 404 "y su ficha responde 404"
+# Las fotos se sirven como archivos estáticos, sin transformación al leer
+# (decisión 0001). Si /media dejara de servirse, la vitrina se queda sin fotos.
+expect_not_redirect GET "/media" "las fotos no pasan por el prefijo de idioma"
 
 echo
 echo "S1-2 · accesibilidad básica"

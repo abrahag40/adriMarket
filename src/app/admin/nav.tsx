@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import type { StaffUser } from "@/modules/identity/auth";
+import { hasRole, type StaffUser } from "@/modules/identity/auth";
 
 import { signOut } from "./actions";
 
@@ -20,10 +20,19 @@ export function AdminNav({ user, active }: { user: StaffUser; active: string }) 
     { href: "/admin/bloqueos", label: "Bloqueos" },
   ];
 
+  // El catálogo y los ajustes son decisiones comerciales, no operativas: no se
+  // le muestran a recepción ni a un guía. El servidor los protege igual, esto
+  // solo evita ofrecer una puerta cerrada.
+  const managerItems = [
+    { href: "/admin/catalogo", label: "Catálogo" },
+    { href: "/admin/ajustes", label: "Ajustes" },
+    { href: "/admin/bitacora", label: "Bitácora" },
+  ];
+
   return (
     <header className="admin-head">
       <nav className="admin-nav" aria-label="Panel">
-        {items.map((item) => (
+        {(hasRole(user, "manager") ? [...items, ...managerItems] : items).map((item) => (
           <Link
             key={item.href}
             href={item.href}

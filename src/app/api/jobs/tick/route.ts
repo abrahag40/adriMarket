@@ -1,12 +1,13 @@
 import { expireHolds } from "@/modules/availability/holds";
+import { processMediaJobs } from "@/modules/media/images";
 import { enqueueReminders, processOutbox } from "@/modules/notifications/send";
 
 /**
  * Latido del worker · S3-5
  *
- * Un solo punto de entrada que hace las tres tareas periódicas: liberar
- * apartados vencidos, encolar los recordatorios que ya entraron en su ventana y
- * despachar la bandeja de salida. En producción lo llama un cron cada minuto; en
+ * Un solo punto de entrada que hace las tareas periódicas: liberar apartados
+ * vencidos, encolar los recordatorios que ya entraron en su ventana, despachar
+ * la bandeja de salida y generar las variantes de las fotos recién subidas. En producción lo llama un cron cada minuto; en
  * desarrollo se llama a mano con curl.
  *
  * El orden importa: los recordatorios se encolan **antes** de despachar, así
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   const expired = await expireHolds();
   const reminders = await enqueueReminders();
   const outbox = await processOutbox();
+  const media = await processMediaJobs();
 
-  return Response.json({ expired, reminders, outbox });
+  return Response.json({ expired, reminders, outbox, media });
 }

@@ -4,6 +4,8 @@ import { formatMoney, productPath, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 import type { CatalogCard } from "@/modules/catalog/queries";
 
+import { ResponsiveImage } from "./responsive-image";
+
 /**
  * Tarjeta de resultado.
  *
@@ -26,16 +28,17 @@ export function ProductCard({ item, locale }: { item: CatalogCard; locale: Local
           imagen que no cargó — y en una vitrina eso resta confianza. */}
       {item.coverUrl ? (
         <div className="card-media">
-          {/* Imagen sin optimizar todavía: la entrega definitiva se decide en el
-              spike S1-6 y se implementa con las fotos reales del cliente. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {/* Sirve los anchos generados al subir (decisión 0001). Una tarjeta
+              ocupa media pantalla en un teléfono y un tercio en escritorio: eso
+              es lo que dice `sizes`, y con eso el navegador elige el archivo más
+              chico que se vea bien. */}
+          <ResponsiveImage
             src={item.coverUrl}
             alt={item.coverAlt ?? ""}
-            width={800}
-            height={600}
-            loading="lazy"
-            decoding="async"
+            width={item.coverWidth ?? 800}
+            height={item.coverHeight ?? 600}
+            variants={item.coverVariants}
+            sizes="(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
           />
         </div>
       ) : null}

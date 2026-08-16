@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
+import type { ImageVariants } from "@/components/responsive-image";
 import type { Locale, ProductKind } from "@/i18n/config";
 import { taxFactorFor } from "@/modules/pricing/service";
 
@@ -35,6 +36,9 @@ export type CatalogCard = {
   city: string | null;
   coverUrl: string | null;
   coverAlt: string | null;
+  coverWidth: number | null;
+  coverHeight: number | null;
+  coverVariants: ImageVariants | null;
   capacity: number | null;
   fromCents: number | null;
 };
@@ -54,6 +58,9 @@ export async function listCatalog(
     location_slug: string | null;
     city: string | null;
     cover_url: string | null;
+    cover_width: number | null;
+    cover_height: number | null;
+    cover_variants: ImageVariants | null;
     cover_alt: string | null;
     capacity: number | null;
     from_cents: number | null;
@@ -70,6 +77,9 @@ export async function listCatalog(
       l.city,
       cover.url as cover_url,
       cover.alt as cover_alt,
+      cover.width as cover_width,
+      cover.height as cover_height,
+      cover.variants as cover_variants,
       cap.capacity::int as capacity,
       round(price.from_cents * tax.factor)::bigint as from_cents
     from products p
@@ -78,7 +88,7 @@ export async function listCatalog(
     left join locations l on l.id = p.location_id
     left join lateral (
       select
-        m.url,
+        m.url, m.variants, m.width, m.height,
         case when ${locale} = 'en' then coalesce(m.alt_en, m.alt_es) else m.alt_es end as alt
       from product_media m
       where m.product_id = p.id
@@ -151,6 +161,9 @@ export async function listCatalog(
     city: row.city,
     coverUrl: row.cover_url,
     coverAlt: row.cover_alt,
+    coverWidth: row.cover_width === null ? null : Number(row.cover_width),
+    coverHeight: row.cover_height === null ? null : Number(row.cover_height),
+    coverVariants: row.cover_variants ?? null,
     capacity: row.capacity === null ? null : Number(row.capacity),
     fromCents: row.from_cents === null ? null : Number(row.from_cents),
   }));
@@ -168,7 +181,14 @@ export async function listLocations(): Promise<LocationOption[]> {
   return rows.map((row) => ({ slug: row.slug, name: row.name }));
 }
 
-export type MediaItem = { url: string; alt: string | null; width: number | null; height: number | null };
+export type MediaItem = {
+  url: string;
+  alt: string | null;
+  width: number | null;
+  height: number | null;
+  /** Anchos generados al subir. Vacío mientras el latido no los haya hecho. */
+  variants: ImageVariants | null;
+};
 
 export type StayDetail = {
   maxGuests: number;
@@ -266,13 +286,14 @@ export async function getProductDetail(
   if (!product) return null;
 
   const media = await db.execute<{
+    variants: ImageVariants | null;
     url: string;
     alt: string | null;
     width: number | null;
     height: number | null;
   }>(sql`
     select
-      m.url,
+      m.url, m.variants,
       case when ${locale} = 'en' then coalesce(m.alt_en, m.alt_es) else m.alt_es end as alt,
       m.width, m.height
     from product_media m
@@ -377,6 +398,7 @@ export async function getProductDetail(
     state: product.state,
     timezone: product.timezone,
     media: media.map((row) => ({
+      variants: row.variants ?? null,
       url: row.url,
       alt: row.alt,
       width: row.width === null ? null : Number(row.width),
