@@ -871,4 +871,77 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 21. Un aviso encolado siempre tiene a quién mandarse
+-- ---------------------------------------------------------------------------
+
+-- Se encontró en el Sprint 7 mirando /api/health: había confirmaciones en la
+-- bandeja con el destinatario vacío, que mueren tras seis intentos. Un huésped
+-- que paga y no recibe nada es la peor falla silenciosa posible, y no la ve
+-- nadie hasta que reclama.
+do $$
+declare
+  v_booking uuid;
+  v_vacios  int;
+begin
+  v_booking := test_confirmed_stay(800);
+
+  select count(*)::int into v_vacios from outbox
+   where booking_id = v_booking and coalesce(to_address, '') = '';
+
+  assert v_vacios = 0,
+    format('FALLO: %s avisos de la confirmación quedaron sin destinatario', v_vacios);
+
+  -- Y el correo del huésped es el suyo, no uno cualquiera.
+  assert (select to_address from outbox
+           where booking_id = v_booking and template = 'booking_confirmed_guest'
+             and channel = 'email')
+         = (select c.email from bookings b join customers c on c.id = b.customer_id
+             where b.id = v_booking),
+    'FALLO: la confirmación no va al correo del huésped';
+
+  raise notice '✔ 21. toda confirmación se encola con destinatario';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 22. WhatsApp se encola solo si hay número que sirva
+-- ---------------------------------------------------------------------------
+
+do $$
+declare
+  v_booking uuid;
+begin
+  -- Diez dígitos: se completa con el código de país. Es el caso más común aquí.
+  assert whatsapp_number('998 123 4567') = '529981234567',
+    format('FALLO: número local mal normalizado: %s', whatsapp_number('998 123 4567'));
+  assert whatsapp_number('+52 998 123 4567') = '529981234567', 'FALLO: número con lada mal normalizado';
+  assert whatsapp_number('123') is null, 'FALLO: un número imposible debería quedar en null';
+  assert whatsapp_number(null) is null, 'FALLO: sin teléfono no hay número';
+
+  -- Sin teléfono no se encola WhatsApp, y eso no es una falla: es un huésped
+  -- que no lo dejó. El correo sale igual.
+  v_booking := test_confirmed_stay(900);
+  update customers set phone = null
+   where id = (select customer_id from bookings where id = v_booking);
+
+  assert not outbox_enqueue_whatsapp(v_booking, 'booking_reminder'),
+    'FALLO: se intentó encolar WhatsApp sin número';
+  assert (select count(*) from outbox
+           where booking_id = v_booking and channel = 'whatsapp') = 0,
+    'FALLO: quedó una fila de WhatsApp sin destinatario';
+
+  update customers set phone = '9981234567'
+   where id = (select customer_id from bookings where id = v_booking);
+
+  assert outbox_enqueue_whatsapp(v_booking, 'booking_reminder'),
+    'FALLO: con número válido debería encolarse';
+  assert (select to_address from outbox
+           where booking_id = v_booking and channel = 'whatsapp') = '529981234567',
+    'FALLO: el número encolado no está normalizado';
+
+  raise notice '✔ 22. WhatsApp se encola solo con número normalizable';
+end;
+$$;
+
 rollback;

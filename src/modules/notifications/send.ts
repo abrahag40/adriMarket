@@ -11,6 +11,7 @@ import {
   reminderNotice,
   type BookingNotification,
 } from "./templates";
+import { buildWhatsApp } from "./whatsapp";
 
 /**
  * Envío de la bandeja de salida · S3-4 y S3-5
@@ -35,6 +36,89 @@ export type Transport = {
   name: string;
   send(message: { to: string; subject: string; text: string }): Promise<{ providerRef: string }>;
 };
+
+/**
+ * Transporte de WhatsApp · S7-1
+ *
+ * Misma forma que el de correo y por la misma razón que la pasarela de pago: el
+ * canal se elige por configuración, no por una bandera de "modo desarrollo". Sin
+ * credenciales se usa el local, que **arma el mensaje exactamente igual** —misma
+ * plantilla, mismos parámetros, mismo texto— y lo guarda en lugar de mandarlo.
+ * Lo único que no ocurre es la entrega.
+ */
+export type WhatsAppTransport = {
+  name: string;
+  send(message: {
+    to: string;
+    template: string;
+    language: string;
+    parameters: string[];
+  }): Promise<{ providerRef: string }>;
+};
+
+/**
+ * API de nube de WhatsApp, por HTTP directo.
+ *
+ * No verificado contra el servicio: hace falta un número de empresa verificado y
+ * **las plantillas aprobadas por Meta**, que es trámite del cliente y tarda de
+ * horas a días. Lo que sí está verificado es todo lo demás del camino: elección
+ * de plantilla, orden de los parámetros, normalización del número, encolado,
+ * reintentos y marcado.
+ */
+class CloudApiTransport implements WhatsAppTransport {
+  readonly name = "whatsapp";
+
+  constructor(
+    private readonly token: string,
+    private readonly phoneId: string,
+  ) {}
+
+  async send(message: { to: string; template: string; language: string; parameters: string[] }) {
+    const response = await fetch(`https://graph.facebook.com/v21.0/${this.phoneId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: message.to,
+        type: "template",
+        template: {
+          name: message.template,
+          language: { code: message.language },
+          components: [
+            {
+              type: "body",
+              parameters: message.parameters.map((text) => ({ type: "text", text })),
+            },
+          ],
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`whatsapp: HTTP ${response.status} ${await response.text()}`);
+    }
+    const body = (await response.json()) as { messages?: { id?: string }[] };
+    return { providerRef: body.messages?.[0]?.id ?? "" };
+  }
+}
+
+class LocalWhatsAppTransport implements WhatsAppTransport {
+  readonly name = "whatsapp-local";
+
+  async send(message: { to: string }) {
+    return { providerRef: `local-wa:${message.to}` };
+  }
+}
+
+export function whatsappTransport(): WhatsAppTransport {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_ID;
+  if (token && phoneId) return new CloudApiTransport(token, phoneId);
+  return new LocalWhatsAppTransport();
+}
 
 /**
  * Resend, por HTTP directo.
@@ -252,16 +336,23 @@ function renderTemplate(
 export async function processOutbox(limit = 25): Promise<OutboxReport> {
   const report: OutboxReport = { sent: 0, failed: 0, dead: 0 };
   const mail = transport();
+  const wa = whatsappTransport();
 
   const pending = await db.execute<{
     id: string;
+    channel: string;
     template: string;
     to_address: string;
     booking_id: string | null;
     attempts: number;
-    payload: { refund_cents?: number; reason?: string | null; hours_before?: number } | null;
+    payload: {
+      refund_cents?: number;
+      reason?: string | null;
+      hours_before?: number;
+      rendered?: { subject?: string; text?: string };
+    } | null;
   }>(sql`
-    select id, template, to_address, booking_id, attempts, payload
+    select id, channel::text as channel, template, to_address, booking_id, attempts, payload
       from outbox
      where status in ('pending', 'failed')
        and next_attempt_at <= now()
@@ -272,33 +363,84 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
 
   for (const row of pending) {
     try {
-      if (!row.booking_id) throw new Error("aviso sin reserva asociada");
+      if (!row.to_address) throw new Error("aviso sin destinatario");
+
+      // Un aviso sin reserva es legítimo: el enlace de acceso del staff no
+      // pertenece a ninguna. Antes se rechazaba con "aviso sin reserva
+      // asociada", así que **ningún enlace de acceso se entregó nunca** — el
+      // panel funcionaba en desarrollo solo porque los recorridos leen la URL
+      // directamente de la bandeja. En producción, con el correo configurado,
+      // nadie del equipo habría podido entrar.
+      //
+      // Estos avisos traen su texto ya armado en el payload, porque se arman en
+      // el momento de encolar y no dependen de nada que se pueda releer después.
+      if (!row.booking_id) {
+        const listo = row.payload?.rendered;
+        if (!listo?.subject || !listo?.text) {
+          throw new Error(`aviso sin reserva y sin texto: ${row.template}`);
+        }
+
+        const result = await mail.send({
+          to: row.to_address,
+          subject: listo.subject,
+          text: listo.text,
+        });
+
+        await db.execute(sql`
+          update outbox
+             set status = 'sent', sent_at = now(), attempts = attempts + 1,
+                 provider_ref = ${result.providerRef}, last_error = null,
+                 payload = payload || ${JSON.stringify({ transport: mail.name })}::jsonb
+           where id = ${row.id}::uuid
+        `);
+        report.sent += 1;
+        continue;
+      }
+
       const data = await notificationData(row.booking_id);
       if (!data) throw new Error(`no se encontró la reserva ${row.booking_id}`);
 
-      const message = renderTemplate(row.template, data, row.payload);
+      let rendered: { subject: string; text: string };
+      let providerRef: string;
+      let usado: string;
 
-      if (!row.to_address) throw new Error("aviso sin destinatario");
+      if (row.channel === "whatsapp") {
+        const message = buildWhatsApp(row.template, data, row.payload ?? {});
+        if (!message) throw new Error(`sin plantilla de WhatsApp para ${row.template}`);
 
-      const result = await mail.send({
-        to: row.to_address,
-        subject: message.subject,
-        text: message.text,
-      });
+        const result = await wa.send({
+          to: row.to_address,
+          template: message.template,
+          language: message.language,
+          parameters: message.parameters,
+        });
+        providerRef = result.providerRef;
+        usado = wa.name;
+        // Se guarda el texto ya armado, no solo los parámetros: un reclamo se
+        // resuelve enseñando el mensaje exacto que le llegó al huésped.
+        rendered = { subject: message.template, text: message.preview };
+      } else {
+        const message = renderTemplate(row.template, data, row.payload);
+        const result = await mail.send({
+          to: row.to_address,
+          subject: message.subject,
+          text: message.text,
+        });
+        providerRef = result.providerRef;
+        usado = mail.name;
+        rendered = message;
+      }
 
       await db.execute(sql`
         update outbox
            set status = 'sent',
                sent_at = now(),
                attempts = attempts + 1,
-               provider_ref = ${result.providerRef},
+               provider_ref = ${providerRef},
                last_error = null,
                -- Se guarda lo enviado, no solo que se envió: un reclamo se
-               -- resuelve mostrando el correo exacto que recibió el huésped.
-               payload = payload || ${JSON.stringify({
-                 rendered: { subject: message.subject, text: message.text },
-                 transport: mail.name,
-               })}::jsonb
+               -- resuelve mostrando el mensaje exacto que recibió el huésped.
+               payload = payload || ${JSON.stringify({ rendered, transport: usado })}::jsonb
          where id = ${row.id}::uuid
       `);
       report.sent += 1;

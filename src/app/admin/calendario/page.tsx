@@ -77,7 +77,15 @@ export default async function CalendarioPage({
       {byUnit.size === 0 ? (
         <p className="muted">No hay unidades activas.</p>
       ) : (
-        <div className="scroll-x">
+        // La región se puede enfocar y tiene nombre a propósito: se desplaza en
+        // horizontal, y sin `tabIndex` nadie que use solo el teclado puede
+        // moverla — la tabla del mes se le queda a medias. Lo detectó axe.
+        <div
+          className="scroll-x"
+          tabIndex={0}
+          role="region"
+          aria-label={`Ocupación de ${monthLabel}`}
+        >
           <table className="occupancy">
             <caption className="visually-hidden">Ocupación de {monthLabel}</caption>
             <thead>

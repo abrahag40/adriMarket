@@ -5,9 +5,16 @@
  * nunca sobreescribiendo colores en los componentes: así no existe el caso de
  * un color que solo funciona en un tema.
  *
- * Contraste verificado contra WCAG 2.2 AA (4.5:1 en texto normal):
- *   claro  texto sobre fondo 14.1:1 · atenuado 7.1:1 · blanco sobre acento 7.6:1
- *   oscuro texto sobre fondo 13.6:1 · atenuado 6.8:1 · acento sobre fondo 8.7:1
+ * Contraste verificado contra WCAG 2.2 AA (4.5:1 en texto normal), medido con
+ * la fórmula de luminancia relativa y comprobado con axe en el navegador:
+ *
+ *   claro   texto 15.7:1 · atenuado 6.5:1 · tenue 5.2:1 · blanco sobre acento 7.6:1
+ *   oscuro  texto 13.6:1 · atenuado 9.1:1 · tenue 5.8:1 · acento sobre fondo 8.7:1
+ *
+ * **`--text-faint` faltaba en esta lista y por eso se salió de norma**: quedó en
+ * 4.05:1 en tema claro, y con él el pie, los días no disponibles del calendario y
+ * las notas de los formularios. Se corrigió en el Sprint 7. Un token que no está
+ * en la lista es un token que nadie vuelve a medir.
  *
  * El público objetivo lee esto en un teléfono, a pleno sol y con una mano
  * ocupada. De ahí el tamaño base de 17px, el área táctil de 44px y el contraste
@@ -22,7 +29,7 @@
   --line-soft: #e2eae8;
   --text: #10262b;
   --text-muted: #4b6266;
-  --text-faint: #6d8286;
+  --text-faint: #5c7175;
   --accent: #0b5f5c;
   --accent-hover: #094a48;
   --accent-contrast: #ffffff;

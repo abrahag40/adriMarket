@@ -34,14 +34,16 @@ responden preguntas distintas:
 | 4 | 7–8 | Panel de operación | 21 | **cumplido** |
 | 5 | 9–10 | Cancelaciones, cambios y manifiesto | 21 | **cumplido** |
 | 6 | 11–12 | Publicar y ajustar sin el equipo técnico | 21 | **cumplido** |
+| 7 | 13–14 | Salida a producción | 20 | **cumplido a medias**: lo construible está entregado; faltan tres cuentas del cliente |
 
-**Velocidad observada: 22, 21, 21, 21, 21 y 21.** Pronóstico para adelante: **21
-puntos por sprint**. No es una meta a superar; es el insumo del pronóstico.
+**Velocidad observada: 22, 21, 21, 21, 21, 21 y 20.** Pronóstico para el
+Release 2: **21 puntos por sprint**. No es una meta a superar; es el insumo del
+pronóstico.
 
 Lo que ya funciona y está verificado: catálogo en español e inglés, motor de
 cotización con temporadas y restricciones, calendario de disponibilidad,
 garantías de inventario probadas bajo concurrencia real, y una barra de
-verificación de 113 criterios que corre en el pipeline.
+verificación de 124 criterios que corre en el pipeline.
 
 Ya se puede reservar y cobrar el anticipo: el flujo completo está verificado de
 extremo a extremo con la pasarela local. **Falta la cuenta de Stripe** para
@@ -62,8 +64,15 @@ idiomas, sube fotos que se sirven optimizadas, genera las salidas del mes en lot
 y cambia su anticipo — todo desde el panel y sin despliegue. Cada cambio queda en
 la bitácora con nombre y fecha.
 
-Lo que todavía **no** existe: estar en producción vendiendo, con avisos por
-WhatsApp y monitoreo. Eso es el Sprint 7, el último.
+Y ya avisa por los dos canales que usa el negocio: correo con el desglose
+completo y WhatsApp con lo que se alcanza a leer en la pantalla de bloqueo, con
+un latido vigilado que responde `503` cuando deja de correr.
+
+Lo que todavía **no** existe: **estar vendiendo**. No falta desarrollo; faltan
+tres cuentas del cliente —Stripe, el dominio de correo autenticado y el número de
+WhatsApp con plantillas aprobadas por Meta— y las tres son trámites con semanas
+de espera. La lista del día del despliegue está en
+[`puesta-en-produccion.md`](puesta-en-produccion.md).
 
 ---
 
@@ -177,7 +186,9 @@ riesgo. Cada épica dice qué habilita y qué duele si se posterga.
 | D | **Autonomía del cliente** | Publicar y cambiar tarifas sin despliegue | El equipo queda de intermediario para cada cambio de precio | 21 | 6 |
 | E | **Salida a producción** | Vender de verdad, con soporte | Se lanza sin monitoreo ni staff capacitado | 20 | 7 |
 
-**Total pendiente para el MVP: 104 puntos, cinco sprints, diez semanas.**
+**Total del MVP: 104 puntos, cinco sprints, diez semanas — entregados.** Las
+cinco épicas están construidas y verificadas; lo que queda abierto de la E no es
+alcance, son las cuentas del cliente (§5.1).
 
 ### Decisión de orden que vale explicar
 
@@ -326,6 +337,14 @@ unidades de estancia. El detalle está en [`sprint-06.md`](sprint-06.md).
 
 **Se demuestra:** una reserva real, de un huésped real, cobrada en producción.
 
+**Cerrado a medias, y la mitad que falta no es código.** 20 de 20 puntos
+construidos y verificados; la demostración de arriba **no se pudo hacer** porque
+sigue sin haber cuenta de Stripe. El detalle está en
+[`sprint-07.md`](sprint-07.md), incluidos los tres defectos de producción que
+destapó el `/api/health` recién escrito —los enlaces de acceso del staff nunca se
+entregaban, no había `robots.txt` ni `sitemap.xml`, y el WhatsApp moría con un
+producto sin traducción— y una cosa que no se pudo explicar y se dice igual.
+
 ---
 
 ## 5. La mirada de gestión de entrega
@@ -342,12 +361,18 @@ Lo que hay que arrancar **antes** de necesitarlo, con su tiempo de espera real:
 
 | Dependencia | Tiempo típico | Arrancar en | Se necesita en | Dueño |
 |---|---|---|---|---|
-| **Cuenta de Stripe** (verificación del negocio) | 2 a 4 semanas | ya iniciado | **vencida: se necesitaba en el Sprint 3** | PO |
-| **Dominio, correo y registros SPF/DKIM/DMARC** | 1 a 3 días | Sprint 3, día 1 | Sprint 3 | Developers |
-| **WhatsApp Business y plantillas** (aprobación de Meta) | 1 a 3 semanas | Sprint 5 | Sprint 7 | PO |
+| **Cuenta de Stripe** (verificación del negocio) | 2 a 4 semanas | ya iniciado | **vencida cuatro sprints: bloquea vender** | PO |
+| **Dominio, correo y registros SPF/DKIM/DMARC** | 1 a 3 días | Sprint 3, día 1 | Sprint 3 | Developers → **PO**: falta el dominio |
+| **WhatsApp Business y plantillas** (aprobación de Meta) | 1 a 3 semanas | Sprint 5 | **vencida: bloquea el canal** | PO |
 | **Tarifas y temporadas reales** | — | vencido | Sprint 2 | PO / SME |
 | **Fotos y textos reales** | — | vencido | Sprint 6 | SME |
 | Timbrador CFDI | 1 semana | Release 2 | Release 2 | PO |
+
+> **Las tres primeras filas son, al cierre del Sprint 7, lo único que separa al
+> sistema de estar vendiendo.** Ninguna es desarrollo y ninguna la puede
+> destrabar el equipo. La de Meta es la más lenta y la que peor se lleva con la
+> prisa: aprobar una plantilla tarda de horas a días, y cambiar una coma después
+> obliga a registrarla de nuevo.
 
 > **El correo autenticado es ruta crítica y no lo parece.** Mandar
 > confirmaciones desde un dominio nuevo sin SPF, DKIM y DMARC las manda a spam. Y
@@ -424,7 +449,11 @@ presente al fijar el porcentaje.
 
 ### 5.7 Lista de verificación para salir a producción
 
-Se revisa completa en el Sprint 7, y ninguna casilla se marca por confianza:
+Se revisó en el Sprint 7 y se convirtió en un documento operable, ordenado por
+dependencia y con los comandos exactos:
+[`puesta-en-produccion.md`](puesta-en-produccion.md). Esta es la versión corta,
+y ninguna casilla se marca por confianza — **marcar una por escrito sin
+verificarla fue justo el origen de uno de los defectos del Sprint 7**:
 
 - [ ] Migraciones aplicadas en producción desde cero, en un ensayo previo
 - [ ] Respaldos automáticos y una restauración probada de verdad
@@ -524,7 +553,7 @@ razón — no calladamente en una hoja aparte.
 | 2 | Tarifas y temporadas reales del año | PO / SME | **vencida** | Que el Sprint Review sea real y no una demostración con datos inventados |
 | 3 | Política de cancelación con porcentajes y plazos concretos | PO con el SME | **venció; el mecanismo está construido y espera los números** | Cuánto se le devuelve a quien cancela. Se cargan como datos y solo aplican a reservas nuevas (ver `docs/sprint-05.md`) |
 | 4 | ¿Se factura CFDI? | PO | antes del Release 2 | Un módulo con proveedor de timbrado |
-| 5 | ¿El SME da descuentos por estancia larga hoy? | SME | **venció sin respuesta; no se implementó nada** | Si es sí, entra esquema nuevo y 3 puntos en el Sprint 7 |
+| 5 | ¿El SME da descuentos por estancia larga hoy? | SME | **venció sin respuesta; no se implementó nada** | Si es sí, entra esquema nuevo. Ya no cabe en el MVP: pasa al Release 2 |
 | 6 | ¿Quién opera el panel a diario y desde qué dispositivo? | PO | **venció sin respuesta** | Se asumió *recepción desde el celular* y el panel se construyó móvil primero (ver `docs/sprint-04.md`). Confirmar o desmentir |
 | 7 | Fotos y textos reales | SME | **ya no bloquea al equipo**: se suben desde el panel (Sprint 6) | Que la vitrina venda algo parecido a lo que existe |
 

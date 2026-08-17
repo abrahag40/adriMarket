@@ -11,3 +11,7 @@ src/db/generated/meta/
 src/db/generated/*.sql
 *.tsbuildinfo
 var/media/*
+
+# Capturas que dejan los recorridos en navegador al correr. Son evidencia de una
+# corrida concreta, no del proyecto: se regeneran con `npm run test:e2e*`.
+/*.png

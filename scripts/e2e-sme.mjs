@@ -228,16 +228,26 @@ await page.screenshot({ path: `${out}/s3-salida-cancelada.png`, fullPage: true }
 // 4. Lo que el SME verifica: aviso y reembolso para los tres
 // ---------------------------------------------------------------------------
 
+// Cada cuenta va en su propia subconsulta.
+//
+// Antes era un solo `select` con tres `left join`, y eso multiplicaba: desde que
+// el aviso de cancelación también sale por WhatsApp, el join contra `outbox`
+// devuelve dos filas por reserva —mismo `template`, distinto canal— y las tres
+// cuentas salían al doble. El sistema estaba bien; la consulta que lo medía, no.
 const estado = query(`
-  select count(*) filter (where b.status = 'cancelled')::text || '|' ||
-         count(*) filter (where o.id is not null)::text || '|' ||
-         coalesce(sum(r.amount_cents), 0)::text
-    from bookings b
-    left join outbox o
-      on o.booking_id = b.id and o.template = 'booking_cancelled_by_operator'
-    left join payments p on p.booking_id = b.id and p.purpose = 'deposit'
-    left join refunds r on r.payment_id = p.id
-   where b.code = any(array['${codes.join("','")}'])
+  select
+    (select count(*) from bookings
+      where code = any(array['${codes.join("','")}']) and status = 'cancelled')::text
+    || '|' ||
+    (select count(distinct o.booking_id) from outbox o
+       join bookings b on b.id = o.booking_id
+      where b.code = any(array['${codes.join("','")}'])
+        and o.template = 'booking_cancelled_by_operator' and o.channel = 'email')::text
+    || '|' ||
+    (select coalesce(sum(r.amount_cents), 0) from refunds r
+       join payments p on p.id = r.payment_id
+       join bookings b on b.id = p.booking_id
+      where b.code = any(array['${codes.join("','")}']) and p.purpose = 'deposit')::text
 `);
 const [canceladas, avisadas, reembolsado] = estado.split("|");
 

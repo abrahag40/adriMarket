@@ -1,3 +1,6 @@
+import { sql } from "drizzle-orm";
+
+import { db } from "@/db/index";
 import { expireHolds } from "@/modules/availability/holds";
 import { processMediaJobs } from "@/modules/media/images";
 import { enqueueReminders, processOutbox } from "@/modules/notifications/send";
@@ -30,6 +33,15 @@ export async function POST(request: Request) {
   const reminders = await enqueueReminders();
   const outbox = await processOutbox();
   const media = await processMediaJobs();
+
+  // El latido se registra al final y solo si todo corrió. Es lo que hace
+  // observable que el worker esté vivo: /api/health lo lee y avisa cuando lleva
+  // demasiado sin aparecer. Un worker caído no se queja solo — deja de expirar
+  // apartados y deja de mandar avisos, en silencio.
+  await db.execute(sql`
+    select audit_record(null, 'job.tick', 'system', 'tick', null,
+                        ${JSON.stringify({ expired, reminders, outbox, media })}::jsonb)
+  `);
 
   return Response.json({ expired, reminders, outbox, media });
 }

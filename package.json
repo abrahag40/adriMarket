@@ -21,7 +21,8 @@
     "test:e2e": "node scripts/e2e.mjs",
     "test:e2e:admin": "node scripts/e2e-admin.mjs",
     "test:e2e:sme": "node scripts/e2e-sme.mjs",
-    "test:e2e:publicar": "node scripts/e2e-publicar.mjs"
+    "test:e2e:publicar": "node scripts/e2e-publicar.mjs",
+    "audit": "node scripts/audit.mjs"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

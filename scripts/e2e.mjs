@@ -34,10 +34,20 @@ function fail(label) { console.log(`  ✘ ${label}`); process.exitCode = 1; }
 //
 // El rango no se escribe a mano: este recorrido **vende** esas noches, así que
 // fijarlas hace que solo se pueda correr una vez. Se buscan jueves libres, que
-// dan siempre el mismo total (una noche base más dos de fin de semana) mientras
-// no se entre en temporada alta, del 15 de diciembre en adelante.
+// dan siempre el mismo total: una noche a tarifa base más dos de fin de semana.
+//
+// **Cada recorrido tiene su propio año**, y esto no es manía de orden: cuando
+// compartían 2026 se quitaban las noches entre ellos y los criterios empezaban a
+// fallar por falta de inventario, no por un defecto.
+//
+//   2026 · las fechas fijas de scripts/smoke.sh
+//   2027 · este recorrido
+//   2028 · los del panel (e2e-sme)
+//
+// La temporada alta solo está definida para diciembre de 2026, así que todo 2027
+// es tarifa base y el total no cambia.
 const jueves = [];
-for (let d = new Date(Date.UTC(2026, 8, 24)); d < new Date(Date.UTC(2026, 11, 10)); d.setUTCDate(d.getUTCDate() + 1)) {
+for (let d = new Date(Date.UTC(2027, 1, 1)); d < new Date(Date.UTC(2027, 11, 1)); d.setUTCDate(d.getUTCDate() + 1)) {
   if (d.getUTCDay() === 4) jueves.push(new Date(d));
 }
 

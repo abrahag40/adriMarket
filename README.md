@@ -4,15 +4,21 @@ Motor de reservas para tours en el Caribe y renta de inmuebles. Dos
 inventarios que se compran igual y se operan distinto, con un solo checkout:
 se cobra un anticipo en línea y el saldo se paga en destino.
 
-Estado: **se puede reservar, cobrar el anticipo, operar el día a día, resolver
-cancelaciones y cambios de fecha, y publicar catálogo desde el panel**
-(Sprints 0 a 6), verificado de extremo a extremo. Falta la cuenta de la pasarela
-para ejecutarlo contra el servicio real.
+Estado: **el producto está completo y verificado de extremo a extremo**
+(Sprints 0 a 7): se reserva, se cobra el anticipo, se opera el día a día, se
+resuelven cancelaciones y cambios de fecha, se publica catálogo desde el panel, y
+los avisos salen por correo y WhatsApp con monitoreo.
+
+**Lo que impide vender no es código**, son tres cuentas del cliente: Stripe,
+el dominio de correo autenticado y el número de WhatsApp con sus plantillas
+aprobadas por Meta. La lista del día del despliegue está en
+[`docs/puesta-en-produccion.md`](docs/puesta-en-produccion.md).
 
 - **Plan maestro** (columna vertebral, una sola fuente de verdad): [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
 - Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
 - Esquema: [`docs/esquema.md`](docs/esquema.md)
-- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md) · [`sprint-05.md`](docs/sprint-05.md) · [`sprint-06.md`](docs/sprint-06.md)
+- Para operar: [`docs/puesta-en-produccion.md`](docs/puesta-en-produccion.md) · [`docs/operacion.md`](docs/operacion.md) (qué hacer cuando algo falla) · [`docs/manual-del-panel.md`](docs/manual-del-panel.md) (para el equipo del cliente)
+- Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md) · [`sprint-05.md`](docs/sprint-05.md) · [`sprint-06.md`](docs/sprint-06.md) · [`sprint-07.md`](docs/sprint-07.md)
 
 ## Cómo correrlo
 
@@ -41,6 +47,7 @@ BASE_URL=http://127.0.0.1:3100 npm run test:e2e        # el checkout, en navegad
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin  # un día de operación en el panel
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme    # el día que cierran el puerto
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:publicar # publicar un tour sin ayuda
+BASE_URL=http://127.0.0.1:3100 npm run audit           # accesibilidad (axe) y peso de las páginas
 npm run db:bench              # prueba de carga: sobreventa bajo concurrencia
 ```
 
@@ -168,6 +175,45 @@ cobro y el envío.
 Con `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` presentes se usa Stripe. La
 selección es por configuración y no por una bandera de "modo desarrollo": sin
 llaves no hay nada que cobrar, y con llaves siempre se usa la real.
+
+## WhatsApp
+
+El huésped que reserva por WhatsApp espera la confirmación por WhatsApp; un
+correo se le pierde entre las promociones. Se manda **además del correo, nunca en
+su lugar**: el correo lleva el desglose, la política y el depósito de garantía;
+WhatsApp lleva lo que se lee en la pantalla de bloqueo. Si un canal falla, el
+otro sigue.
+
+Dos cosas que condicionan el diseño:
+
+- **Las plantillas las aprueba Meta antes de poder enviarlas**, y el texto
+  enviado tiene que coincidir **carácter por carácter** con el aprobado. Por eso
+  viven escritas en `src/modules/notifications/whatsapp.ts` en el formato exacto
+  del trámite: ese archivo es lo que se copia a la consola de Meta.
+- **El número se normaliza en SQL** (`whatsapp_number`), no en la aplicación. El
+  encolado ocurre dentro de la misma transacción que confirma o cancela la
+  reserva, igual que el correo desde el Sprint 3; tener la normalización en los
+  dos lados garantiza que algún día difieran.
+
+## Salud y latido
+
+`POST /api/jobs/tick` es el latido: expira apartados, encola recordatorios,
+vacía la bandeja de salida y genera las variantes de las fotos. Lo llama un cron
+cada minuto con la cabecera `x-job-secret`.
+
+**Falla en silencio**, y ese es el problema: sin latido nada da error,
+simplemente los apartados no expiran y los avisos no salen. Por eso el tick deja
+constancia en la bitácora y `GET /api/health` responde `503` cuando el último
+latido tiene más de diez minutos. Las otras cuatro comprobaciones son la base,
+las migraciones aplicadas, los avisos muertos y los reembolsos pendientes.
+
+La respuesta no lleva secretos y se sirve sin caché, para poder apuntarle un
+monitoreo externo. **Sirve porque puede fallar**: la primera vez que respondió
+`503` destapó tres defectos reales que ninguna prueba cubría (ver
+[`docs/sprint-07.md`](docs/sprint-07.md)).
+
+`robots.txt` y `sitemap.xml` se generan desde la base: el mapa lista un producto
+por idioma **solo si tiene traducción**, y `robots` bloquea `/admin` y `/api`.
 
 ## El panel de operación
 

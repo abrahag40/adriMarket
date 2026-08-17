@@ -305,7 +305,7 @@ describe("crear la reserva con apartado", () => {
 });
 
 describe("webhook de la pasarela", () => {
-  it("confirma la reserva, registra el saldo y encola dos avisos", async () => {
+  it("confirma la reserva, registra el saldo y encola los avisos", async () => {
     const range = freshRange();
     const booking = await createBookingWithHold({ kind: "stay", productId: CASA, range, guests: 5 }, holder, []);
     const event = await payDeposit(booking);
@@ -317,7 +317,8 @@ describe("webhook de la pasarela", () => {
       status: string;
       deposit_paid: string;
       balance_due: string;
-      avisos: number;
+      correos: number;
+      whatsapps: number;
       reason: string;
     }>(sql`
       select b.status::text as status,
@@ -325,7 +326,10 @@ describe("webhook de la pasarela", () => {
                where p.booking_id = b.id and p.purpose = 'deposit' and p.status = 'succeeded') as deposit_paid,
              (select coalesce(sum(amount_cents),0) from payments p
                where p.booking_id = b.id and p.purpose = 'balance' and p.status = 'pending') as balance_due,
-             (select count(*)::int from outbox o where o.booking_id = b.id) as avisos,
+             (select count(*)::int from outbox o
+               where o.booking_id = b.id and o.channel = 'email') as correos,
+             (select count(*)::int from outbox o
+               where o.booking_id = b.id and o.channel = 'whatsapp') as whatsapps,
              (select sb.reason::text from stay_blocks sb
                 join booking_items i on i.id = sb.booking_item_id
                where i.booking_id = b.id and sb.released_at is null) as reason
@@ -336,7 +340,12 @@ describe("webhook de la pasarela", () => {
     assert.equal(row.status, "confirmed");
     assert.equal(Number(row.deposit_paid), booking.depositCents);
     assert.equal(Number(row.balance_due), booking.quote.balance_cents, "el saldo queda por cobrar");
-    assert.equal(row.avisos, 2, "huésped y administrador");
+    assert.equal(row.correos, 2, "correo al huésped y al administrador");
+    // El titular dejó teléfono, así que también sale por WhatsApp. Va **además**
+    // del correo y no en su lugar: el correo lleva el desglose, la política y el
+    // depósito en efectivo; WhatsApp lleva lo que se lee en la pantalla de
+    // bloqueo. Si un canal falla, el otro sigue.
+    assert.equal(row.whatsapps, 1, "y WhatsApp al huésped, que dejó teléfono");
     assert.equal(row.reason, "booking", "el apartado pasó a ocupación firme");
   });
 
@@ -382,7 +391,8 @@ describe("webhook de la pasarela", () => {
     `);
     assert.deepEqual(
       { ...rows[0] },
-      { pagos: 1, saldos: 1, avisos: 2, eventos: 1 },
+      // Dos correos y un WhatsApp: diez webhooks iguales no los multiplican.
+      { pagos: 1, saldos: 1, avisos: 3, eventos: 1 },
       "un pago, un saldo, dos avisos, un evento",
     );
   });
@@ -566,6 +576,21 @@ describe("avisos", () => {
       assert.ok(row.error, "el error queda registrado");
       assert.ok(row.espera > 0, "se reprograma en el futuro, no de inmediato");
     }
+
+    // Se recogen los avisos rotos antes de salir, y no es limpieza cosmética.
+    //
+    // Esta prueba escribe en la misma base que usa el desarrollo, y deja tres
+    // filas con destinatario vacío que **son idénticas a un defecto real**. Al
+    // cierre del Sprint 7 costaron una investigación entera: `/api/health`
+    // reportaba avisos muertos, la causa no aparecía por ningún lado —una fila
+    // de WhatsApp sin destinatario es imposible desde `outbox_enqueue_whatsapp`,
+    // que solo inserta con número válido— y la explicación era este `update`.
+    //
+    // Un dato de prueba que no se distingue de un síntoma de producción hace
+    // que el monitoreo mienta. La prueba se lleva lo suyo.
+    await db.execute(sql`
+      delete from outbox where booking_id = ${booking.bookingId}::uuid
+    `);
   });
 });
 

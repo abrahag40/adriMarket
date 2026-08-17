@@ -103,12 +103,10 @@ expect_status "/es?guests=-5" 200 "un número negativo se ignora"
 # Un producto sin fotos no reserva el hueco de la imagen: un rectángulo gris se
 # lee como "no cargó" y en una vitrina eso resta confianza.
 #
-# Se comprueba producto por producto y no contando el listado completo. Contar
-# medía cuánto inventario hay —que cambia cada vez que alguien publica algo— en
-# vez de la propiedad, y se rompía sola.
-# Se comprueba en la ficha y no en el listado: el listado no tiene filtro de
-# texto, así que no se puede aislar un producto y la comprobación acaba mirando
-# a varios a la vez.
+# Se comprueba en la ficha y no contando el listado. Contar medía cuánto
+# inventario hay —que cambia cada vez que alguien publica algo— en vez de la
+# propiedad, y se rompía sola; y el listado no tiene filtro de texto, así que
+# tampoco se puede aislar un producto ahí.
 expect_absent "/es/estancias/depa-centro-tulum" 'class="gallery"' \
   "el producto sin fotos no reserva espacio de imagen"
 expect_contains "/es/estancias/casa-akumal" 'class="gallery"' "y el que sí tiene fotos lo reserva"
@@ -268,6 +266,36 @@ expect_status "/es/tours/borrador-no-publicado" 404 "y su ficha responde 404"
 # Las fotos se sirven como archivos estáticos, sin transformación al leer
 # (decisión 0001). Si /media dejara de servirse, la vitrina se queda sin fotos.
 expect_not_redirect GET "/media" "las fotos no pasan por el prefijo de idioma"
+
+echo
+echo "S7 · listo para producción"
+# Un latido antes de preguntar por la salud, porque el primer criterio depende
+# de que el worker haya corrido al menos una vez y **eso es correcto**: sobre una
+# base recién creada, `/api/health` responde 503 con "nunca ha latido", que es
+# justo lo que tiene que decirle a alguien que olvidó configurar el cron. Sin
+# esta llamada, la barra fallaba contra una instalación nueva y el fallo no era
+# del sistema sino de la barra. En producción el cron ya late; aquí se provoca
+# uno, que es idempotente y de paso comprueba que el secreto sirve.
+curl -s -o /dev/null -X POST -H "x-job-secret: ${JOBS_SECRET:-}" "$BASE_URL/api/jobs/tick" || true
+
+# La salud responde 503 cuando algo está mal, no 200 con un campo dentro: es lo
+# que un monitor entiende sin configurarle reglas.
+expect_status "/api/health" 200 "la salud del sistema responde"
+expect_contains "/api/health" '"worker"' "y dice si el worker está latiendo"
+expect_contains "/api/health" '"refunds"' "y si hay reembolsos atorados"
+expect_not_redirect GET "/api/health" "la salud no se redirige por el prefijo de idioma"
+
+# robots.txt no existía: el middleware ya lo excluía —así que alguien lo dio por
+# hecho— pero nada lo generaba y respondía 404.
+expect_status "/robots.txt" 200 "robots.txt existe"
+expect_contains "/robots.txt" "Disallow: /admin" "y bloquea el panel"
+expect_contains "/robots.txt" "Sitemap:" "y apunta al sitemap"
+expect_status "/sitemap.xml" 200 "el sitemap responde"
+expect_contains "/sitemap.xml" "/es/estancias/casa-akumal" "y lista las fichas publicadas"
+expect_absent "/sitemap.xml" "borrador-no-publicado" "pero no los borradores"
+# Un producto sin traducción responde 404 en ese idioma: listarlo sería mandar
+# al rastreador a una página rota.
+expect_absent "/sitemap.xml" "/en/stays/depa-centro-tulum" "ni las fichas sin traducir"
 
 echo
 echo "S1-2 · accesibilidad básica"
