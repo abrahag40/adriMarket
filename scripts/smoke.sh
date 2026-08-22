@@ -9,6 +9,19 @@
 
 set -uo pipefail
 
+cd "$(dirname "$0")/.."
+
+# Carga `.env` si existe, como hacen los demás scripts.
+#
+# Sin esto, `JOBS_SECRET` llega vacío y el latido que provoca el bloque S7 se
+# rechaza con 401 en silencio, así que `/api/health` responde 503 y la barra
+# falla **solo la primera vez** que se corre sobre una base recién creada —
+# después cualquier otro recorrido ya dejó un latido y el fallo desaparece.
+# Un fallo que se cura solo al segundo intento es peor que uno constante.
+if [[ -f .env ]]; then
+  set -a; source .env; set +a
+fi
+
 BASE_URL="${BASE_URL:-http://127.0.0.1:3000}"
 PASS=0
 FAIL=0

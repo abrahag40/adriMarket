@@ -26,6 +26,22 @@ justamente para que la falta de uno no deje a nadie sin enterarse.
 
 ---
 
+## 0. Dónde vive · decidido
+
+| Pieza | Dónde | Nota |
+|---|---|---|
+| El sitio | Un host con **runtime de Node** | No edge: `sharp`, el disco y `postgres` por TCP lo exigen |
+| La base | **Neon**, PostgreSQL gestionado | Con `btree_gist` disponible. Conexión **directa** para migraciones |
+| Dominio, caché y protección | **Cloudflare**, al frente | Que no cachee `/admin`, `/api` ni `/media` con reglas propias |
+| Las fotos | Volumen **persistente** en el host | Si el disco es efímero, desaparecen en el siguiente despliegue |
+
+El porqué, con las alternativas descartadas, está en
+[`decisiones/0002-donde-vive-el-sistema.md`](decisiones/0002-donde-vive-el-sistema.md).
+**No hace falta cambiar una línea de código para desplegar:** lo que se probó es
+lo que se sube.
+
+---
+
 ## 1. Base de datos
 
 - [ ] PostgreSQL 16 o superior, con `btree_gist` disponible.

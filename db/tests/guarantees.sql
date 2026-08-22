@@ -105,6 +105,42 @@ begin
 end;
 $$;
 
+-- Ayudante: una salida de tour exclusiva de la prueba.
+--
+-- Las pruebas 5, 6 y 7 tomaban una salida del seed por posición
+-- (`order by starts_at offset N limit 1`) y le sobreescribían `capacity` y
+-- `seats_taken` con un `update` crudo. Eso solo funciona sobre una base recién
+-- sembrada: en cuanto un recorrido de navegador vende lugares en esa salida, el
+-- `update` deja el contador en 0 con apartados vivos, y la vista de auditoría
+-- reporta un desajuste —correctamente— que parece un defecto del inventario y
+-- no lo es. Es la misma lección que ya se había aprendido con las estancias en
+-- las pruebas 1 a 4, y que a los tours nunca se le aplicó.
+--
+-- Ahora cada prueba crea la suya, libre por construcción y no por suerte.
+create temporary sequence test_departure_seq;
+
+create or replace function test_departure(p_capacity integer default 10)
+returns uuid
+language plpgsql as $$
+declare
+  v_option uuid;
+  v_dep    uuid;
+begin
+  select id into v_option from tour_options order by id limit 1;
+
+  insert into tour_departures (tour_option_id, starts_at, ends_at, capacity, seats_taken, status)
+  values (v_option,
+          date_trunc('hour', now()) + interval '500 days'
+            + (nextval('test_departure_seq') * interval '1 hour'),
+          date_trunc('hour', now()) + interval '500 days'
+            + (nextval('test_departure_seq') * interval '1 hour') + interval '4 hours',
+          p_capacity, 0, 'open')
+  returning id into v_dep;
+
+  return v_dep;
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- 1. Estancias: el traslape es imposible
 -- ---------------------------------------------------------------------------
@@ -221,8 +257,7 @@ declare
   v_item  uuid;
   v_caught boolean := false;
 begin
-  select id into v_dep from tour_departures order by starts_at limit 1;
-  update tour_departures set capacity = 12, seats_taken = 0 where id = v_dep;
+  v_dep := test_departure(12);
 
   -- 9 lugares vendidos.
   v_item := test_make_item('tour', null, null, v_dep, 9);
@@ -254,8 +289,7 @@ declare
   v_booking uuid;
   v_drift   integer;
 begin
-  select id into v_dep from tour_departures order by starts_at offset 1 limit 1;
-  update tour_departures set capacity = 10, seats_taken = 0 where id = v_dep;
+  v_dep := test_departure(10);
 
   v_item := test_make_item('tour', null, null, v_dep, 6);
   perform tour_hold_create(v_dep, 6, v_item);
@@ -284,8 +318,7 @@ declare
   v_range  daterange := daterange('2026-12-01', '2026-12-04');
   v_result jsonb;
 begin
-  select id into v_dep from tour_departures order by starts_at offset 2 limit 1;
-  update tour_departures set capacity = 8, seats_taken = 0 where id = v_dep;
+  v_dep := test_departure(8);
 
   -- Sin booking_item_id: nadie los va a liberar por reserva.
   perform tour_hold_create(v_dep, 3, null, interval '-1 minute');

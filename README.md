@@ -14,8 +14,11 @@ el dominio de correo autenticado y el número de WhatsApp con sus plantillas
 aprobadas por Meta. La lista del día del despliegue está en
 [`docs/puesta-en-produccion.md`](docs/puesta-en-produccion.md).
 
+- **Empieza aquí si vas a trabajar en el código:** [`CLAUDE.md`](CLAUDE.md) —
+  cómo levantarlo, qué no se negocia y las trampas que ya costaron caro.
 - **Plan maestro** (columna vertebral, una sola fuente de verdad): [`docs/plan-de-entrega.md`](docs/plan-de-entrega.md)
-- Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md)
+- Arquitectura y decisiones: [`docs/arquitectura.md`](docs/arquitectura.md) ·
+  [dónde vive el sistema](docs/decisiones/0002-donde-vive-el-sistema.md)
 - Esquema: [`docs/esquema.md`](docs/esquema.md)
 - Para operar: [`docs/puesta-en-produccion.md`](docs/puesta-en-produccion.md) · [`docs/operacion.md`](docs/operacion.md) (qué hacer cuando algo falla) · [`docs/manual-del-panel.md`](docs/manual-del-panel.md) (para el equipo del cliente)
 - Cerrados: [`sprint-01.md`](docs/sprint-01.md) · [`sprint-02.md`](docs/sprint-02.md) · [`sprint-03.md`](docs/sprint-03.md) · [`sprint-04.md`](docs/sprint-04.md) · [`sprint-05.md`](docs/sprint-05.md) · [`sprint-06.md`](docs/sprint-06.md) · [`sprint-07.md`](docs/sprint-07.md)

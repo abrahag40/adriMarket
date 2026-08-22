@@ -343,3 +343,29 @@ mis pruebas verifican lo que se me ocurrió verificar.
 La conclusión práctica para el siguiente equipo: **la barra de "probado desde
 fuera" sigue siendo la única que ha encontrado algo**, y el chequeo de salud es
 la versión de esa barra que funciona sin que nadie corra nada.
+
+---
+
+## Después del cierre · dos arreglos de la barra de verificación
+
+Al preparar la entrega para trabajo local aparecieron dos fallos que no eran del
+producto sino de cómo se verifica, y los dos eran del mismo tipo: **dependían del
+orden de ejecución**, así que pasaban o fallaban según lo que hubiera corrido
+antes. Un fallo intermitente enseña a ignorar la barra.
+
+1. **`db:test` fallaba después de los recorridos en navegador.** Las garantías 5,
+   6 y 7 tomaban una salida del seed por posición y le sobreescribían el contador
+   de lugares con un `update` crudo. Con la salida ya vendida, eso dejaba
+   `seats_taken` en 0 con apartados vivos y la vista de auditoría reportaba un
+   desajuste de −2. **El desajuste era real y la vista hizo su trabajo**; quien lo
+   provocó fue la prueba. Ahora cada una crea su propia salida con
+   `test_departure()`, como las estancias hacen desde el Sprint 2.
+2. **`smoke.sh` fallaba solo la primera vez sobre una base nueva.** Era el único
+   script que no cargaba `.env`, así que el latido que provoca antes de preguntar
+   por la salud se iba sin `JOBS_SECRET` y lo rechazaban con 401 en silencio.
+   Al segundo intento cualquier otro recorrido ya había dejado un latido y el
+   fallo desaparecía solo. Ahora lo carga, como todos los demás.
+
+Ninguno tocó código de producción. Los dos son la misma advertencia del Sprint 7
+por tercera vez: **un dato o un estado de prueba que se parece a un síntoma real
+hace que la verificación mienta.**
