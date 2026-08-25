@@ -134,7 +134,7 @@ tampoco. Nada da error; simplemente deja de pasar.
 
 ## 9. Antes de anunciar
 
-- [ ] `npm run db:test` — las 22 garantías.
+- [ ] `npm run db:test` — las 23 garantías.
 - [ ] `npm run test:integration`.
 - [ ] `./scripts/smoke.sh` contra **producción**.
 - [ ] `npm run audit` — accesibilidad y peso.
@@ -153,7 +153,8 @@ Se dice aquí para que nadie lo descubra después:
 - **Los reembolsos se registran, no se ejecutan.** Cancelar deja la devolución
   anotada; hacerla en la pasarela es un paso manual. Está en `docs/operacion.md`
   §4. Automatizarlo depende de la cuenta de Stripe.
-- **Los cupones se administran pero no se canjean.** No hay campo en el checkout.
+- ~~Los cupones se administran pero no se canjean.~~ **Cerrada.** Se canjean
+  desde el checkout; ver [decisión 0004](decisiones/0004-cupon-agotado-es-inventario.md).
 - ~~El panel no crea opciones de tour ni unidades de estancia.~~ **Cerrada.**
   Un tour se da de alta completo —hora, punto de encuentro, cupo, precio por
   pasajero— desde `/admin/catalogo/[id]/opciones`, y una estancia desde

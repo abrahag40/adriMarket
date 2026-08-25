@@ -10,6 +10,7 @@ import { quoteStay, quoteTour } from "@/modules/pricing/service";
 import { QuoteError } from "@/modules/pricing/types";
 
 import { CheckoutForm } from "./checkout-form";
+import { CouponForm } from "./coupon-form";
 
 /**
  * Página del checkout · S3-1
@@ -48,6 +49,9 @@ export default async function CheckoutPage({
   if (!product) notFound();
 
   const backHref = productPath(locale, kind, slug);
+  // Vacío y "sin cupón" tienen que verse igual: nada de mostrar un aviso de
+  // "cupón no encontrado" antes de que el huésped haya escrito nada.
+  const coupon = single(sp.coupon).trim();
 
   let quoteNode: React.ReactNode = null;
   let formNode: React.ReactNode = null;
@@ -57,15 +61,32 @@ export default async function CheckoutPage({
       const from = single(sp.from);
       const to = single(sp.to);
       const guests = Math.max(1, Number.parseInt(single(sp.guests), 10) || 2);
-      const result = await quoteStay(product.id, { from, to }, guests);
+      const result = await quoteStay(product.id, { from, to }, guests, new Date(), coupon);
 
       if (!result.available) throw new QuoteError("invalid_range");
 
-      quoteNode = <QuoteBreakdown quote={result.quote} locale={locale} />;
+      quoteNode = (
+        <>
+          <CouponForm
+            locale={locale}
+            hidden={{ kind, slug, from, to, guests: String(guests) }}
+            current={coupon}
+          />
+          <QuoteBreakdown quote={result.quote} locale={locale} />
+        </>
+      );
       formNode = (
         <CheckoutForm
           locale={locale}
-          hidden={{ kind, slug, productId: product.id, from, to, guests: String(guests) }}
+          hidden={{
+            kind,
+            slug,
+            productId: product.id,
+            from,
+            to,
+            guests: String(guests),
+            coupon: result.quote.coupon?.applied ? coupon : "",
+          }}
           // En una estancia el titular es el único dato obligatorio; los demás
           // huéspedes no cambian el precio ni el cupo.
           paxSlots={[]}
@@ -79,13 +100,31 @@ export default async function CheckoutPage({
       const adults = Math.max(1, Number.parseInt(single(sp.adults), 10) || 2);
       const children = Math.max(0, Number.parseInt(single(sp.children), 10) || 0);
       const infants = Math.max(0, Number.parseInt(single(sp.infants), 10) || 0);
-      const result = await quoteTour(product.id, departure, {
-        adult: adults,
-        child: children,
-        infant: infants,
-      });
+      const result = await quoteTour(
+        product.id,
+        departure,
+        { adult: adults, child: children, infant: infants },
+        new Date(),
+        coupon,
+      );
 
-      quoteNode = <QuoteBreakdown quote={result.quote} locale={locale} />;
+      quoteNode = (
+        <>
+          <CouponForm
+            locale={locale}
+            hidden={{
+              kind,
+              slug,
+              departure,
+              adults: String(adults),
+              children: String(children),
+              infants: String(infants),
+            }}
+            current={coupon}
+          />
+          <QuoteBreakdown quote={result.quote} locale={locale} />
+        </>
+      );
 
       // Un pasajero por captura: en un tour hacen falta los nombres, y la edad
       // de los menores para chalecos y precio.
@@ -106,6 +145,7 @@ export default async function CheckoutPage({
             adults: String(adults),
             children: String(children),
             infants: String(infants),
+            coupon: result.quote.coupon?.applied ? coupon : "",
           }}
           paxSlots={paxSlots}
           depositLabel={formatMoney(result.quote.deposit_cents, result.quote.currency, locale)}

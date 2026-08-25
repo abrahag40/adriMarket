@@ -66,7 +66,7 @@ createdb -h 127.0.0.1 -p 5433 -U postgres adrimarket
 Es lo mismo que corre el pipeline, y **está pensada para correrse entera**:
 
 ```bash
-npm run db:test               # 22 garantías del inventario, en transacción
+npm run db:test               # 23 garantías del inventario, en transacción
 npm run test:integration      # 117 casos del dominio
 npm run typecheck
 npm run lint
@@ -223,7 +223,7 @@ con **Cloudflare al frente como DNS y CDN**, y **PostgreSQL gestionado en Neon**
 En corto: `sharp` es un binario nativo, las fotos necesitan sistema de archivos,
 y `postgres` habla TCP. Y **D1 no sirve como base**: las garantías anti-sobreventa
 son `EXCLUDE USING gist`, 29 funciones plpgsql y `FOR UPDATE SKIP LOCKED`, que
-SQLite no tiene. Migrar ahí sería tirar las 22 garantías.
+SQLite no tiene. Migrar ahí sería tirar las 23 garantías.
 
 ---
 
@@ -269,7 +269,12 @@ Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
 `docs/puesta-en-produccion.md`.
 
 - **Los reembolsos se registran, no se ejecutan.** Paso manual documentado.
-- **Los cupones se administran pero no se canjean** (falta el campo en checkout).
+- ~~Los cupones se administran pero no se canjean (falta el campo en checkout).~~
+  **Cerrada.** El checkout tiene el campo, descuenta antes de impuestos y el
+  canje se registra en la misma transacción que el apartado — ver
+  [decisión 0004](docs/decisiones/0004-cupon-agotado-es-inventario.md). Lo que
+  el panel no tiene todavía es dónde restringir un cupón por producto o poner
+  un mínimo de compra: hoy solo se configura por código a mano en la base.
 - ~~El panel no crea opciones de tour ni unidades de estancia.~~ **Cerrada.**
   Opciones de tour —horario, punto de encuentro, cupo, precio por pasajero—
   desde `/admin/catalogo/[id]/opciones`, y unidades de estancia —capacidad,

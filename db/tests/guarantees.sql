@@ -977,4 +977,39 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 23. Cupón: el canje no puede pasarse del máximo (AM004)
+-- ---------------------------------------------------------------------------
+
+-- Mismo patrón que tour_hold_create (garantía 5): la fila se bloquea con
+-- `for update` y el segundo canje ve el contador ya al límite. Dos huéspedes
+-- canjeando el último uso disponible al mismo tiempo no pueden dejar
+-- `redemptions` por encima de `max_redemptions`.
+do $$
+declare
+  v_coupon uuid;
+  v_caught boolean := false;
+begin
+  insert into coupons (code, kind, value, min_total_cents, max_redemptions)
+  values ('TEST-CUPON-' || substr(gen_random_uuid()::text, 1, 8), 'percent', 10, 0, 1)
+  returning id into v_coupon;
+
+  perform coupon_redeem(v_coupon);
+  assert (select redemptions from coupons where id = v_coupon) = 1,
+    'FALLO: el primer canje debía dejar el contador en 1';
+
+  begin
+    perform coupon_redeem(v_coupon);
+  exception when sqlstate 'AM004' then
+    v_caught := true;
+  end;
+
+  assert v_caught, 'FALLO: se permitió canjear un cupón ya agotado';
+  assert (select redemptions from coupons where id = v_coupon) = 1,
+    'FALLO: el intento fallido no debía tocar el contador';
+
+  raise notice '✔ 23. cupón agotado rechazado por coupon_redeem (AM004)';
+end;
+$$;
+
 rollback;

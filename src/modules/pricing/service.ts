@@ -7,6 +7,8 @@ import { todayIn } from "@/time";
 import { buildStayQuote, buildTourQuote } from "./quote";
 import {
   QuoteError,
+  type CouponInput,
+  type CouponRejectReason,
   type NightRate,
   type PaxCounts,
   type Quote,
@@ -82,6 +84,84 @@ export async function taxFactorFor(productId: string): Promise<number> {
 }
 
 // ---------------------------------------------------------------------------
+// Cupones
+// ---------------------------------------------------------------------------
+
+type CouponLookup =
+  | { ok: true; id: string; input: CouponInput }
+  | { ok: false; code: string; reason: CouponRejectReason };
+
+/**
+ * Resuelve un código de cupón contra la base.
+ *
+ * Todo lo que se puede saber **sin conocer el subtotal** se decide aquí:
+ * existe, está activo, la fecha, a qué aplica, y si la moneda de un cupón fijo
+ * coincide. Lo único que falta —si el subtotal alcanza `min_total_cents`— lo
+ * termina de decidir `quote.ts`, porque ese subtotal todavía no existe en este
+ * punto.
+ *
+ * Devuelve `null` cuando no se pidió ningún código: es el caso normal, y no
+ * amerita ni una consulta.
+ */
+async function resolveCoupon(
+  rawCode: string | undefined,
+  context: { productId: string; kind: "tour" | "stay"; currency: string },
+  now: Date,
+): Promise<CouponLookup | null> {
+  const code = rawCode?.trim().toUpperCase();
+  if (!code) return null;
+
+  const rows = await db.execute<{
+    id: string;
+    kind: "percent" | "fixed";
+    value: string;
+    currency: string | null;
+    min_total_cents: string;
+    max_redemptions: number | null;
+    redemptions: number;
+    valid_from: string | null;
+    valid_to: string | null;
+    applies_to: { kind?: string; product_ids?: string[] } | null;
+    active: boolean;
+  }>(sql`
+    select id, kind::text as kind, value::text, currency, min_total_cents::text,
+           max_redemptions, redemptions, valid_from::text, valid_to::text, applies_to, active
+      from coupons
+     where code = ${code}
+  `);
+
+  const row = rows[0];
+  if (!row || !row.active) return { ok: false, code, reason: "not_found" };
+  if (row.valid_from && new Date(row.valid_from) > now) return { ok: false, code, reason: "not_yet_valid" };
+  if (row.valid_to && new Date(row.valid_to) < now) return { ok: false, code, reason: "expired" };
+  if (row.max_redemptions !== null && row.redemptions >= row.max_redemptions) {
+    return { ok: false, code, reason: "redeemed_out" };
+  }
+
+  const appliesTo = row.applies_to ?? {};
+  if (appliesTo.kind && appliesTo.kind !== context.kind) {
+    return { ok: false, code, reason: "wrong_product" };
+  }
+  if (appliesTo.product_ids && !appliesTo.product_ids.includes(context.productId)) {
+    return { ok: false, code, reason: "wrong_product" };
+  }
+  if (row.currency && row.currency !== context.currency) {
+    return { ok: false, code, reason: "currency_mismatch" };
+  }
+
+  return {
+    ok: true,
+    id: row.id,
+    input: {
+      code,
+      kind: row.kind,
+      value: Number(row.value),
+      minTotalCents: Number(row.min_total_cents),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Estancias
 // ---------------------------------------------------------------------------
 
@@ -150,6 +230,8 @@ export type StayQuoteResult = {
   unitId: string;
   /** Falso cuando las fechas están ocupadas: el precio es válido, no la fecha. */
   available: boolean;
+  /** Id del cupón aplicado, para poder canjearlo si la reserva se confirma. */
+  couponId: string | null;
 };
 
 /**
@@ -158,12 +240,16 @@ export type StayQuoteResult = {
  * **Cotizar no aparta inventario.** La disponibilidad se informa, pero nada se
  * bloquea: apartar es del checkout (Sprint 3). Si cotizar apartara, cada
  * visitante que mueve el selector dejaría fechas fuera de venta.
+ *
+ * `couponCode` va al final, después de `now`, para no romper ningún llamador
+ * existente que ya pasaba `now` por posición — en su mayoría, pruebas.
  */
 export async function quoteStay(
   productId: string,
   range: DateRange,
   guests: number,
   now: Date = new Date(),
+  couponCode?: string,
 ): Promise<StayQuoteResult> {
   const context = await stayContext(productId, guests);
   if (!context) {
@@ -204,6 +290,12 @@ export async function quoteStay(
     closedToDeparture: row.closed_to_departure,
   }));
 
+  const couponLookup = await resolveCoupon(
+    couponCode,
+    { productId, kind: "stay", currency: context.currency },
+    now,
+  );
+
   const quote = buildStayQuote({
     currency: context.currency,
     range,
@@ -215,7 +307,14 @@ export async function quoteStay(
     depositPct: context.depositPct,
     today: todayIn(context.timezone, now),
     now,
+    coupon: couponLookup?.ok ? couponLookup.input : null,
   });
+  // El cupón existe pero no pasó una condición que no depende del subtotal
+  // (vencido, agotado, moneda distinta): se informa igual que si no aplicara
+  // por monto mínimo, para que el huésped vea un solo tipo de mensaje.
+  if (couponLookup && !couponLookup.ok) {
+    quote.coupon = { code: couponLookup.code, applied: false, reason: couponLookup.reason };
+  }
 
   const availability = await db.execute<{ available: boolean }>(sql`
     select stay_is_available(${context.unitId}::uuid, daterange(${range.from}, ${range.to})) as available
@@ -225,6 +324,7 @@ export async function quoteStay(
     quote,
     unitId: context.unitId,
     available: availability[0]?.available ?? false,
+    couponId: couponLookup?.ok ? couponLookup.id : null,
   };
 }
 
@@ -245,6 +345,8 @@ export type TourQuoteResult = {
    * no ocupa asiento, y dos copias de una regla se separan tarde o temprano.
    */
   seatsNeeded: number;
+  /** Id del cupón aplicado, para poder canjearlo si la reserva se confirma. */
+  couponId: string | null;
 };
 
 /**
@@ -257,6 +359,7 @@ export async function quoteTour(
   departureId: string,
   pax: PaxCounts,
   now: Date = new Date(),
+  couponCode?: string,
 ): Promise<TourQuoteResult> {
   const rows = await db.execute<{
     departure_id: string;
@@ -307,6 +410,12 @@ export async function quoteTour(
     countsTowardCapacity: row.counts_toward_capacity,
   }));
 
+  const couponLookup = await resolveCoupon(
+    couponCode,
+    { productId, kind: "tour", currency: departure.currency },
+    now,
+  );
+
   const quote = buildTourQuote({
     currency: departure.currency,
     pax,
@@ -317,7 +426,11 @@ export async function quoteTour(
     taxes,
     depositPct: Number(departure.deposit_pct),
     now,
+    coupon: couponLookup?.ok ? couponLookup.input : null,
   });
+  if (couponLookup && !couponLookup.ok) {
+    quote.coupon = { code: couponLookup.code, applied: false, reason: couponLookup.reason };
+  }
 
   const seatsNeeded = (Object.keys(pax) as (keyof PaxCounts)[]).reduce((seats, type) => {
     const price = prices.find((entry) => entry.paxType === type);
@@ -330,5 +443,6 @@ export async function quoteTour(
     startsAt: departure.starts_at,
     seatsLeft: Number(departure.seats_left),
     seatsNeeded,
+    couponId: couponLookup?.ok ? couponLookup.id : null,
   };
 }

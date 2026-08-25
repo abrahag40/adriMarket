@@ -27,6 +27,20 @@ export type QuoteNight = {
   rate_id: string | null;
 };
 
+/** Motivo por el que un código de cupón no se aplicó. La traducción vive en la interfaz. */
+export type CouponRejectReason =
+  | "not_found"
+  | "expired"
+  | "not_yet_valid"
+  | "wrong_product"
+  | "redeemed_out"
+  | "currency_mismatch"
+  | "min_total";
+
+export type CouponResult =
+  | { code: string; applied: true }
+  | { code: string; applied: false; reason: CouponRejectReason };
+
 export type Quote = {
   currency: string;
   lines: QuoteLine[];
@@ -37,7 +51,22 @@ export type Quote = {
   balance_cents: number;
   /** Solo en estancias: detalle noche por noche. */
   nights?: QuoteNight[];
+  /** Presente solo si se pidió un código de cupón, aplicado o no. */
+  coupon?: CouponResult;
   quoted_at: string;
+};
+
+/**
+ * Cupón ya resuelto y validado hasta donde `service.ts` puede saberlo sin ver
+ * el subtotal. Lo que falta —si el subtotal alcanza `minTotalCents`— se
+ * decide en `quote.ts`, que es quien construye ese subtotal.
+ */
+export type CouponInput = {
+  code: string;
+  kind: "percent" | "fixed";
+  /** Porcentaje (0–100) si `kind` es "percent"; centavos si es "fixed". */
+  value: number;
+  minTotalCents: number;
 };
 
 /**

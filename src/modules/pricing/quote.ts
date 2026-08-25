@@ -3,6 +3,8 @@ import { nightsIn, type DateRange } from "@/db/types";
 import { percentOf, roundCents, sumCents } from "./money";
 import {
   QuoteError,
+  type CouponInput,
+  type CouponResult,
   type NightRate,
   type PaxCounts,
   type Quote,
@@ -87,6 +89,7 @@ function close(
   depositPct: number,
   now: Date,
   nights?: Quote["nights"],
+  coupon?: CouponResult,
 ): Quote {
   const total = sumCents(lines.map((line) => line.cents));
   const deposit = Math.min(percentOf(total, depositPct), total);
@@ -100,7 +103,42 @@ function close(
     // Derivado, nunca calculado por otra vía: así no puede desalinearse del total.
     balance_cents: total - deposit,
     ...(nights ? { nights } : {}),
+    ...(coupon ? { coupon } : {}),
     quoted_at: now.toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cupones
+// ---------------------------------------------------------------------------
+
+/**
+ * Aplica el cupón sobre lo cotizado hasta ahora — antes de impuestos, después
+ * de cargos — y devuelve la línea de descuento, si corresponde, y el
+ * resultado para congelar en el comprobante.
+ *
+ * `min_total_cents` solo se puede evaluar aquí: es la primera vez que existe
+ * un subtotal. Todo lo demás del cupón (vigencia, a qué producto aplica, si ya
+ * se agotó) se resuelve en `service.ts` antes de llegar hasta acá — por eso,
+ * si `coupon` no es null en este punto, ya pasó esas pruebas.
+ */
+function applyCoupon(
+  lines: readonly QuoteLine[],
+  coupon: CouponInput | null | undefined,
+): { discountLine: QuoteLine | null; result: CouponResult | undefined } {
+  if (!coupon) return { discountLine: null, result: undefined };
+
+  const subtotal = sumCents(lines.map((line) => line.cents));
+  const discount =
+    coupon.kind === "percent" ? percentOf(subtotal, coupon.value) : Math.min(coupon.value, subtotal);
+
+  if (subtotal < coupon.minTotalCents || discount <= 0) {
+    return { discountLine: null, result: { code: coupon.code, applied: false, reason: "min_total" } };
+  }
+
+  return {
+    discountLine: { concept: `coupon:${coupon.code}`, cents: -discount, kind: "discount" },
+    result: { code: coupon.code, applied: true },
   };
 }
 
@@ -122,6 +160,7 @@ export type StayQuoteInput = {
   /** Hoy en la zona horaria de la propiedad, en formato YYYY-MM-DD. */
   today: string;
   now: Date;
+  coupon?: CouponInput | null;
 };
 
 export function buildStayQuote(input: StayQuoteInput): Quote {
@@ -197,6 +236,9 @@ export function buildStayQuote(input: StayQuoteInput): Quote {
     lines.push({ concept: "cleaning", cents: unit.cleaningFeeCents, kind: "fee" });
   }
 
+  const { discountLine, result: couponResult } = applyCoupon(lines, input.coupon);
+  if (discountLine) lines.push(discountLine);
+
   const taxable = sumCents(lines.map((line) => line.cents));
   lines.push(...applyTaxes(taxable, input.taxes, { nights: nightCount, pax: guests }));
 
@@ -210,6 +252,7 @@ export function buildStayQuote(input: StayQuoteInput): Quote {
       cents: night.cents ?? 0,
       rate_id: night.rateId,
     })),
+    couponResult,
   );
 }
 
@@ -228,6 +271,7 @@ export type TourQuoteInput = {
   taxes: readonly TaxRule[];
   depositPct: number;
   now: Date;
+  coupon?: CouponInput | null;
 };
 
 export function buildTourQuote(input: TourQuoteInput): Quote {
@@ -278,8 +322,11 @@ export function buildTourQuote(input: TourQuoteInput): Quote {
     });
   }
 
+  const { discountLine, result: couponResult } = applyCoupon(lines, input.coupon);
+  if (discountLine) lines.push(discountLine);
+
   const taxable = sumCents(lines.map((line) => line.cents));
   lines.push(...applyTaxes(taxable, input.taxes, { nights: 1, pax: seatsNeeded }));
 
-  return close(input.currency, lines, input.depositPct, input.now);
+  return close(input.currency, lines, input.depositPct, input.now, undefined, couponResult);
 }

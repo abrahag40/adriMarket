@@ -302,6 +302,92 @@ describe("crear la reserva con apartado", () => {
     `);
     assert.equal(Number(left[0]?.left), 0, "y nunca se vende más allá del cupo");
   });
+
+  async function makeCoupon(maxRedemptions: number | null = null): Promise<{ id: string; code: string }> {
+    const code = `IT3-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const rows = await db.execute<{ id: string }>(sql`
+      insert into coupons (code, kind, value, max_redemptions)
+      values (${code}, 'percent', 10, ${maxRedemptions})
+      returning id
+    `);
+    return { id: rows[0]!.id, code };
+  }
+
+  it("canjea el cupón en la misma transacción que el apartado", async () => {
+    const coupon = await makeCoupon();
+    const range = freshRange();
+
+    const booking = await createBookingWithHold(
+      { kind: "stay", productId: CASA, range, guests: 5, couponCode: coupon.code },
+      holder,
+      [],
+    );
+
+    assert.equal(booking.quote.coupon?.applied, true);
+
+    const rows = await db.execute<{
+      coupon_id: string | null;
+      coupon_code: string | null;
+      redemptions: number;
+    }>(sql`
+      select b.coupon_id, b.coupon_code, c.redemptions
+        from bookings b join coupons c on c.id = b.coupon_id
+       where b.id = ${booking.bookingId}::uuid
+    `);
+    const row = rows[0]!;
+
+    assert.equal(row.coupon_id, coupon.id);
+    assert.equal(row.coupon_code, coupon.code);
+    assert.equal(row.redemptions, 1, "el canje quedó registrado en el propio cupón");
+  });
+
+  it("un código de cupón que no existe no bloquea la reserva: se cobra el precio completo", async () => {
+    const range = freshRange();
+    const booking = await createBookingWithHold(
+      { kind: "stay", productId: CASA, range, guests: 5, couponCode: "ESTE-CODIGO-NO-EXISTE" },
+      holder,
+      [],
+    );
+
+    assert.equal(booking.quote.coupon?.applied, false);
+    assert.equal(
+      booking.quote.lines.find((line) => line.kind === "discount"),
+      undefined,
+    );
+  });
+
+  it("dos reservas por el último canje de un cupón: una lo usa, la otra recibe un no honesto (AM004)", async () => {
+    // Mismo patrón que "dos huéspedes por el último lugar": el cupón es
+    // inventario, igual que un lugar o una fecha, así que se resuelve igual —
+    // la que pierde la carrera no se completa a medias, recibe un error claro
+    // para reintentar. Es el mismo trato para las cuatro categorías de
+    // inventario que compiten en este checkout (AM001-4).
+    const coupon = await makeCoupon(1);
+    const rangoA = freshRange();
+    const rangoB = freshRange();
+
+    const intentar = (range: { from: string; to: string }) =>
+      createBookingWithHold(
+        { kind: "stay", productId: CASA, range, guests: 5, couponCode: coupon.code },
+        holder,
+        [],
+      );
+
+    const resultados = await Promise.allSettled([intentar(rangoA), intentar(rangoB)]);
+    const ok = resultados.filter((result) => result.status === "fulfilled");
+    const fallidos = resultados.filter((result) => result.status === "rejected");
+
+    assert.equal(ok.length, 1, "solo una reserva se queda con el cupón");
+    assert.equal(fallidos.length, 1);
+    const razon = (fallidos[0] as PromiseRejectedResult).reason;
+    assert.ok(razon instanceof InventoryUnavailableError);
+    assert.equal(razon.code, "AM004");
+
+    const redemptions = await db.execute<{ n: number }>(sql`
+      select redemptions as n from coupons where id = ${coupon.id}::uuid
+    `);
+    assert.equal(redemptions[0]?.n, 1, "el contador nunca pasó del máximo aunque compitieran dos reservas");
+  });
 });
 
 describe("webhook de la pasarela", () => {

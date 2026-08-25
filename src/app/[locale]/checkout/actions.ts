@@ -54,13 +54,22 @@ export async function startCheckout(
   const kind = text(form, "kind") as ProductKind;
   const productId = text(form, "productId");
   const slug = text(form, "slug");
+  // Vacío significa "sin cupón": createBookingWithHold lo trata igual que si
+  // no se hubiera pedido ninguno.
+  const couponCode = text(form, "coupon") || undefined;
 
   let input: BookingInput;
   if (kind === "stay") {
     const from = text(form, "from");
     const to = text(form, "to");
     if (!ISO_DATE.test(from) || !ISO_DATE.test(to)) return { error: "missing" };
-    input = { kind: "stay", productId, range: { from, to }, guests: Math.max(1, count(form, "guests")) };
+    input = {
+      kind: "stay",
+      productId,
+      range: { from, to },
+      guests: Math.max(1, count(form, "guests")),
+      couponCode,
+    };
   } else {
     const departureId = text(form, "departure");
     if (!departureId) return { error: "missing" };
@@ -73,6 +82,7 @@ export async function startCheckout(
         child: count(form, "children"),
         infant: count(form, "infants"),
       },
+      couponCode,
     };
   }
 

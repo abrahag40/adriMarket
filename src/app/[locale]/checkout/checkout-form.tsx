@@ -48,7 +48,9 @@ export function CheckoutForm({
               ? t.errSoldOut(0)
               : state.error === "AM002"
                 ? t.quoteUnavailable
-                : t.checkoutError;
+                : state.error === "AM004"
+                  ? t.couponRedeemedOut
+                  : t.checkoutError;
 
   return (
     <form action={action} className="checkout-form">

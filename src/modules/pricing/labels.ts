@@ -44,9 +44,13 @@ export function describeLine(line: QuoteLine, locale: Locale, t: Messages): stri
     case "fee":
       return line.concept === "cleaning" ? t.quoteCleaning : line.concept;
 
-    case "discount":
+    case "discount": {
+      const [, code = ""] = line.concept.split(":");
+      return t.couponDiscount(code);
+    }
+
     case "tax":
-      // Nombre de impuesto o de cupón: viene configurado y ya es legible.
+      // Nombre del impuesto: viene configurado y ya es legible.
       return line.concept;
   }
 }

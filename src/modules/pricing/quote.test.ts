@@ -316,6 +316,77 @@ describe("cotización de estancia", () => {
   });
 });
 
+describe("cupones", () => {
+  it("un cupón porcentual descuenta antes de impuestos, no después", () => {
+    // Subtotal sin cupón: 1,100,000 (noches) + 180,000 (ocupación) + 80,000
+    // (limpieza) = 1,360,000. El comentario de applyTaxes lo dice desde el
+    // Sprint 2: los impuestos van sobre el subtotal "ya con descuentos".
+    const quote = buildStayQuote(
+      stayInput({ coupon: { code: "PROMO10", kind: "percent", value: 10, minTotalCents: 0 } }),
+    );
+
+    const discount = quote.lines.find((line) => line.kind === "discount");
+    assert.equal(discount?.cents, -136_000, "10% de 1,360,000");
+    assert.deepEqual(quote.coupon, { code: "PROMO10", applied: true });
+
+    // 1,360,000 − 136,000 = 1,224,000 taxable; 19% de impuestos = 232,560.
+    assert.equal(quote.total_cents, 1_456_560);
+    assertInvariants(quote);
+  });
+
+  it("un cupón fijo nunca deja el total en negativo, aunque el cupón valga más que la compra", () => {
+    const quote = buildStayQuote(
+      stayInput({
+        coupon: { code: "REGALO", kind: "fixed", value: 2_000_000, minTotalCents: 0 },
+      }),
+    );
+
+    const discount = quote.lines.find((line) => line.kind === "discount");
+    assert.equal(discount?.cents, -1_360_000, "se topa en el subtotal, no en el valor nominal del cupón");
+    assert.equal(quote.total_cents, 0);
+    assert.equal(quote.deposit_cents, 0);
+    assert.equal(quote.balance_cents, 0);
+    assertInvariants(quote);
+  });
+
+  it("no aplica el cupón cuando la compra no alcanza el mínimo, y lo dice", () => {
+    const sinCupon = buildStayQuote(stayInput());
+    const conCupon = buildStayQuote(
+      stayInput({
+        coupon: { code: "GRANDE", kind: "fixed", value: 100_000, minTotalCents: 2_000_000 },
+      }),
+    );
+
+    assert.equal(
+      conCupon.lines.find((line) => line.kind === "discount"),
+      undefined,
+      "sin línea de descuento: no se aplicó",
+    );
+    assert.equal(conCupon.total_cents, sinCupon.total_cents, "el precio queda igual que sin cupón");
+    assert.deepEqual(conCupon.coupon, { code: "GRANDE", applied: false, reason: "min_total" });
+    assertInvariants(conCupon);
+  });
+
+  it("sin código de cupón, el desglose no lleva la llave coupon", () => {
+    const quote = buildStayQuote(stayInput());
+    assert.equal(quote.coupon, undefined);
+  });
+
+  it("también descuenta en un tour, sobre el subtotal de pasajeros", () => {
+    // Subtotal: 2 adultos × 1,800 + 1 menor × 1,200 = 480,000 (el infante sin
+    // costo no genera línea, así que no hay nada que descontarle).
+    const quote = buildTourQuote(
+      tourInput({ coupon: { code: "TOUR10", kind: "percent", value: 10, minTotalCents: 0 } }),
+    );
+
+    const discount = quote.lines.find((line) => line.kind === "discount");
+    assert.equal(discount?.cents, -48_000);
+    // 480,000 − 48,000 = 432,000 taxable; IVA 16% = 69,120.
+    assert.equal(quote.total_cents, 501_120);
+    assertInvariants(quote);
+  });
+});
+
 describe("cotización de tour", () => {
   it("cobra por tipo de pasajero y no cobra al infante", () => {
     const quote = buildTourQuote(tourInput());

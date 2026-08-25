@@ -1,7 +1,7 @@
 import { formatMoney, type Locale } from "@/i18n/config";
 import { getMessages, type Messages } from "@/i18n/messages";
 import { describeLine } from "@/modules/pricing/labels";
-import type { Quote, QuoteError } from "@/modules/pricing/types";
+import type { CouponRejectReason, Quote, QuoteError } from "@/modules/pricing/types";
 
 /**
  * Desglose de la cotización.
@@ -39,6 +39,26 @@ export function describeQuoteError(error: QuoteError, t: Messages): string {
   }
 }
 
+/** Traduce por qué un código de cupón no se aplicó. */
+export function describeCouponReason(reason: CouponRejectReason, t: Messages): string {
+  switch (reason) {
+    case "not_found":
+      return t.couponNotFound;
+    case "expired":
+      return t.couponExpired;
+    case "not_yet_valid":
+      return t.couponNotYetValid;
+    case "wrong_product":
+      return t.couponWrongProduct;
+    case "redeemed_out":
+      return t.couponRedeemedOut;
+    case "currency_mismatch":
+      return t.couponCurrencyMismatch;
+    case "min_total":
+      return t.couponMinTotal;
+  }
+}
+
 export function QuoteBreakdown({
   quote,
   locale,
@@ -56,6 +76,10 @@ export function QuoteBreakdown({
       <h3 className="quote-heading">{t.quoteHeading}</h3>
 
       {available === false ? <p className="quote-warning">{t.quoteUnavailable}</p> : null}
+
+      {quote.coupon && !quote.coupon.applied ? (
+        <p className="quote-warning">{describeCouponReason(quote.coupon.reason, t)}</p>
+      ) : null}
 
       <table className="quote-table">
         <caption className="visually-hidden">{t.quoteHeading}</caption>

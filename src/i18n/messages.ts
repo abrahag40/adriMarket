@@ -126,6 +126,18 @@ export type Messages = {
   simulateNotice: string;
   backToCatalog: string;
   reportAt: (time: string) => string;
+
+  // Cupones en el checkout
+  couponLabel: string;
+  couponApply: string;
+  couponDiscount: (code: string) => string;
+  couponNotFound: string;
+  couponExpired: string;
+  couponNotYetValid: string;
+  couponWrongProduct: string;
+  couponRedeemedOut: string;
+  couponCurrencyMismatch: string;
+  couponMinTotal: string;
 };
 
 const es: Messages = {
@@ -249,6 +261,17 @@ const es: Messages = {
     "Sin llaves de la pasarela real, este paso simula su respuesta. El evento se firma y se procesa por el mismo camino que en producción.",
   backToCatalog: "Volver al catálogo",
   reportAt: (time) => `Preséntate a las ${time} (15 minutos antes)`,
+
+  couponLabel: "Código de cupón",
+  couponApply: "Aplicar cupón",
+  couponDiscount: (code) => `Cupón ${code}`,
+  couponNotFound: "Ese código no existe o ya no está activo.",
+  couponExpired: "Ese cupón ya venció.",
+  couponNotYetValid: "Ese cupón todavía no está vigente.",
+  couponWrongProduct: "Ese cupón no aplica a este producto.",
+  couponRedeemedOut: "Ese cupón ya se agotó.",
+  couponCurrencyMismatch: "Ese cupón no aplica en esta moneda.",
+  couponMinTotal: "Tu compra no alcanza el mínimo que pide ese cupón.",
 };
 
 const en: Messages = {
@@ -371,6 +394,17 @@ const en: Messages = {
     "Without real gateway keys, this step simulates its response. The event is signed and processed through the same path as production.",
   backToCatalog: "Back to catalog",
   reportAt: (time) => `Please arrive at ${time} (15 minutes early)`,
+
+  couponLabel: "Coupon code",
+  couponApply: "Apply coupon",
+  couponDiscount: (code) => `Coupon ${code}`,
+  couponNotFound: "That code does not exist or is no longer active.",
+  couponExpired: "That coupon has expired.",
+  couponNotYetValid: "That coupon is not active yet.",
+  couponWrongProduct: "That coupon does not apply to this product.",
+  couponRedeemedOut: "That coupon has already run out.",
+  couponCurrencyMismatch: "That coupon does not apply in this currency.",
+  couponMinTotal: "Your purchase does not reach that coupon's minimum.",
 };
 
 const MESSAGES: Record<Locale, Messages> = { es, en };

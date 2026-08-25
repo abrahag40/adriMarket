@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { after, before, describe, it } from "node:test";
-
 
 import { sql } from "drizzle-orm";
 
@@ -249,6 +249,125 @@ describe("cotización de tour contra la base", () => {
         return true;
       },
     );
+  });
+});
+
+describe("cupones contra la base", () => {
+  const createdCouponIds: string[] = [];
+
+  async function makeCoupon(overrides: Partial<{
+    kind: "percent" | "fixed";
+    value: number;
+    currency: string | null;
+    minTotalCents: number;
+    active: boolean;
+    appliesTo: Record<string, unknown>;
+  }> = {}): Promise<{ id: string; code: string }> {
+    const code = `TEST-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const {
+      kind = "percent",
+      value = 10,
+      currency = null,
+      minTotalCents = 0,
+      active = true,
+      appliesTo = {},
+    } = overrides;
+
+    const rows = await db.execute<{ id: string }>(sql`
+      insert into coupons (code, kind, value, currency, min_total_cents, active, applies_to)
+      values (${code}, ${kind}::coupon_kind, ${value}, ${currency}, ${minTotalCents}, ${active},
+              ${JSON.stringify(appliesTo)}::jsonb)
+      returning id
+    `);
+    const id = rows[0]!.id;
+    createdCouponIds.push(id);
+    return { id, code };
+  }
+
+  // Un dato de prueba no debe quedar confundible con uno real: se recoge lo
+  // que esta corrida sembró, igual que checkout.test.ts hace con sus avisos.
+  //
+  // Uno por uno y no `any($1)` con el arreglo entero: el constructor de
+  // consultas expande un arreglo de JavaScript como lista de parámetros
+  // (`$1, $2, …`), no como literal de arreglo — la misma lección que ya deja
+  // por escrito `dowsLiteral` en admin/catalogo/actions.ts.
+  after(async () => {
+    for (const id of createdCouponIds) {
+      await db.execute(sql`delete from coupons where id = ${id}::uuid`);
+    }
+  });
+
+  it("aplica un cupón porcentual válido y descuenta antes de impuestos", async () => {
+    const coupon = await makeCoupon({ kind: "percent", value: 15 });
+    const range = freshRange(3);
+
+    const { quote, couponId } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+
+    assert.equal(couponId, coupon.id);
+    assert.deepEqual(quote.coupon, { code: coupon.code, applied: true });
+    assert.ok(quote.lines.some((line) => line.kind === "discount" && line.cents < 0));
+  });
+
+  it("un código en minúsculas o con espacios se normaliza igual", async () => {
+    const coupon = await makeCoupon();
+    const range = freshRange(3);
+
+    const { quote } = await quoteStay(CASA, range, 5, NOW, `  ${coupon.code.toLowerCase()}  `);
+    assert.equal(quote.coupon?.applied, true);
+  });
+
+  it("un cupón inactivo se trata como si no existiera", async () => {
+    const coupon = await makeCoupon({ active: false });
+    const range = freshRange(3);
+
+    const { quote } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+    assert.deepEqual(quote.coupon, { code: coupon.code, applied: false, reason: "not_found" });
+  });
+
+  it("un código que no existe se informa como no encontrado", async () => {
+    const range = freshRange(3);
+    const { quote } = await quoteStay(CASA, range, 5, NOW, "NO-EXISTE-ESTE-CODIGO");
+    assert.deepEqual(quote.coupon, {
+      code: "NO-EXISTE-ESTE-CODIGO",
+      applied: false,
+      reason: "not_found",
+    });
+  });
+
+  it("un cupón restringido a tours no aplica a una estancia", async () => {
+    const coupon = await makeCoupon({ appliesTo: { kind: "tour" } });
+    const range = freshRange(3);
+
+    const { quote } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+    assert.deepEqual(quote.coupon, { code: coupon.code, applied: false, reason: "wrong_product" });
+  });
+
+  it("un cupón fijo en otra moneda no aplica", async () => {
+    const coupon = await makeCoupon({ kind: "fixed", value: 10_000, currency: "USD" });
+    const range = freshRange(3);
+
+    const { quote } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+    assert.deepEqual(quote.coupon, {
+      code: coupon.code,
+      applied: false,
+      reason: "currency_mismatch",
+    });
+  });
+
+  it("también se resuelve al cotizar un tour", async () => {
+    const coupon = await makeCoupon({ kind: "percent", value: 20 });
+    const departures = await tourDepartures(TOUR, "2026-01-01", "2030-01-01");
+    const target = departures.find((row) => new Date(row.startsAt) > REAL_NOW);
+    assert.ok(target);
+
+    const { quote } = await quoteTour(
+      TOUR,
+      target.departureId,
+      { adult: 2, child: 0, infant: 0 },
+      REAL_NOW,
+      coupon.code,
+    );
+    assert.equal(quote.coupon?.applied, true);
   });
 });
 

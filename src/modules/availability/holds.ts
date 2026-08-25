@@ -11,18 +11,20 @@ import { db, toDateRangeLiteral, type DateRange } from "@/db/index";
  * sensación de seguridad y una ventana de carrera entre la revisión y la
  * escritura.
  *
- * Códigos de error del dominio (ver db/migrations/0008_domain_functions.sql):
- *   AM001  cupo agotado
- *   AM002  fechas ocupadas
- *   AM003  transición de estado inválida
+ * Códigos de error del dominio:
+ *   AM001  cupo agotado (0008_domain_functions.sql)
+ *   AM002  fechas ocupadas (0008_domain_functions.sql)
+ *   AM003  transición de estado inválida (0008_domain_functions.sql)
+ *   AM004  cupón agotado (0014_coupon_redemption.sql)
  */
 
-export type UnavailableCode = "AM001" | "AM002" | "AM003";
+export type UnavailableCode = "AM001" | "AM002" | "AM003" | "AM004";
 
 const MESSAGES: Record<UnavailableCode, string> = {
   AM001: "Ya no quedan lugares disponibles en esa salida.",
   AM002: "Esas fechas acaban de ocuparse.",
   AM003: "La reserva no está en un estado que permita esta operación.",
+  AM004: "Ese cupón ya se agotó.",
 };
 
 /** Error de dominio esperado: el inventario se agotó mientras el huésped decidía. */
@@ -39,7 +41,7 @@ export class InventoryUnavailableError extends Error {
   }
 }
 
-const DOMAIN_CODES = new Set<string>(["AM001", "AM002", "AM003"]);
+const DOMAIN_CODES = new Set<string>(["AM001", "AM002", "AM003", "AM004"]);
 
 /**
  * Busca el SQLSTATE en la cadena de causas.

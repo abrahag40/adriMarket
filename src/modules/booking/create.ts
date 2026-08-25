@@ -41,6 +41,9 @@ export type StayBookingInput = {
   productId: string;
   range: DateRange;
   guests: number;
+  /** Código tal como lo escribió el huésped. Se vuelve a validar aquí: nunca
+      se confía en si el navegador cree que aplicó o no. */
+  couponCode?: string;
 };
 
 export type TourBookingInput = {
@@ -48,6 +51,7 @@ export type TourBookingInput = {
   productId: string;
   departureId: string;
   pax: PaxCounts;
+  couponCode?: string;
 };
 
 export type BookingInput = StayBookingInput | TourBookingInput;
@@ -113,17 +117,32 @@ export async function createBookingWithHold(
   let quote: Quote;
   let unitId: string | null = null;
   let seatsNeeded = 0;
+  let couponId: string | null = null;
 
   if (input.kind === "stay") {
-    const quoted = await quoteStay(input.productId, input.range, input.guests);
+    const quoted = await quoteStay(
+      input.productId,
+      input.range,
+      input.guests,
+      new Date(),
+      input.couponCode,
+    );
     quote = quoted.quote;
     unitId = quoted.unitId;
+    couponId = quoted.couponId;
   } else {
-    const quoted = await quoteTour(input.productId, input.departureId, input.pax);
+    const quoted = await quoteTour(
+      input.productId,
+      input.departureId,
+      input.pax,
+      new Date(),
+      input.couponCode,
+    );
     quote = quoted.quote;
     // Los lugares que ocupa el grupo los decide el motor de precios, que ya
     // consultó `counts_toward_capacity`. Aquí no se recalcula.
     seatsNeeded = quoted.seatsNeeded;
+    couponId = quoted.couponId;
   }
 
   const ttl = await holdMinutes();
@@ -147,17 +166,28 @@ export async function createBookingWithHold(
       `);
       const customerId = customers[0]!.id;
 
+      const couponCode = quote.coupon?.applied ? quote.coupon.code : null;
+
       const bookings = await tx.execute<{ id: string; code: string; deposit_due_at: string }>(sql`
         insert into bookings (customer_id, status, currency, total_cents, deposit_pct,
                               deposit_cents, quote, cancellation_policy_id,
-                              cancellation_policy_snapshot, deposit_due_at, locale, source)
+                              cancellation_policy_snapshot, deposit_due_at, locale, source,
+                              coupon_id, coupon_code)
         values (${customerId}::uuid, 'hold', ${quote.currency}, ${quote.total_cents},
                 ${quote.deposit_pct}, ${quote.deposit_cents}, ${JSON.stringify(frozen)}::jsonb,
                 ${policy.id}::uuid, ${policy.snapshot ? JSON.stringify(policy.snapshot) : null}::jsonb,
-                now() + make_interval(mins => ${ttl}), ${holder.locale}, 'web')
+                now() + make_interval(mins => ${ttl}), ${holder.locale}, 'web',
+                ${couponId}::uuid, ${couponCode})
         returning id, code, deposit_due_at
       `);
       const booking = bookings[0]!;
+
+      // Se canjea en la misma transacción que el apartado: si el cupón se
+      // agotó entre que el huésped vio el precio y dio sus datos, no debe
+      // quedar una reserva a medias con un descuento que ya nadie autorizó.
+      if (couponId) {
+        await tx.execute(sql`select coupon_redeem(${couponId}::uuid)`);
+      }
 
       const items = await tx.execute<{ id: string }>(sql`
         insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range, guests,
