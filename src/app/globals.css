@@ -1437,3 +1437,167 @@ fieldset.field legend {
   color: var(--text-muted);
   padding: 0;
 }
+
+/* ---------------------------------------------------------------------------
+   Vitrina · hero y buscador de la portada
+   --------------------------------------------------------------------------- */
+
+.hero {
+  display: grid;
+  gap: 28px;
+  align-items: center;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+  }
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 100px;
+  padding: 6px 14px;
+}
+
+.hero-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2rem, 5vw, var(--step-4));
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.hero-subtitle {
+  font-size: var(--step-0);
+  color: var(--text-muted);
+  max-width: 46ch;
+}
+
+.hero-media {
+  border-radius: calc(var(--radius) * 2);
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+.hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/*
+ * El buscador se monta sobre el borde inferior del hero, como en la
+ * referencia visual: es lo primero que se toca después del titular. En un
+ * teléfono el traslape se quita — ahí forzaría a desplazarse antes de ver los
+ * campos, justo lo que `.detail-aside` evita del otro lado en la ficha de
+ * producto.
+ */
+.search-card {
+  margin-top: 16px;
+}
+
+@media (min-width: 640px) {
+  .search-card {
+    margin-top: -40px;
+  }
+}
+
+.search-card .filters {
+  background: var(--bg);
+  border-radius: calc(var(--radius) * 1.5);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.destinations-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+}
+
+.destination-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 16px;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--step--1);
+}
+
+.destination-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ---------- tarjeta de producto: pulido visual ---------- */
+
+.card {
+  border-radius: calc(var(--radius) * 1.5);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.card-media {
+  position: relative;
+}
+
+.card-media img {
+  transition: transform 0.3s ease;
+}
+
+.card:hover .card-media img {
+  transform: scale(1.04);
+}
+
+.card-kind-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: var(--step--1);
+  font-weight: 650;
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border-radius: 100px;
+  padding: 4px 12px;
+}
+
+/* La ficha de producto usa la misma sombra que el hero: es la misma familia
+   de "tarjeta flotante" en los dos lugares donde el huésped decide algo. */
+.detail-aside {
+  box-shadow: var(--shadow);
+}
+
+.gallery img {
+  transition: transform 0.3s ease;
+}
+
+.gallery figure:hover img {
+  transform: scale(1.03);
+}

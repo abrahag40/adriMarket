@@ -70,6 +70,14 @@ export default async function ProductoPage({ params }: { params: Promise<{ id: s
         </p>
       ) : null}
 
+      {product.kind === "tour" ? (
+        <p>
+          <Link className="btn btn-secondary" href={`/admin/catalogo/${product.id}/opciones`}>
+            Opciones y precios
+          </Link>
+        </p>
+      ) : null}
+
       <PublishForm
         productId={product.id}
         status={product.status}

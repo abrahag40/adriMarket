@@ -180,6 +180,26 @@ export async function setProductStatus(
       // publicar algo que no se va a vender.
       return { error: "Sube al menos una foto antes de publicar.", ok: null };
     }
+
+    const kindRows = await db.execute<{ kind: "tour" | "stay" }>(sql`
+      select kind from products where id = ${productId}::uuid
+    `);
+    if (kindRows[0]?.kind === "tour") {
+      const options = await db.execute<{ n: number }>(sql`
+        select count(*)::int as n
+          from tour_options o
+          join tour_pax_prices p on p.tour_option_id = o.id and p.pax_type = 'adult'
+         where o.product_id = ${productId}::uuid and o.active
+      `);
+      if (options[0]!.n === 0) {
+        // Igual que sin fotos: un tour sin ninguna opción activa con precio de
+        // adulto no tiene nada que un huésped pueda reservar.
+        return {
+          error: "Agrega al menos una opción activa con precio de adulto antes de publicar.",
+          ok: null,
+        };
+      }
+    }
   }
 
   const before = await db.execute<{ status: string }>(sql`
@@ -490,6 +510,138 @@ export async function saveCoupon(_previous: ActionState, form: FormData): Promis
     }
     throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// S6-6 · Opciones de tour y precio por pasajero
+// ---------------------------------------------------------------------------
+
+/**
+ * Alta de una opción de tour: horario, punto de encuentro, cupo y el precio
+ * por tipo de pasajero. Sin esto un tour no tiene nada que vender — antes se
+ * insertaba a mano, directo en la base.
+ */
+export async function createTourOption(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const productId = text(form, "productId");
+  const code = text(form, "code").toLowerCase();
+  const nameEs = text(form, "nameEs");
+  const nameEn = text(form, "nameEn") || null;
+  const durationRaw = text(form, "duration");
+  const meetingPoint = text(form, "meetingPoint") || null;
+  const capacity = Number(text(form, "capacity"));
+
+  if (!SLUG.test(code)) {
+    return {
+      error: "El código solo lleva minúsculas, números y guiones. Ejemplo: shared-am.",
+      ok: null,
+    };
+  }
+  if (nameEs.length < 3) return { error: "Escribe el nombre de la opción.", ok: null };
+  if (!Number.isInteger(capacity) || capacity <= 0) {
+    return { error: "El cupo tiene que ser mayor que cero.", ok: null };
+  }
+
+  const duration = durationRaw ? Number(durationRaw) : null;
+  if (duration !== null && (!Number.isInteger(duration) || duration <= 0)) {
+    return { error: "La duración, en minutos, tiene que ser mayor que cero.", ok: null };
+  }
+
+  const adultPrice = cents(text(form, "adultPrice"));
+  if (adultPrice === null || adultPrice < 0) {
+    return { error: "Escribe el precio de adulto, en pesos. Ejemplo: 1800 o 1800.50", ok: null };
+  }
+
+  const childRaw = text(form, "childPrice");
+  const childPrice = childRaw ? cents(childRaw) : null;
+  if (childRaw && childPrice === null) return { error: "El precio de menor no es válido.", ok: null };
+
+  const infantRaw = text(form, "infantPrice");
+  const infantPrice = infantRaw ? cents(infantRaw) : null;
+  if (infantRaw && infantPrice === null) {
+    return { error: "El precio de infante no es válido.", ok: null };
+  }
+
+  try {
+    const rows = await db.execute<{ id: string }>(sql`
+      insert into tour_options
+        (product_id, code, name_es, name_en, duration_minutes, meeting_point, default_capacity)
+      values (${productId}::uuid, ${code}, ${nameEs}, ${nameEn}, ${duration}, ${meetingPoint}, ${capacity})
+      returning id
+    `);
+    const optionId = rows[0]!.id;
+
+    // El adulto siempre existe: es el único tipo de pasajero que no puede
+    // quedar sin precio. Menor e infante son opcionales — una opción puede
+    // vender solo para adultos.
+    await db.execute(sql`
+      insert into tour_pax_prices (tour_option_id, pax_type, price_cents, counts_toward_capacity)
+      values (${optionId}::uuid, 'adult', ${adultPrice}, true)
+    `);
+    if (childPrice !== null) {
+      await db.execute(sql`
+        insert into tour_pax_prices (tour_option_id, pax_type, price_cents, counts_toward_capacity)
+        values (${optionId}::uuid, 'child', ${childPrice}, true)
+      `);
+    }
+    if (infantPrice !== null) {
+      await db.execute(sql`
+        insert into tour_pax_prices (tour_option_id, pax_type, price_cents, counts_toward_capacity)
+        values (${optionId}::uuid, 'infant', ${infantPrice}, false)
+      `);
+    }
+
+    await db.execute(sql`
+      select audit_record(${staff.id}::uuid, 'tour_option.create', 'product', ${productId}, null,
+                          ${JSON.stringify({ code, nameEs, capacity, duration, adultPrice, childPrice, infantPrice })}::jsonb)
+    `);
+
+    revalidatePath(`/admin/catalogo/${productId}/opciones`);
+    return { error: null, ok: `Opción creada: ${nameEs}.` };
+  } catch (error: unknown) {
+    if (/unique|duplicate/i.test(describe(error))) {
+      return { error: "Ya existe una opción con ese código en este tour.", ok: null };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Activa o desactiva una opción.
+ *
+ * No se borra: si ya generó salidas o reservas, borrarla dejaría esas filas
+ * apuntando a una opción que ya no existe. Se apaga, igual que un cupón usado.
+ */
+export async function toggleTourOption(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const optionId = text(form, "optionId");
+  const productId = text(form, "productId");
+  if (!/^[0-9a-f-]{36}$/i.test(optionId)) return { error: "Opción no válida.", ok: null };
+
+  const rows = await db.execute<{ code: string; active: boolean }>(sql`
+    update tour_options set active = not active where id = ${optionId}::uuid
+    returning code, active
+  `);
+  const row = rows[0];
+
+  await db.execute(sql`
+    select audit_record(${staff.id}::uuid, 'tour_option.toggle', 'product', ${productId}, null,
+                        ${JSON.stringify({ code: row?.code, active: row?.active })}::jsonb)
+  `);
+
+  revalidatePath(`/admin/catalogo/${productId}/opciones`);
+  return {
+    error: null,
+    ok: row?.active ? `Opción ${row.code} activada.` : `Opción ${row?.code} desactivada.`,
+  };
 }
 
 export async function toggleCoupon(_previous: ActionState, form: FormData): Promise<ActionState> {

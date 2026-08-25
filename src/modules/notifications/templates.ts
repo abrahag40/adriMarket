@@ -182,6 +182,17 @@ export function guestConfirmation(data: BookingNotification): {
       ? "Las propinas no se cobran en línea: se dejan directamente al guía o al anfitrión."
       : "Gratuities are not charged online: they go directly to your guide or host.",
   );
+
+  lines.push("");
+  // El PNG va adjunto, armado en send.ts — aquí solo se avisa que existe.
+  // El QR no lleva tus datos: apunta a esta misma reserva, así que siempre
+  // muestra el estado real, aunque algo cambie después de este correo.
+  lines.push(
+    es
+      ? "Tu comprobante con código QR va adjunto a este correo. Muéstralo o da tu código de reserva al llegar."
+      : "Your QR voucher is attached to this email. Show it, or give your booking code, on arrival.",
+  );
+
   lines.push("");
   lines.push("adriMarket");
 

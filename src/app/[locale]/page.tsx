@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CatalogFilters } from "@/components/catalog-filters";
 import { ProductCard } from "@/components/product-card";
+import { ResponsiveImage } from "@/components/responsive-image";
 import { isLocale, type ProductKind } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 import { listCatalog, listLocations, type CatalogFilters as Filters } from "@/modules/catalog/queries";
@@ -90,11 +92,52 @@ export default async function CatalogPage({
 
   const [items, locations] = await Promise.all([listCatalog(locale, filters), listLocations()]);
 
+  /* La foto del hero sale del catálogo real, no de un banco de imágenes: es el
+     primer producto publicado que ya tiene fotos. Sin fotos todavía, el hero
+     se queda solo con el texto — nunca con una imagen que no es del negocio. */
+  const heroItem = items.find((item) => item.coverUrl !== null);
+
   return (
     <div className="stack">
-      <h1 className="page-title">{t.tagline}</h1>
+      <section className="hero">
+        <div className="hero-copy">
+          <span className="hero-eyebrow">{t.heroEyebrow}</span>
+          <h1 className="hero-title">{t.heroTitle}</h1>
+          <p className="hero-subtitle">{t.tagline}</p>
+        </div>
+        {heroItem ? (
+          <div className="hero-media">
+            <ResponsiveImage
+              src={heroItem.coverUrl!}
+              alt={heroItem.coverAlt ?? ""}
+              width={heroItem.coverWidth ?? 1200}
+              height={heroItem.coverHeight ?? 900}
+              variants={heroItem.coverVariants}
+              sizes="(min-width: 860px) 45vw, 100vw"
+              priority
+            />
+          </div>
+        ) : null}
+      </section>
 
-      <CatalogFilters locale={locale} locations={locations} selected={selected} />
+      <div className="search-card">
+        <CatalogFilters locale={locale} locations={locations} selected={selected} />
+      </div>
+
+      {locations.length > 0 ? (
+        <nav aria-label={t.exploreByLocation}>
+          <h2 className="visually-hidden">{t.exploreByLocation}</h2>
+          <ul className="destinations-list">
+            {locations.map((loc) => (
+              <li key={loc.slug}>
+                <Link className="destination-chip" href={`/${locale}?location=${loc.slug}`}>
+                  {loc.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
 
       <div className="results-head">
         <h2 className="section-title">{t.resultsCount(items.length)}</h2>

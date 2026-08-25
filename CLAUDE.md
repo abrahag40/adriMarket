@@ -270,7 +270,9 @@ Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
 
 - **Los reembolsos se registran, no se ejecutan.** Paso manual documentado.
 - **Los cupones se administran pero no se canjean** (falta el campo en checkout).
-- **El panel no crea opciones de tour ni unidades de estancia.**
+- **El panel no crea unidades de estancia.** Las opciones de tour —horario,
+  punto de encuentro, cupo y precio por pasajero— sí se crean desde
+  `/admin/catalogo/[id]/opciones`, agregado después del Sprint 7.
 - **No hay colchón de rotación entre estancias** (se bloquea el día a mano).
 - **El cobro parcial del saldo se rechaza a propósito**: no hay regla de negocio.
 - **Stripe, correo y WhatsApp no se han ejecutado contra el servicio real.**

@@ -154,9 +154,10 @@ Se dice aquí para que nadie lo descubra después:
   anotada; hacerla en la pasarela es un paso manual. Está en `docs/operacion.md`
   §4. Automatizarlo depende de la cuenta de Stripe.
 - **Los cupones se administran pero no se canjean.** No hay campo en el checkout.
-- **El panel no crea opciones de tour ni unidades de estancia.** Un tour nuevo
-  necesita su opción —hora, duración, punto de encuentro, precios por pasajero—
-  y eso todavía se inserta a mano.
+- **El panel no crea unidades de estancia.** Para tours, la opción —hora,
+  duración, punto de encuentro, precios por pasajero— ya se crea desde
+  `/admin/catalogo/[id]/opciones`. Una estancia nueva sigue necesitando su
+  unidad insertada a mano.
 - **No hay colchón de rotación entre estancias.** Cuando la limpieza no alcanza
   para rotar el mismo día, se bloquea el día a mano desde el panel.
 - **El cobro parcial del saldo se rechaza a propósito**, porque no hay regla de

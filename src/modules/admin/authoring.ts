@@ -378,3 +378,78 @@ export async function listTourOptions(): Promise<TourOptionRow[]> {
   `);
   return rows.map((row) => ({ id: row.id, label: row.label, productId: row.product_id }));
 }
+
+// ---------------------------------------------------------------------------
+// S6-6 · Opciones de tour y precio por pasajero
+// ---------------------------------------------------------------------------
+
+export type TourOptionPaxPrice = {
+  paxType: "adult" | "child" | "infant";
+  priceCents: number;
+  countsTowardCapacity: boolean;
+};
+
+export type TourOptionDetail = {
+  id: string;
+  code: string;
+  nameEs: string;
+  nameEn: string | null;
+  durationMinutes: number | null;
+  meetingPoint: string | null;
+  defaultCapacity: number;
+  active: boolean;
+  prices: TourOptionPaxPrice[];
+};
+
+/** Opciones de un tour concreto, con su precio por tipo de pasajero. A
+    diferencia de `listTourOptions`, esta sí trae las inactivas: el panel del
+    producto necesita verlas todas para poder reactivarlas. */
+export async function listProductTourOptions(productId: string): Promise<TourOptionDetail[]> {
+  const rows = await db.execute<{
+    id: string;
+    code: string;
+    name_es: string;
+    name_en: string | null;
+    duration_minutes: number | null;
+    meeting_point: string | null;
+    default_capacity: number;
+    active: boolean;
+  }>(sql`
+    select id, code, name_es, name_en, duration_minutes, meeting_point,
+           default_capacity, active
+      from tour_options
+     where product_id = ${productId}::uuid
+     order by active desc, code
+  `);
+
+  const prices = await db.execute<{
+    tour_option_id: string;
+    pax_type: "adult" | "child" | "infant";
+    price_cents: string;
+    counts_toward_capacity: boolean;
+  }>(sql`
+    select tp.tour_option_id, tp.pax_type::text as pax_type, tp.price_cents::text,
+           tp.counts_toward_capacity
+      from tour_pax_prices tp
+      join tour_options o on o.id = tp.tour_option_id
+     where o.product_id = ${productId}::uuid
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    code: row.code,
+    nameEs: row.name_es,
+    nameEn: row.name_en,
+    durationMinutes: row.duration_minutes === null ? null : Number(row.duration_minutes),
+    meetingPoint: row.meeting_point,
+    defaultCapacity: Number(row.default_capacity),
+    active: row.active,
+    prices: prices
+      .filter((price) => price.tour_option_id === row.id)
+      .map((price) => ({
+        paxType: price.pax_type,
+        priceCents: Number(price.price_cents),
+        countsTowardCapacity: price.counts_toward_capacity,
+      })),
+  }));
+}

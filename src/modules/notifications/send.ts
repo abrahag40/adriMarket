@@ -11,6 +11,7 @@ import {
   reminderNotice,
   type BookingNotification,
 } from "./templates";
+import { bookingVoucherQr } from "./voucher";
 import { buildWhatsApp } from "./whatsapp";
 
 /**
@@ -32,9 +33,16 @@ import { buildWhatsApp } from "./whatsapp";
 
 const MAX_ATTEMPTS = 6;
 
+export type Attachment = { filename: string; content: Buffer };
+
 export type Transport = {
   name: string;
-  send(message: { to: string; subject: string; text: string }): Promise<{ providerRef: string }>;
+  send(message: {
+    to: string;
+    subject: string;
+    text: string;
+    attachments?: Attachment[];
+  }): Promise<{ providerRef: string }>;
 };
 
 /**
@@ -135,7 +143,7 @@ class ResendTransport implements Transport {
     private readonly from: string,
   ) {}
 
-  async send(message: { to: string; subject: string; text: string }) {
+  async send(message: { to: string; subject: string; text: string; attachments?: Attachment[] }) {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -147,6 +155,12 @@ class ResendTransport implements Transport {
         to: [message.to],
         subject: message.subject,
         text: message.text,
+        // Resend pide el contenido del adjunto en base64, como cualquier API de
+        // correo: el binario del PNG no cabe en JSON tal cual.
+        attachments: message.attachments?.map((attachment) => ({
+          filename: attachment.filename,
+          content: attachment.content.toString("base64"),
+        })),
       }),
     });
 
@@ -400,7 +414,7 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
       const data = await notificationData(row.booking_id);
       if (!data) throw new Error(`no se encontró la reserva ${row.booking_id}`);
 
-      let rendered: { subject: string; text: string };
+      let rendered: { subject: string; text: string; attachments?: string[] };
       let providerRef: string;
       let usado: string;
 
@@ -421,14 +435,31 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
         rendered = { subject: message.template, text: message.preview };
       } else {
         const message = renderTemplate(row.template, data, row.payload);
+
+        // El comprobante QR solo va en la confirmación al huésped: es la única
+        // plantilla que representa "esto es tu boleto". El aviso a la
+        // administración y los recordatorios no lo necesitan otra vez.
+        const attachments =
+          row.template === "booking_confirmed_guest"
+            ? [
+                {
+                  filename: `comprobante-${data.code}.png`,
+                  content: await bookingVoucherQr(data.code, data.locale),
+                },
+              ]
+            : undefined;
+
         const result = await mail.send({
           to: row.to_address,
           subject: message.subject,
           text: message.text,
+          attachments,
         });
         providerRef = result.providerRef;
         usado = mail.name;
-        rendered = message;
+        rendered = attachments
+          ? { ...message, attachments: attachments.map((attachment) => attachment.filename) }
+          : message;
       }
 
       await db.execute(sql`

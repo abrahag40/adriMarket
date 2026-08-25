@@ -13,6 +13,9 @@ export type Messages = {
   tagline: string;
   skipToContent: string;
   switchLanguage: string;
+  heroEyebrow: string;
+  heroTitle: string;
+  exploreByLocation: string;
   filterHeading: string;
   filterKind: string;
   filterKindAll: string;
@@ -130,6 +133,9 @@ const es: Messages = {
   tagline: "Tours y casas en el Caribe mexicano",
   skipToContent: "Ir al contenido",
   switchLanguage: "Ver en inglés",
+  heroEyebrow: "Anticipo en línea · saldo en destino",
+  heroTitle: "Encuentra tu próximo destino en el Caribe",
+  exploreByLocation: "Explora por destino",
   filterHeading: "Filtrar",
   filterKind: "Tipo",
   filterKindAll: "Todo",
@@ -250,6 +256,9 @@ const en: Messages = {
   tagline: "Tours and homes in the Mexican Caribbean",
   skipToContent: "Skip to content",
   switchLanguage: "Ver en español",
+  heroEyebrow: "Deposit online · balance on arrival",
+  heroTitle: "Find your next Caribbean getaway",
+  exploreByLocation: "Explore by location",
   filterHeading: "Filter",
   filterKind: "Type",
   filterKindAll: "All",

@@ -40,11 +40,14 @@ export function ProductCard({ item, locale }: { item: CatalogCard; locale: Local
             variants={item.coverVariants}
             sizes="(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
           />
+          <span className="card-kind-badge">{kindLabel}</span>
         </div>
       ) : null}
 
       <div className="card-body">
-        <span className="card-kind">{kindLabel}</span>
+        {/* Sin foto no hay dónde poner la insignia: el tipo se queda como
+            etiqueta de texto para no perder el dato. */}
+        {item.coverUrl ? null : <span className="card-kind">{kindLabel}</span>}
         <h3 className="card-title">
           <Link href={href}>{item.name}</Link>
         </h3>
