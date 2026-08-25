@@ -200,6 +200,24 @@ export async function setProductStatus(
         };
       }
     }
+
+    if (kindRows[0]?.kind === "stay") {
+      const rates = await db.execute<{ n: number }>(sql`
+        select count(*)::int as n
+          from stay_units su
+          join stay_rate_plans p on p.unit_id = su.id and p.active
+          join stay_rates r on r.rate_plan_id = p.id
+         where su.product_id = ${productId}::uuid and su.active
+      `);
+      if (rates[0]!.n === 0) {
+        // Una unidad sin ninguna tarifa cargada no se puede cotizar: publicarla
+        // sería mostrar algo que ningún huésped puede reservar todavía.
+        return {
+          error: "Agrega al menos una unidad con una tarifa cargada antes de publicar.",
+          ok: null,
+        };
+      }
+    }
   }
 
   const before = await db.execute<{ status: string }>(sql`
@@ -641,6 +659,161 @@ export async function toggleTourOption(
   return {
     error: null,
     ok: row?.active ? `Opción ${row.code} activada.` : `Opción ${row?.code} desactivada.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// S8 · Unidades de estancia y planes de tarifa
+// ---------------------------------------------------------------------------
+
+/** Número con hasta un decimal, para los baños. "2" o "2.5". */
+function decimal1(value: string): string | null {
+  if (!/^\d+(\.\d)?$/.test(value)) return null;
+  return value;
+}
+
+/**
+ * Alta de una unidad de estancia, con su primer plan de tarifa.
+ *
+ * Una unidad sin plan no sirve de nada: la pantalla de Tarifas necesita un
+ * plan para poder agregar una tarifa encima. Por eso nace con uno —el mismo
+ * criterio que un tour nace con el precio de adulto— y desde aquí se pueden
+ * agregar más después, para separar por ejemplo "estándar" de "todo incluido".
+ */
+export async function createStayUnit(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const productId = text(form, "productId");
+  const code = text(form, "code").toLowerCase();
+  const maxGuests = Number(text(form, "maxGuests"));
+  const baseGuests = Number(text(form, "baseGuests"));
+  const extraGuestFee = cents(text(form, "extraGuestFee") || "0");
+  const cleaningFee = cents(text(form, "cleaningFee") || "0");
+  const bedrooms = Number(text(form, "bedrooms") || "1");
+  const beds = Number(text(form, "beds") || "1");
+  const bathrooms = decimal1(text(form, "bathrooms") || "1");
+  const minNights = Number(text(form, "minNights") || "1");
+  const checkinTime = text(form, "checkinTime") || "15:00";
+  const checkoutTime = text(form, "checkoutTime") || "11:00";
+  const planName = text(form, "planName") || "Tarifa general";
+
+  if (!SLUG.test(code)) {
+    return {
+      error: "El código solo lleva minúsculas, números y guiones. Ejemplo: casa-akumal.",
+      ok: null,
+    };
+  }
+  if (!Number.isInteger(maxGuests) || maxGuests <= 0) {
+    return { error: "La capacidad máxima tiene que ser mayor que cero.", ok: null };
+  }
+  if (!Number.isInteger(baseGuests) || baseGuests <= 0 || baseGuests > maxGuests) {
+    return {
+      error: "La ocupación base tiene que ser mayor que cero y no pasar de la capacidad máxima.",
+      ok: null,
+    };
+  }
+  if (extraGuestFee === null || cleaningFee === null) {
+    return { error: "Las cuotas van en pesos. Ejemplo: 800 o 800.50", ok: null };
+  }
+  if (bathrooms === null) return { error: "Los baños admiten hasta un decimal. Ejemplo: 2.5", ok: null };
+  if (!Number.isInteger(bedrooms) || bedrooms <= 0 || !Number.isInteger(beds) || beds <= 0) {
+    return { error: "Recámaras y camas tienen que ser mayores que cero.", ok: null };
+  }
+  if (!Number.isInteger(minNights) || minNights <= 0) {
+    return { error: "El mínimo de noches tiene que ser mayor que cero.", ok: null };
+  }
+  if (planName.length < 2) return { error: "Escribe el nombre del plan de tarifas.", ok: null };
+
+  try {
+    const rows = await db.execute<{ id: string }>(sql`
+      insert into stay_units
+        (product_id, code, max_guests, base_guests, extra_guest_fee_cents, cleaning_fee_cents,
+         bedrooms, beds, bathrooms, min_nights, checkin_time, checkout_time)
+      values (${productId}::uuid, ${code}, ${maxGuests}, ${baseGuests}, ${extraGuestFee},
+              ${cleaningFee}, ${bedrooms}, ${beds}, ${bathrooms}::numeric, ${minNights},
+              ${checkinTime}::time, ${checkoutTime}::time)
+      returning id
+    `);
+    const unitId = rows[0]!.id;
+
+    await db.execute(sql`
+      insert into stay_rate_plans (unit_id, name) values (${unitId}::uuid, ${planName})
+    `);
+
+    await db.execute(sql`
+      select audit_record(${staff.id}::uuid, 'stay_unit.create', 'product', ${productId}, null,
+                          ${JSON.stringify({ code, maxGuests, baseGuests, planName })}::jsonb)
+    `);
+
+    revalidatePath(`/admin/catalogo/${productId}/unidades`);
+    return { error: null, ok: `Unidad creada: ${code}, con el plan "${planName}".` };
+  } catch (error: unknown) {
+    if (/unique|duplicate/i.test(describe(error))) {
+      return { error: "Ya existe una unidad con ese código en este producto.", ok: null };
+    }
+    throw error;
+  }
+}
+
+/** Un plan de tarifa adicional para una unidad que ya existe. */
+export async function addRatePlan(_previous: ActionState, form: FormData): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const unitId = text(form, "unitId");
+  const productId = text(form, "productId");
+  const name = text(form, "name");
+
+  if (!/^[0-9a-f-]{36}$/i.test(unitId)) return { error: "Unidad no válida.", ok: null };
+  if (name.length < 2) return { error: "Escribe el nombre del plan.", ok: null };
+
+  await db.execute(sql`
+    insert into stay_rate_plans (unit_id, name) values (${unitId}::uuid, ${name})
+  `);
+
+  await db.execute(sql`
+    select audit_record(${staff.id}::uuid, 'rate_plan.create', 'product', ${productId}, null,
+                        ${JSON.stringify({ unitId, name })}::jsonb)
+  `);
+
+  revalidatePath(`/admin/catalogo/${productId}/unidades`);
+  return { error: null, ok: `Plan de tarifas creado: ${name}.` };
+}
+
+/**
+ * Activa o desactiva una unidad.
+ *
+ * No se borra: una unidad con reservas ya tomadas necesita seguir existiendo
+ * para que esas reservas tengan sentido. Se apaga, igual que una opción de
+ * tour o un cupón.
+ */
+export async function toggleStayUnit(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const unitId = text(form, "unitId");
+  const productId = text(form, "productId");
+  if (!/^[0-9a-f-]{36}$/i.test(unitId)) return { error: "Unidad no válida.", ok: null };
+
+  const rows = await db.execute<{ code: string; active: boolean }>(sql`
+    update stay_units set active = not active where id = ${unitId}::uuid
+    returning code, active
+  `);
+  const row = rows[0];
+
+  await db.execute(sql`
+    select audit_record(${staff.id}::uuid, 'stay_unit.toggle', 'product', ${productId}, null,
+                        ${JSON.stringify({ code: row?.code, active: row?.active })}::jsonb)
+  `);
+
+  revalidatePath(`/admin/catalogo/${productId}/unidades`);
+  return {
+    error: null,
+    ok: row?.active ? `Unidad ${row.code} activada.` : `Unidad ${row?.code} desactivada.`,
   };
 }
 

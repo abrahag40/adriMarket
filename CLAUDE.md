@@ -270,9 +270,13 @@ Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
 
 - **Los reembolsos se registran, no se ejecutan.** Paso manual documentado.
 - **Los cupones se administran pero no se canjean** (falta el campo en checkout).
-- **El panel no crea unidades de estancia.** Las opciones de tour —horario,
-  punto de encuentro, cupo y precio por pasajero— sí se crean desde
-  `/admin/catalogo/[id]/opciones`, agregado después del Sprint 7.
+- ~~El panel no crea opciones de tour ni unidades de estancia.~~ **Cerrada.**
+  Opciones de tour —horario, punto de encuentro, cupo, precio por pasajero—
+  desde `/admin/catalogo/[id]/opciones`, y unidades de estancia —capacidad,
+  recámaras, cuotas, su primer plan de tarifa— desde
+  `/admin/catalogo/[id]/unidades`. Ambas agregadas después del Sprint 7.
+  Publicar un producto ahora exige tener algo vendible: una opción de tour con
+  precio de adulto, o una unidad de estancia con al menos una tarifa cargada.
 - **No hay colchón de rotación entre estancias** (se bloquea el día a mano).
 - **El cobro parcial del saldo se rechaza a propósito**: no hay regla de negocio.
 - **Stripe, correo y WhatsApp no se han ejecutado contra el servicio real.**

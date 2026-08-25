@@ -453,3 +453,92 @@ export async function listProductTourOptions(productId: string): Promise<TourOpt
       })),
   }));
 }
+
+// ---------------------------------------------------------------------------
+// S8 · Unidades de estancia y sus planes de tarifa
+// ---------------------------------------------------------------------------
+
+export type StayRatePlanRow = { id: string; name: string; active: boolean; rateCount: number };
+
+export type StayUnitDetail = {
+  id: string;
+  code: string;
+  maxGuests: number;
+  baseGuests: number;
+  extraGuestFeeCents: number;
+  cleaningFeeCents: number;
+  bedrooms: number;
+  beds: number;
+  bathrooms: number;
+  minNights: number;
+  checkinTime: string;
+  checkoutTime: string;
+  active: boolean;
+  plans: StayRatePlanRow[];
+};
+
+/** Unidades de un producto tipo estancia, con sus planes de tarifa. Trae las
+    inactivas también: hace falta poder reactivarlas desde el panel. */
+export async function listProductStayUnits(productId: string): Promise<StayUnitDetail[]> {
+  const rows = await db.execute<{
+    id: string;
+    code: string;
+    max_guests: number;
+    base_guests: number;
+    extra_guest_fee_cents: string;
+    cleaning_fee_cents: string;
+    bedrooms: number;
+    beds: number;
+    bathrooms: string;
+    min_nights: number;
+    checkin_time: string;
+    checkout_time: string;
+    active: boolean;
+  }>(sql`
+    select id, code, max_guests, base_guests, extra_guest_fee_cents::text as extra_guest_fee_cents,
+           cleaning_fee_cents::text as cleaning_fee_cents, bedrooms, beds, bathrooms::text as bathrooms,
+           min_nights, checkin_time::text as checkin_time, checkout_time::text as checkout_time, active
+      from stay_units
+     where product_id = ${productId}::uuid
+     order by active desc, code
+  `);
+
+  const plans = await db.execute<{
+    id: string;
+    unit_id: string;
+    name: string;
+    active: boolean;
+    rate_count: number;
+  }>(sql`
+    select p.id, p.unit_id, p.name, p.active,
+           (select count(*)::int from stay_rates r where r.rate_plan_id = p.id) as rate_count
+      from stay_rate_plans p
+      join stay_units su on su.id = p.unit_id
+     where su.product_id = ${productId}::uuid
+     order by p.name
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    code: row.code,
+    maxGuests: Number(row.max_guests),
+    baseGuests: Number(row.base_guests),
+    extraGuestFeeCents: Number(row.extra_guest_fee_cents),
+    cleaningFeeCents: Number(row.cleaning_fee_cents),
+    bedrooms: Number(row.bedrooms),
+    beds: Number(row.beds),
+    bathrooms: Number(row.bathrooms),
+    minNights: Number(row.min_nights),
+    checkinTime: row.checkin_time,
+    checkoutTime: row.checkout_time,
+    active: row.active,
+    plans: plans
+      .filter((plan) => plan.unit_id === row.id)
+      .map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        active: plan.active,
+        rateCount: Number(plan.rate_count),
+      })),
+  }));
+}

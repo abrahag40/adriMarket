@@ -63,7 +63,10 @@ export default async function ProductoPage({ params }: { params: Promise<{ id: s
       />
 
       {product.kind === "stay" ? (
-        <p>
+        <p className="admin-card-actions">
+          <Link className="btn btn-secondary" href={`/admin/catalogo/${product.id}/unidades`}>
+            Unidades de estancia
+          </Link>
           <Link className="btn btn-secondary" href={`/admin/catalogo/${product.id}/tarifas`}>
             Tarifas y temporadas
           </Link>
