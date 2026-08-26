@@ -1,14 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { put, del } from "@vercel/blob";
 import { sql } from "drizzle-orm";
 import sharp from "sharp";
 
 import { db } from "@/db/index";
 
 /**
- * Subida y procesamiento de fotos · S6-1
+ * Subida y procesamiento de fotos · S6-1, y Vercel Blob después del Sprint 7
  *
  * Implementa la [decisión 0001](../../../docs/decisiones/0001-entrega-de-imagenes.md):
  * generar los anchos **al subir**, guardarlos como archivos y servirlos
@@ -22,7 +23,75 @@ import { db } from "@/db/index";
  * - **El latido** genera las variantes. Codificar AVIF tarda segundos por
  *   imagen; hacerlo en la petición deja la pantalla colgada mientras el cliente
  *   sube quince fotos de una casa.
+ *
+ * **Dónde se guarda es una decisión por configuración, igual que Stripe, Resend
+ * y WhatsApp** ([decisión 0005](../../../docs/decisiones/0005-vercel-y-blob.md)):
+ * con `BLOB_READ_WRITE_TOKEN` se usa Vercel Blob; sin él, disco local. No es una
+ * bandera de "modo desarrollo" — es lo que hace falta para correr en Vercel, cuyo
+ * sistema de archivos es efímero y no se comparte entre invocaciones.
  */
+
+/**
+ * Dónde se guardan los archivos: local o Vercel Blob, resuelto por configuración.
+ *
+ * `read()` existe porque `processMediaJobs` necesita los bytes del original para
+ * generar variantes, y en Blob eso significa una descarga por HTTP, no abrir un
+ * archivo.
+ */
+type MediaStorage = {
+  name: string;
+  save(filename: string, bytes: Buffer): Promise<string>;
+  read(url: string): Promise<Buffer>;
+  remove(url: string): Promise<void>;
+};
+
+class LocalStorage implements MediaStorage {
+  readonly name = "local";
+
+  async save(filename: string, bytes: Buffer): Promise<string> {
+    await mkdir(MEDIA_ROOT, { recursive: true });
+    await writeFile(path.join(MEDIA_ROOT, filename), bytes);
+    return `/media/${filename}`;
+  }
+
+  async read(url: string): Promise<Buffer> {
+    return readFile(path.join(MEDIA_ROOT, path.basename(url)));
+  }
+
+  async remove(url: string): Promise<void> {
+    await unlink(path.join(MEDIA_ROOT, path.basename(url))).catch(() => {
+      // Si el archivo ya no está, el objetivo se cumplió igual.
+    });
+  }
+}
+
+class BlobStorage implements MediaStorage {
+  readonly name = "vercel-blob";
+
+  async save(filename: string, bytes: Buffer): Promise<string> {
+    // `addRandomSuffix: false` porque el nombre ya lleva un uuid (al subir) o el
+    // identificador y el ancho (variantes): es único de por sí, y así la URL
+    // guardada en la base es la misma que Blob va a servir después.
+    const blob = await put(filename, bytes, { access: "public", addRandomSuffix: false });
+    return blob.url;
+  }
+
+  async read(url: string): Promise<Buffer> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`blob: HTTP ${response.status} leyendo ${url}`);
+    return Buffer.from(await response.arrayBuffer());
+  }
+
+  async remove(url: string): Promise<void> {
+    await del(url).catch(() => {
+      // Igual que en local: si ya no está, el objetivo se cumplió igual.
+    });
+  }
+}
+
+function mediaStorage(): MediaStorage {
+  return process.env.BLOB_READ_WRITE_TOKEN ? new BlobStorage() : new LocalStorage();
+}
 
 /** Anchos de la decisión 0001. */
 const WIDTHS = [400, 800, 1600, 2400];
@@ -92,20 +161,18 @@ export async function uploadImage(
     );
   }
 
-  await mkdir(MEDIA_ROOT, { recursive: true });
-
   const slug = randomUUID();
   const extension = meta.format === "png" ? "png" : "jpg";
   const originalName = `${slug}-original.${extension}`;
-  await writeFile(path.join(MEDIA_ROOT, originalName), file.bytes);
+  const url = await mediaStorage().save(originalName, file.bytes);
 
   const rows = await db.execute<{ id: string }>(sql`
     insert into product_media (product_id, url, original_url, kind, width, height, bytes,
                                uploaded_by, position)
     values (
       ${productId}::uuid,
-      ${`/media/${originalName}`},
-      ${`/media/${originalName}`},
+      ${url},
+      ${url},
       'image',
       ${meta.width}, ${meta.height}, ${file.bytes.length},
       ${staffId}::uuid,
@@ -117,7 +184,7 @@ export async function uploadImage(
   const mediaId = rows[0]!.id;
   await db.execute(sql`insert into media_jobs (media_id) values (${mediaId}::uuid)`);
 
-  return { mediaId, url: `/media/${originalName}` };
+  return { mediaId, url };
 }
 
 export type MediaReport = { processed: number; failed: number };
@@ -148,10 +215,15 @@ export async function processMediaJobs(limit = 4): Promise<MediaReport> {
      for update of j skip locked
   `);
 
+  const storage = mediaStorage();
+
   for (const job of jobs) {
     try {
-      const source = path.join(MEDIA_ROOT, path.basename(job.original_url));
-      const image = sharp(source);
+      // En Blob esto es una descarga por HTTP, no abrir un archivo — el mismo
+      // latido puede correr en una instancia distinta a la que recibió la
+      // subida, así que nunca se puede asumir que el original sigue en disco.
+      const original = await storage.read(job.original_url);
+      const image = sharp(original);
       const variants: Record<string, Record<string, string>> = {};
 
       // Nunca por encima del ancho original.
@@ -162,12 +234,12 @@ export async function processMediaJobs(limit = 4): Promise<MediaReport> {
         variants[format] = {};
         for (const width of widths) {
           const name = `${path.basename(job.original_url).replace(/-original\.\w+$/, "")}-${width}.${format}`;
-          await image
+          const buffer = await image
             .clone()
             .resize({ width, withoutEnlargement: true })
             .toFormat(format, { quality: format === "avif" ? 50 : 72 })
-            .toFile(path.join(MEDIA_ROOT, name));
-          variants[format]![String(width)] = `/media/${name}`;
+            .toBuffer();
+          variants[format]![String(width)] = await storage.save(name, buffer);
         }
       }
 
@@ -227,11 +299,6 @@ export async function deleteImage(mediaId: string): Promise<void> {
     urls.push(...Object.values(byWidth));
   }
 
-  await Promise.all(
-    urls.map((url) =>
-      unlink(path.join(MEDIA_ROOT, path.basename(url))).catch(() => {
-        // Si el archivo ya no está, el objetivo se cumplió igual.
-      }),
-    ),
-  );
+  const storage = mediaStorage();
+  await Promise.all(urls.map((url) => storage.remove(url)));
 }

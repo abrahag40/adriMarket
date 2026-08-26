@@ -30,15 +30,17 @@ justamente para que la falta de uno no deje a nadie sin enterarse.
 
 | Pieza | Dónde | Nota |
 |---|---|---|
-| El sitio | Un host con **runtime de Node** | No edge: `sharp`, el disco y `postgres` por TCP lo exigen |
-| La base | **Neon**, PostgreSQL gestionado | Con `btree_gist` disponible. Conexión **directa** para migraciones |
-| Dominio, caché y protección | **Cloudflare**, al frente | Que no cachee `/admin`, `/api` ni `/media` con reglas propias |
-| Las fotos | Volumen **persistente** en el host | Si el disco es efímero, desaparecen en el siguiente despliegue |
+| El sitio | **Vercel** (`adrimarket.vercel.app`, plan gratuito) | Sin dominio propio por decisión del cliente — ver decisión 0005 |
+| La base | **Neon**, PostgreSQL gestionado | Con `btree_gist` disponible. Conexión **agrupada** (pooler) para el runtime, **directa** para migraciones |
+| Las fotos | **Vercel Blob** | Por configuración (`BLOB_READ_WRITE_TOKEN`), no disco: una función de Vercel no tiene sistema de archivos persistente |
+| El latido | **GitHub Actions**, cada 5 minutos | El cron nativo de Vercel gratis es de máximo una vez al día — no alcanza |
 
 El porqué, con las alternativas descartadas, está en
-[`decisiones/0002-donde-vive-el-sistema.md`](decisiones/0002-donde-vive-el-sistema.md).
-**No hace falta cambiar una línea de código para desplegar:** lo que se probó es
-lo que se sube.
+[`decisiones/0005-vercel-y-blob.md`](decisiones/0005-vercel-y-blob.md). La
+decisión anterior, Render + Cloudflare, está en
+[`decisiones/0002-donde-vive-el-sistema.md`](decisiones/0002-donde-vive-el-sistema.md)
+— histórica, no se borró, sigue explicando por qué Cloudflare Workers y D1
+quedan descartados en cualquier caso.
 
 ---
 
@@ -63,28 +65,32 @@ lo que se sube.
 | `RESEND_API_KEY` + `MAIL_FROM` | correo real | el aviso se guarda pero no se manda |
 | `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` | WhatsApp real | no se manda |
 | `JOBS_SECRET` | protege el latido | el worker queda abierto |
-| `MEDIA_DIR` | dónde viven las fotos | usa `var/media` del proyecto |
+| `BLOB_READ_WRITE_TOKEN` | dónde viven las fotos | usa disco local (`var/media`); en Vercel eso es efímero |
 | `PRIVACY_VERSION` | versión del aviso que acepta el huésped | consentimiento sin versión |
 
 > **`NEXT_PUBLIC_SITE_URL` se fija al construir, no al arrancar.** Next reemplaza
-> esas variables durante la compilación. Cambiarla exige volver a construir.
+> esas variables durante la compilación. Cambiarla exige volver a construir —
+> en Vercel, un nuevo `vercel --prod` después de cambiar la variable.
 
 ## 3. Almacenamiento de fotos
 
-- [ ] `MEDIA_DIR` en un volumen **persistente**. Si el disco es efímero, las
-      fotos desaparecen en el siguiente despliegue.
-- [ ] Incluido en las copias de seguridad: no están en la base ni en el
-      repositorio.
-- [ ] CDN delante de `/media/*`, si lo hay. Los archivos no cambian nunca
-      —el nombre lleva identificador y ancho— y ya se sirven con
-      `cache-control: immutable`.
+- [x] `BLOB_READ_WRITE_TOKEN` presente: las fotos van a Vercel Blob, no a
+      disco. Se inyecta solo al conectar un almacén de Blob al proyecto
+      (`vercel blob create-store --access public`, después "Connect Project"
+      desde el dashboard de Storage).
+- [ ] Probar una subida real desde el panel y confirmar que la foto sigue
+      disponible después de un redeploy — es la garantía que el disco
+      efímero no daba.
 
 ## 4. El worker
 
-- [ ] Cron **cada minuto** a `POST /api/jobs/tick` con la cabecera
-      `x-job-secret`.
+- [x] `.github/workflows/heartbeat.yml` llama a `POST /api/jobs/tick` cada 5
+      minutos, con el secreto `JOBS_SECRET` guardado como secreto del
+      repositorio (`gh secret set JOBS_SECRET`). No es el cron nativo de
+      Vercel: el del plan gratuito es de máximo una vez al día.
 - [ ] Verificar que efectivamente corre: `/api/health` debe decir
-      `worker.ok = true`.
+      `worker.ok = true`, y la pestaña Actions de GitHub debe mostrar
+      corridas verdes cada 5 minutos.
 
 Es el paso que más se olvida y el que peor falla, porque **falla en silencio**:
 sin él los apartados no expiran, los avisos no salen y los recordatorios
@@ -163,3 +169,13 @@ Se dice aquí para que nadie lo descubra después:
   para rotar el mismo día, se bloquea el día a mano desde el panel.
 - **El cobro parcial del saldo se rechaza a propósito**, porque no hay regla de
   negocio acordada.
+- **Subir una foto de más de 4.5 MB falla en Vercel.** Es el límite de cuerpo
+  de petición de una función, no un error del código; una foto de teléfono
+  moderno pesa de 3 a 8 MB. Arreglarlo exige subir directo desde el navegador
+  a Vercel Blob en vez de pasar por el servidor — ver
+  [decisión 0005](decisiones/0005-vercel-y-blob.md). Queda para cuando el
+  cliente empiece a subir fotos reales.
+- **El latido corre cada 5 minutos, no cada minuto.** GitHub Actions no
+  garantiza el minuto exacto y no soporta un intervalo más corto de forma
+  confiable. Un apartado que antes expiraba con un minuto de margen ahora
+  puede tardar hasta cinco — ver decisión 0005.

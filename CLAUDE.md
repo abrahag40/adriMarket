@@ -213,17 +213,31 @@ Están aquí porque cada una se pagó una vez.
 
 ---
 
-## Dónde va a vivir el sistema
+## Dónde vive el sistema
 
-**Decidido con el cliente:** el sitio corre en un host con **runtime de Node**,
-con **Cloudflare al frente como DNS y CDN**, y **PostgreSQL gestionado en Neon**.
+**El sitio corre en Vercel** (`https://adrimarket.vercel.app`, plan gratuito,
+sin dominio propio por ahora — decisión del cliente), con **PostgreSQL
+gestionado en Neon**. El detalle está en
+[`docs/decisiones/0005-vercel-y-blob.md`](docs/decisiones/0005-vercel-y-blob.md).
 
-**Cloudflare Workers/Pages no puede correr esto** y el detalle está en
-[`docs/decisiones/0002-donde-vive-el-sistema.md`](docs/decisiones/0002-donde-vive-el-sistema.md).
-En corto: `sharp` es un binario nativo, las fotos necesitan sistema de archivos,
-y `postgres` habla TCP. Y **D1 no sirve como base**: las garantías anti-sobreventa
-son `EXCLUDE USING gist`, 29 funciones plpgsql y `FOR UPDATE SKIP LOCKED`, que
-SQLite no tiene. Migrar ahí sería tirar las 23 garantías.
+Antes vivía en Render + Cloudflare
+([`docs/decisiones/0002-donde-vive-el-sistema.md`](docs/decisiones/0002-donde-vive-el-sistema.md),
+histórica, no se reescribió). Lo que esa decisión sí sigue explicando: por qué
+**Cloudflare Workers/Pages no puede correr esto** (`sharp` es un binario
+nativo, `postgres` habla TCP) y por qué **D1 no sirve como base** (las
+garantías anti-sobreventa son `EXCLUDE USING gist`, 29 funciones plpgsql y
+`FOR UPDATE SKIP LOCKED`, que SQLite no tiene). Vercel sí corre Node.js
+completo — no comparte los problemas de Workers — pero tiene sus propios dos
+límites en el plan gratuito, ya resueltos en la decisión 0005:
+
+- **Las fotos se guardan en Vercel Blob**, no en disco: el sistema de
+  archivos de una función es efímero y no se comparte entre invocaciones.
+  Selección por configuración (`BLOB_READ_WRITE_TOKEN`), igual que
+  Stripe/Resend/WhatsApp — ver `src/modules/media/images.ts`.
+- **El latido corre por GitHub Actions cada 5 minutos**
+  (`.github/workflows/heartbeat.yml`), no por el cron nativo de Vercel: ese
+  es de máximo una vez al día en el plan gratuito, y el sistema necesita
+  `/api/jobs/tick` con mucha más frecuencia.
 
 ---
 
