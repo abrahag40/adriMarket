@@ -40,7 +40,8 @@ tocar código?
 |---|---|---|
 | **A. Cron nativo de Vercel** | Cero configuración extra | Gratis, corre cuando mucho una vez al día — no sirve |
 | **B. Servicio externo gratuito (cron-job.org y similares)** | Intervalos de un minuto de verdad | Exige crear una cuenta en un tercero — no es algo que se pueda automatizar sin que el cliente la cree |
-| **C. GitHub Actions con `schedule`, cada 5 minutos** | Corre en la cuenta de GitHub que el cliente ya tiene y ya autorizó para este repositorio; no hay cuenta nueva que crear | GitHub no garantiza el minuto exacto — puede atrasarse en horas de carga alta — y el mínimo práctico son 5 minutos, no 1 |
+| **C. GitHub Actions con `schedule` de alta frecuencia** | Corre en la cuenta de GitHub que el cliente ya tiene y ya autorizó para este repositorio; no hay cuenta nueva que crear | **Se probó a `*/5 * * * *` y falló en la práctica**: `gh run list` mostró corridas cada 4 a 10 horas, no cada 5 minutos. GitHub no garantiza los cron de alta frecuencia — los retrasa a propósito |
+| **D. GitHub Actions con un job que se autosostiene en un bucle interno** | El `schedule` que sí dispara puntual es uno de baja frecuencia (GitHub no retrasa esos); una vez arrancado, el propio job llama al latido cada minuto con un `sleep` hasta su límite de tiempo | Consume minutos de Actions por hora casi completa — solo es gratis porque el repositorio es público (minutos ilimitados); en uno privado agotaría el plan gratuito en un día |
 
 ## Decisión
 
@@ -50,12 +51,14 @@ Blob; sin él (en local), sigue el disco de siempre. `uploadImage`,
 `processMediaJobs` y `deleteImage` pasan por una interfaz `MediaStorage` con
 dos implementaciones — ver `src/modules/media/images.ts`.
 
-**Latido: opción C, GitHub Actions cada 5 minutos** (`.github/workflows/heartbeat.yml`).
-No es el cada-minuto literal que pedía el diseño original, pero es lo más
-frecuente que se puede automatizar sin pedirle al cliente que abra una cuenta
-en un servicio que no conoce. `/api/health` sigue siendo la alarma real —su
-umbral de "más de diez minutos sin latir" sigue teniendo margen sobre un
-intervalo de 5.
+**Latido: opción D**, después de que la opción C fallara en producción
+(`.github/workflows/heartbeat.yml`). Un `schedule` de baja frecuencia
+(`0 */3 * * *`, cada 3 horas) arranca un job que llama a
+`POST /api/jobs/tick` en un bucle con `sleep 60` hasta acercarse al límite
+de 6 horas de un job de GitHub Actions, y se detiene solo con margen. Si el
+job muere por lo que sea, el siguiente disparo del `schedule` de baja
+frecuencia lo reinicia — y esos sí corren puntuales. El resultado es más
+cercano al minuto-a-minuto original que la opción C que se intentó primero.
 
 ## Por qué
 
@@ -68,14 +71,22 @@ intervalo de 5.
    cron de terceros es fricción que un flujo automatizado no puede resolver
    por su cuenta — crear cuentas está fuera de lo que se automatiza sin la
    persona presente.
-3. **5 minutos sigue siendo un cambio real, y se dice así.** Un apartado que
-   antes expiraba en máximo un minuto de retraso ahora puede tardar hasta
-   cinco; un recordatorio de 72 horas no nota la diferencia. Es una
-   degradación aceptada, no un detalle que se escondió.
+3. **Un `schedule` de alta frecuencia no era la solución — era el problema.**
+   Pedirle a GitHub cada 5 minutos no lo hizo correr cada 5 minutos: lo hizo
+   correr cada varias horas, con menos margen que el cron nativo de Vercel
+   que la opción A ya había descartado por lento. El bucle interno evita
+   depender de que GitHub respete un intervalo corto, y de paso queda más
+   cerca del minuto a minuto original que cualquiera de las dos opciones de
+   `schedule` puro.
 
 ## Consecuencias
 
 - Nueva dependencia: `@vercel/blob`.
+- **El latido solo es gratis porque el repositorio es público.** El bucle
+  corre casi las 24 horas del día; en un repositorio privado agotaría el
+  límite mensual gratuito de minutos de Actions en cuestión de un día. Si el
+  repositorio pasa a privado algún día, este mecanismo hay que revisarlo
+  primero.
 - `docs/decisiones/0002-donde-vive-el-sistema.md` queda como historia de la
   primera decisión, no se reescribe — Render sigue siendo válido como
   alternativa si el cliente algún día quiere volver a un plan de pago con

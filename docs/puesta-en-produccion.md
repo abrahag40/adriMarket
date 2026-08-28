@@ -33,7 +33,7 @@ justamente para que la falta de uno no deje a nadie sin enterarse.
 | El sitio | **Vercel** (`adrimarket.vercel.app`, plan gratuito) | Sin dominio propio por decisión del cliente — ver decisión 0005 |
 | La base | **Neon**, PostgreSQL gestionado | Con `btree_gist` disponible. Conexión **agrupada** (pooler) para el runtime, **directa** para migraciones |
 | Las fotos | **Vercel Blob** | Por configuración (`BLOB_READ_WRITE_TOKEN`), no disco: una función de Vercel no tiene sistema de archivos persistente |
-| El latido | **GitHub Actions**, cada 5 minutos | El cron nativo de Vercel gratis es de máximo una vez al día — no alcanza |
+| El latido | **GitHub Actions**, bucle de un minuto | El cron nativo de Vercel gratis es de máximo una vez al día, y un `schedule` de GitHub cada 5 minutos resultó correr cada varias horas — no confiable |
 
 El porqué, con las alternativas descartadas, está en
 [`decisiones/0005-vercel-y-blob.md`](decisiones/0005-vercel-y-blob.md). La
@@ -84,13 +84,17 @@ quedan descartados en cualquier caso.
 
 ## 4. El worker
 
-- [x] `.github/workflows/heartbeat.yml` llama a `POST /api/jobs/tick` cada 5
-      minutos, con el secreto `JOBS_SECRET` guardado como secreto del
-      repositorio (`gh secret set JOBS_SECRET`). No es el cron nativo de
-      Vercel: el del plan gratuito es de máximo una vez al día.
+- [x] `.github/workflows/heartbeat.yml` llama a `POST /api/jobs/tick` cada
+      minuto, dentro de un job que se autosostiene en un bucle hasta su
+      límite de tiempo — un `schedule` de GitHub cada 5 minutos se probó
+      primero y corrió cada varias horas, no cada 5 minutos. Un `schedule`
+      de baja frecuencia (cada 3 horas, `0 */3 * * *`) reinicia el bucle si
+      alguna vez muere. El secreto `JOBS_SECRET` vive como secreto del
+      repositorio (`gh secret set JOBS_SECRET`).
 - [ ] Verificar que efectivamente corre: `/api/health` debe decir
-      `worker.ok = true`, y la pestaña Actions de GitHub debe mostrar
-      corridas verdes cada 5 minutos.
+      `worker.ok = true` con "último latido hace" en minutos de un dígito, y
+      la pestaña Actions de GitHub debe mostrar el job vivo, no corridas
+      sueltas.
 
 Es el paso que más se olvida y el que peor falla, porque **falla en silencio**:
 sin él los apartados no expiran, los avisos no salen y los recordatorios
@@ -175,7 +179,9 @@ Se dice aquí para que nadie lo descubra después:
   a Vercel Blob en vez de pasar por el servidor — ver
   [decisión 0005](decisiones/0005-vercel-y-blob.md). Queda para cuando el
   cliente empiece a subir fotos reales.
-- **El latido corre cada 5 minutos, no cada minuto.** GitHub Actions no
-  garantiza el minuto exacto y no soporta un intervalo más corto de forma
-  confiable. Un apartado que antes expiraba con un minuto de margen ahora
-  puede tardar hasta cinco — ver decisión 0005.
+- **El latido depende de que el repositorio siga siendo público.** El
+  mecanismo (bucle de un minuto dentro de un job de GitHub Actions,
+  reiniciado cada 3 horas) solo es gratis con minutos de Actions
+  ilimitados; si el repositorio pasa a privado algún día, hay que revisarlo
+  antes — ver decisión 0005. Si el bucle muere entre reinicios, el peor caso
+  es hasta 3 horas sin latido, no minutos.

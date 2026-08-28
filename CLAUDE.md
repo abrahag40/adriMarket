@@ -234,10 +234,14 @@ límites en el plan gratuito, ya resueltos en la decisión 0005:
   archivos de una función es efímero y no se comparte entre invocaciones.
   Selección por configuración (`BLOB_READ_WRITE_TOKEN`), igual que
   Stripe/Resend/WhatsApp — ver `src/modules/media/images.ts`.
-- **El latido corre por GitHub Actions cada 5 minutos**
-  (`.github/workflows/heartbeat.yml`), no por el cron nativo de Vercel: ese
-  es de máximo una vez al día en el plan gratuito, y el sistema necesita
-  `/api/jobs/tick` con mucha más frecuencia.
+- **El latido corre por GitHub Actions** (`.github/workflows/heartbeat.yml`),
+  no por el cron nativo de Vercel: ese es de máximo una vez al día en el plan
+  gratuito. **No es un `schedule` de cada N minutos** — se probó a `*/5 * * * *`
+  y GitHub lo corrió cada 4 a 10 horas, no cada 5 minutos: los cron de alta
+  frecuencia no son confiables ahí. La solución es un job que se autosostiene
+  en un bucle de un minuto hasta su límite de tiempo, reiniciado por un
+  `schedule` de baja frecuencia (esos sí son puntuales). Solo es gratis
+  porque el repositorio es público — ver decisión 0005.
 
 ---
 

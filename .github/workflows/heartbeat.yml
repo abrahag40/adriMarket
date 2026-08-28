@@ -5,35 +5,57 @@
 # encolar recordatorios y generar las variantes de las fotos — ver
 # docs/decisiones/0005-vercel-y-blob.md.
 #
-# GitHub Actions no garantiza el minuto exacto (puede atrasarse en horas de
-# carga alta), así que se pide cada 5 minutos: no es "cada minuto" literal,
-# pero es lo más frecuente que GitHub soporta de forma confiable, y muy por
-# encima del "una vez al día" del cron nativo. /api/health sigue siendo la
-# alarma real si algún día deja de correr.
+# Un `schedule` de GitHub Actions a */5 minutos se probó primero y no
+# funcionó: GitHub **no garantiza los cron de alta frecuencia** y en la
+# práctica corrió cada 4 a 10 horas, no cada 5 minutos — verificado con
+# `gh run list` contra este mismo workflow. La solución no es un cron más
+# frecuente (GitHub los retrasa igual), sino que el propio job se mantenga
+# vivo y llame al latido en un bucle interno, y que un cron de **baja**
+# frecuencia —esos sí corren puntuales— lo reinicie si alguna vez muere.
+#
+# Esto solo es gratis porque el repositorio es público: los minutos de
+# Actions son ilimitados. En uno privado, este mismo diseño consumiría el
+# límite mensual gratuito en un día.
 
 name: Latido del worker
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Cada 3 horas: una frecuencia baja, de las que GitHub sí respeta. Sirve
+    # de red de seguridad para reiniciar el bucle si el job murió por lo que
+    # sea — no es el mecanismo principal de latido.
+    - cron: "0 */3 * * *"
   workflow_dispatch:
+
+concurrency:
+  # Un arranque nuevo reemplaza cualquier bucle anterior que siga vivo: no
+  # hace falta que convivan dos, y así nunca se pisan llamando al latido al
+  # mismo tiempo.
+  group: heartbeat
+  cancel-in-progress: true
 
 jobs:
   tick:
-    name: POST /api/jobs/tick
+    name: Latido en bucle
     runs-on: ubuntu-latest
+    # Un poco por debajo del límite de 6 horas de un job de GitHub Actions:
+    # el bucle se detiene solo con margen, en vez de que lo mate a la fuerza.
+    timeout-minutes: 350
     steps:
-      - name: Llamar al latido
+      - name: Llamar al latido cada minuto
         run: |
-          status=$(curl -s -o /tmp/tick.json -w "%{http_code}" -X POST \
-            "${SITE_URL}/api/jobs/tick" \
-            -H "x-job-secret: ${JOBS_SECRET}")
-          cat /tmp/tick.json
-          echo
-          if [ "$status" -ge 300 ]; then
-            echo "El latido respondió $status" >&2
-            exit 1
-          fi
+          fin=$(( $(date +%s) + 345*60 ))
+          while [ "$(date +%s)" -lt "$fin" ]; do
+            codigo=$(curl -s -o /tmp/tick.json -w "%{http_code}" -X POST \
+              "${SITE_URL}/api/jobs/tick" \
+              -H "x-job-secret: ${JOBS_SECRET}")
+            echo "$(date -u +%H:%M:%S) → $codigo $(cat /tmp/tick.json)"
+            if [ "$codigo" -ge 300 ]; then
+              echo "El latido respondió $codigo" >&2
+              exit 1
+            fi
+            sleep 60
+          done
         env:
           SITE_URL: https://adrimarket.vercel.app
           JOBS_SECRET: ${{ secrets.JOBS_SECRET }}
