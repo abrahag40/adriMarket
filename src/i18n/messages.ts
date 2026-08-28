@@ -14,7 +14,8 @@ export type Messages = {
   skipToContent: string;
   switchLanguage: string;
   heroEyebrow: string;
-  heroTitle: string;
+  heroTitleStart: string;
+  heroTitleAccent: string;
   exploreByLocation: string;
   filterHeading: string;
   filterKind: string;
@@ -146,7 +147,8 @@ const es: Messages = {
   skipToContent: "Ir al contenido",
   switchLanguage: "Ver en inglés",
   heroEyebrow: "Anticipo en línea · saldo en destino",
-  heroTitle: "Encuentra tu próximo destino en el Caribe",
+  heroTitleStart: "Encuentra tu próximo destino en el",
+  heroTitleAccent: "Caribe",
   exploreByLocation: "Explora por destino",
   filterHeading: "Filtrar",
   filterKind: "Tipo",
@@ -280,7 +282,8 @@ const en: Messages = {
   skipToContent: "Skip to content",
   switchLanguage: "Ver en español",
   heroEyebrow: "Deposit online · balance on arrival",
-  heroTitle: "Find your next Caribbean getaway",
+  heroTitleStart: "Find your next getaway in the",
+  heroTitleAccent: "Caribbean",
   exploreByLocation: "Explore by location",
   filterHeading: "Filter",
   filterKind: "Type",

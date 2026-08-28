@@ -102,7 +102,9 @@ export default async function CatalogPage({
       <section className="hero">
         <div className="hero-copy">
           <span className="hero-eyebrow">{t.heroEyebrow}</span>
-          <h1 className="hero-title">{t.heroTitle}</h1>
+          <h1 className="hero-title">
+            {t.heroTitleStart} <span className="hero-title-accent">{t.heroTitleAccent}</span>
+          </h1>
           <p className="hero-subtitle">{t.tagline}</p>
         </div>
         {heroItem ? (

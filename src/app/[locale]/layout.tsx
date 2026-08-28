@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import type { ReactNode } from "react";
 
 import "../globals.css";
@@ -14,7 +15,25 @@ import { absoluteUrl } from "@/site";
  * toda ruta pública lleva prefijo de idioma, y el atributo lang del documento
  * tiene que reflejarlo. Un lang incorrecto afecta a los lectores de pantalla y
  * a los buscadores.
+ *
+ * `next/font` descarga las fuentes una vez, al construir, y las sirve desde
+ * el propio dominio: cero petición a Google en cada visita, y funciona igual
+ * en la conexión de un hotel del Caribe que sin internet fuera del sitio.
  */
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
+
+const dmSerifDisplay = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-dm-serif-display",
+  display: "swap",
+});
 
 export async function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
@@ -58,7 +77,7 @@ export default async function LocaleLayout({
   );
 
   return (
-    <html lang={locale}>
+    <html lang={locale} className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
       <body>
         <a className="skip" href="#content">
           {t.skipToContent}
