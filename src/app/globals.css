@@ -61,7 +61,7 @@
   --step-2: 1.5rem;
   --step-3: 2rem;
   --step-4: 2.5rem;
-  --step-5: 3.5rem;
+  --step-5: 4.5rem;
 
   --sans: var(--font-dm-sans), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --serif: var(--font-dm-serif-display), Georgia, "Times New Roman", serif;
@@ -72,28 +72,14 @@
   --shadow-lg: 0 20px 40px -8px rgb(10 10 10 / 10%);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d1520;
-    --surface: #131c29;
-    --surface-2: #1b2635;
-    --line: #2a374a;
-    --line-soft: #1e293a;
-    --text: #eef1f6;
-    --text-muted: #a9b4c4;
-    --text-faint: #8b96a8;
-    --accent: #6fa1f5;
-    --accent-hover: #8fb6f5;
-    --accent-contrast: #0d1520;
-    --accent-soft: #17273f;
-    --focus: #6fa1f5;
-    --accent-2: #4fc0b4;
-    --accent-2-soft: #0f2f2d;
-    --shadow: 0 10px 20px 0 rgb(0 0 0 / 30%);
-    --shadow-lg: 0 20px 40px -8px rgb(0 0 0 / 45%);
-  }
-}
-
+/*
+ * El tema oscuro ya no se activa solo porque el sistema del visitante esté en
+ * oscuro. La referencia visual (decisión 0006) es un sitio claro sin modo
+ * oscuro, y el sitio necesita verse exactamente así siempre — no según el
+ * sistema operativo de quien lo abre. No hay ningún control en la interfaz
+ * que ponga `data-theme="dark"` todavía, así que el bloque de abajo queda
+ * como preparación para un selector futuro, no como algo que se dispare solo.
+ */
 :root[data-theme="dark"] {
   --bg: #0d1520;
   --surface: #131c29;
@@ -1554,7 +1540,7 @@ fieldset.field legend {
 
 @media (min-width: 860px) {
   .hero {
-    grid-template-columns: 1.05fr 1fr;
+    grid-template-columns: 1.2fr 1fr;
     gap: 56px;
   }
 
@@ -1569,6 +1555,17 @@ fieldset.field legend {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+@media (min-width: 640px) {
+  .hero:not(.hero-no-media) .hero-copy {
+    /* El buscador se monta encima del borde inferior del hero (ver
+       `.search-card-overlap`) traslapando lo que sea que esté ahí — la foto
+       o el texto. Esta reserva vacía es lo que evita que traslape la última
+       línea del subtítulo cuando el título y la foto terminan a una altura
+       parecida: el traslape cae siempre en este colchón, nunca en texto. */
+    padding-bottom: 56px;
+  }
 }
 
 /* Insignia blanca flotante con sombra difusa: la firma visual de la
@@ -1589,7 +1586,7 @@ fieldset.field legend {
 .hero-title {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(2.5rem, 5.5vw, var(--step-5));
+  font-size: clamp(2.5rem, 6vw, var(--step-5));
   line-height: 1.08;
   letter-spacing: -0.01em;
   text-wrap: balance;
