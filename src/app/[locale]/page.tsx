@@ -120,7 +120,7 @@ export default async function CatalogPage({
 
   return (
     <div className="stack">
-      <section className="hero">
+      <section className={heroItem ? "hero" : "hero hero-no-media"}>
         <div className="hero-copy">
           <span className="hero-eyebrow">{t.heroEyebrow}</span>
           <h1 className="hero-title">
@@ -143,7 +143,7 @@ export default async function CatalogPage({
         ) : null}
       </section>
 
-      <div className="search-card">
+      <div className={heroItem ? "search-card search-card-overlap" : "search-card"}>
         <CatalogFilters locale={locale} locations={locations} selected={selected} />
       </div>
 

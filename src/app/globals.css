@@ -1557,6 +1557,12 @@ fieldset.field legend {
     grid-template-columns: 1.05fr 1fr;
     gap: 56px;
   }
+
+  /* Sin foto de hero — catálogo recién publicado, sin nada todavía— el
+     texto ocupa el ancho completo en vez de dejar medio hero vacío. */
+  .hero-no-media {
+    grid-template-columns: 1fr;
+  }
 }
 
 .hero-copy {
@@ -1628,8 +1634,12 @@ fieldset.field legend {
   margin-top: 16px;
 }
 
+/* El traslape solo tiene sentido cuando hay foto de hero: es su borde
+   inferior el que le da al buscador dónde montarse. Sin foto —catálogo
+   recién publicado, sin nada todavía— el buscador se queda en flujo normal;
+   forzar el traslape lo habría montado sobre el subtítulo. */
 @media (min-width: 640px) {
-  .search-card {
+  .search-card-overlap {
     margin-top: -44px;
     position: relative;
     z-index: 1;
