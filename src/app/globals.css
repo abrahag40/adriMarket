@@ -454,15 +454,32 @@ main {
   flex-wrap: wrap;
 }
 
+/*
+ * Sistema de grid del catálogo · mobile-first
+ *
+ * Una sola regla, sin puntos de quiebre: `auto-fit` decide cuántas columnas
+ * caben según el ancho disponible, de una en móvil a tres en escritorio,
+ * de forma continua — no hay un número de columnas "de escritorio" fijo
+ * que forzar con media queries.
+ *
+ * El error que esto reemplaza: usar un máximo fijo en `minmax()` en vez de
+ * `1fr`. El navegador calcula cuántas columnas *caben* usando el máximo de
+ * `minmax()` cuando es un valor fijo — no el mínimo. `minmax(280px, 380px)`
+ * hacía que a los ~1056px de ancho del contenedor solo cupieran 2 columnas
+ * de 380px (2×380+20=780, pero 3×380+40=1180 no cabe), nunca 3. El mínimo
+ * (280px) nunca entraba en el cálculo de cuántas columnas hay — estaba mal
+ * leído. Verificado con `getBoundingClientRect` en el navegador real, no
+ * solo a mano: con 280px de mínimo y `1fr` de máximo, el cálculo usa el
+ * mínimo (280px no es un valor fijo de columna, es un piso) y a 1056px caben
+ * exactamente 3 (3×280+40=880 ≤ 1056; 4×280+60=1180 no cabe).
+ *
+ * `1fr` como máximo deja que las columnas existentes se repartan el ancho
+ * sobrante — por eso `.card` fija su propio `max-width`: sin él, una sola
+ * tarjeta en una fila hereda el ancho completo del contenedor.
+ */
 .grid {
   display: grid;
-  /* `auto-fit` — no `auto-fill` — colapsa a cero las columnas sin tarjeta;
-     con `auto-fill` esas columnas se quedan reservadas aunque vacías y no
-     hay nada que `justify-content` pueda repartir. El máximo es un ancho
-     fijo, no `1fr`: con una sola tarjeta y `1fr`, esa única columna se queda
-     con el ancho completo del contenedor y la tarjeta lo hereda — gigante,
-     pegada a la izquierda, igual de rota que el problema que se corrige. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 380px));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   justify-content: center;
   gap: 20px;
   list-style: none;
@@ -472,6 +489,9 @@ main {
 .card {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+  margin-inline: auto;
   background: var(--bg);
   border-radius: calc(var(--radius) * 1.5);
   overflow: hidden;
@@ -1710,31 +1730,39 @@ fieldset.field legend {
    tarjeta de producto, sin banco de fotos aparte. El texto va encima de la
    foto sobre un degradado oscuro, no debajo en una caja — así se lee sobre
    cualquier foto sin depender de sus colores. */
+/*
+ * Mismo sistema que `.grid` (ver el comentario ahí para el porqué): el
+ * mínimo de `minmax()` es lo que decide cuántas columnas caben cuando el
+ * máximo es `1fr`, nunca al revés. Una sola regla mobile-first, sin fijar
+ * "2 en móvil, 3 en escritorio" a mano — de una columna a varias, según
+ * el ancho disponible. El tamaño máximo real de cada tarjeta lo pone
+ * `.destination-card`, no el track del grid.
+ */
 .destinations-grid {
   display: grid;
-  /* Mismo razonamiento que `.grid`: `auto-fit` colapsa las columnas sin
-     destino y un máximo fijo (no `1fr`) evita que un solo destino herede
-     el ancho completo del contenedor. Los mínimos están calculados para
-     que cuando SÍ hay suficientes destinos, las columnas por fila sigan
-     siendo 2 en móvil y 3 en escritorio — el mismo conteo que daba
-     `repeat(2, 1fr)` / `repeat(3, 1fr)`, solo que ya no deja celdas vacías
-     reservadas cuando hay menos destinos que columnas. */
-  grid-template-columns: repeat(auto-fit, minmax(130px, 200px));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
   justify-content: center;
   gap: 16px;
   list-style: none;
   padding: 0;
 }
 
-@media (min-width: 600px) {
+@media (min-width: 900px) {
   .destinations-grid {
-    grid-template-columns: repeat(auto-fit, minmax(260px, 341px));
+    /* A partir de aquí el contenedor ya es lo bastante ancho para que un
+       mínimo de 130px deje caber más de tres columnas (hasta seis, el tope
+       de destinos que se muestran) — este mínimo mayor mantiene el mismo
+       "tres por fila" del diseño en vez de una sola fila apretada de seis. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   }
 }
 
 .destination-card {
   position: relative;
   display: block;
+  width: 100%;
+  max-width: 340px;
+  margin-inline: auto;
   aspect-ratio: 4 / 3;
   border-radius: calc(var(--radius) * 1.4);
   overflow: hidden;
