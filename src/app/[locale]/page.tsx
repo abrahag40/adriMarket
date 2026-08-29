@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CatalogFilters } from "@/components/catalog-filters";
+import { DestinationCard } from "@/components/marketing/destination-card";
+import { PromoBanner } from "@/components/marketing/promo-banner";
 import { ProductCard } from "@/components/product-card";
 import { ResponsiveImage } from "@/components/responsive-image";
 import { isLocale, type ProductKind } from "@/i18n/config";
@@ -158,23 +159,16 @@ export default async function CatalogPage({
           <ul className="destinations-grid">
             {destinations.map((item) => (
               <li key={item.locationSlug}>
-                <Link
-                  className="destination-card"
-                  href={`/${locale}?location=${item.locationSlug}`}
-                >
-                  <ResponsiveImage
-                    src={item.coverUrl!}
-                    alt=""
-                    width={item.coverWidth ?? 600}
-                    height={item.coverHeight ?? 600}
-                    variants={item.coverVariants}
-                    sizes="(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
-                  />
-                  <span className="destination-card-count">
-                    {t.resultsCount(countByLocation.get(item.locationSlug!) ?? 1)}
-                  </span>
-                  <span className="destination-card-name">{item.locationName}</span>
-                </Link>
+                <DestinationCard
+                  locale={locale}
+                  slug={item.locationSlug!}
+                  name={item.locationName!}
+                  count={countByLocation.get(item.locationSlug!) ?? 1}
+                  coverUrl={item.coverUrl!}
+                  coverWidth={item.coverWidth}
+                  coverHeight={item.coverHeight}
+                  coverVariants={item.coverVariants}
+                />
               </li>
             ))}
           </ul>
@@ -198,15 +192,7 @@ export default async function CatalogPage({
         </ul>
       )}
 
-      <section className="cta-banner" aria-labelledby="cta-heading">
-        <h2 id="cta-heading" className="cta-heading">
-          {t.ctaHeading}
-        </h2>
-        <p className="cta-body">{t.ctaBody}</p>
-        <Link className="btn" href={`/${locale}`}>
-          {t.ctaButton}
-        </Link>
-      </section>
+      <PromoBanner locale={locale} />
     </div>
   );
 }

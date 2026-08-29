@@ -16,10 +16,23 @@ export type Messages = {
   heroEyebrow: string;
   heroTitleStart: string;
   heroTitleAccent: string;
+  navHome: string;
   navTours: string;
   navStays: string;
+  navDestinations: string;
+  navPanel: string;
+  navMenuOpen: string;
+  navMenuClose: string;
   destinationsHeading: string;
   destinationsSubtitle: string;
+  destinationViewMore: string;
+  carouselPrev: string;
+  carouselNext: string;
+  trustBadgeText: string;
+  newsletterHeading: string;
+  newsletterBody: string;
+  newsletterPlaceholder: string;
+  newsletterSubmit: string;
   ctaHeading: string;
   ctaBody: string;
   ctaButton: string;
@@ -160,10 +173,23 @@ const es: Messages = {
   heroEyebrow: "Anticipo en línea · saldo en destino",
   heroTitleStart: "Encuentra tu próximo destino en el",
   heroTitleAccent: "Caribe",
+  navHome: "Inicio",
   navTours: "Tours",
   navStays: "Estancias",
+  navDestinations: "Destinos",
+  navPanel: "Panel",
+  navMenuOpen: "Abrir menú",
+  navMenuClose: "Cerrar menú",
   destinationsHeading: "Destinos populares",
   destinationsSubtitle: "Los lugares que más reservan nuestros huéspedes.",
+  destinationViewMore: "Ver más",
+  carouselPrev: "Anterior",
+  carouselNext: "Siguiente",
+  trustBadgeText: "Pago seguro con tarjeta, por Stripe",
+  newsletterHeading: "No te pierdas nada",
+  newsletterBody: "Avisos de nuevos tours y estancias, sin relleno.",
+  newsletterPlaceholder: "Tu correo",
+  newsletterSubmit: "Suscribirme",
   ctaHeading: "Aparta hoy, paga el resto en destino",
   ctaBody:
     "Confirma tu lugar con un anticipo en línea y liquida el saldo al llegar. Sin sorpresas, sin cargos ocultos.",
@@ -307,10 +333,23 @@ const en: Messages = {
   heroEyebrow: "Deposit online · balance on arrival",
   heroTitleStart: "Find your next getaway in the",
   heroTitleAccent: "Caribbean",
+  navHome: "Home",
   navTours: "Tours",
   navStays: "Stays",
+  navDestinations: "Destinations",
+  navPanel: "Staff",
+  navMenuOpen: "Open menu",
+  navMenuClose: "Close menu",
   destinationsHeading: "Popular destinations",
   destinationsSubtitle: "The places our guests book the most.",
+  destinationViewMore: "View more",
+  carouselPrev: "Previous",
+  carouselNext: "Next",
+  trustBadgeText: "Secure card payment, by Stripe",
+  newsletterHeading: "Don't miss a thing",
+  newsletterBody: "New tours and stays, straight to your inbox — no filler.",
+  newsletterPlaceholder: "Your email",
+  newsletterSubmit: "Subscribe",
   ctaHeading: "Book today, pay the rest on arrival",
   ctaBody:
     "Secure your spot with a deposit online and settle the balance when you get there. No surprises, no hidden fees.",

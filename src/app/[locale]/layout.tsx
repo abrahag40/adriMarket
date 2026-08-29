@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import type { ReactNode } from "react";
 
 import "../globals.css";
-import { LOCALES, alternateForPathname, isLocale, otherLocale } from "@/i18n/config";
+import { LOCALES, alternateForPathname, isLocale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
+import { listLocations } from "@/modules/catalog/queries";
 import { absoluteUrl } from "@/site";
+import { SiteFooter } from "@/components/marketing/site-footer";
+import { SiteHeader } from "@/components/marketing/site-header";
 
 /**
  * Este es el layout raíz de la aplicación: no existe app/layout.tsx porque
@@ -69,12 +71,12 @@ export default async function LocaleLayout({
   if (!isLocale(locale)) notFound();
 
   const t = getMessages(locale);
-  const other = otherLocale(locale);
   const requestHeaders = await headers();
   const alternate = alternateForPathname(
     locale,
     requestHeaders.get("x-pathname") ?? `/${locale}`,
   );
+  const locations = await listLocations();
 
   return (
     <html lang={locale} className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
@@ -83,59 +85,13 @@ export default async function LocaleLayout({
           {t.skipToContent}
         </a>
 
-        <header className="site-header">
-          <div className="wrap site-header-inner">
-            <Link className="brand" href={`/${locale}`}>
-              <span className="brand-name">{t.siteName}</span>
-              <span className="brand-tagline">{t.tagline}</span>
-            </Link>
-
-            <nav className="site-nav" aria-label={t.navTours}>
-              <Link href={`/${locale}?kind=tour`}>{t.navTours}</Link>
-              <Link href={`/${locale}?kind=stay`}>{t.navStays}</Link>
-            </nav>
-
-            {/* El cambio de idioma es un enlace, no un control con JavaScript:
-                cambia la URL porque cambia el documento. */}
-            <Link className="lang-switch" href={alternate} hrefLang={other} lang={other}>
-              {t.switchLanguage}
-            </Link>
-          </div>
-        </header>
+        <SiteHeader locale={locale} locations={locations} alternate={alternate} />
 
         <main id="content" className="wrap">
           {children}
         </main>
 
-        <footer className="site-footer">
-          <div className="wrap site-footer-grid">
-            <div className="footer-col">
-              <span className="brand-name">{t.siteName}</span>
-              <p className="muted">{t.tagline}</p>
-            </div>
-
-            <div className="footer-col">
-              <h2 className="footer-col-heading">{t.footerLinksHeading}</h2>
-              <ul className="footer-links">
-                <li>
-                  <Link href={`/${locale}`}>{t.footerHome}</Link>
-                </li>
-                <li>
-                  <Link href={`/${locale}?kind=tour`}>{t.navTours}</Link>
-                </li>
-                <li>
-                  <Link href={`/${locale}?kind=stay`}>{t.navStays}</Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="footer-col">
-              <h2 className="footer-col-heading">{t.footerHowHeading}</h2>
-              <p className="muted">{t.footerHowBody}</p>
-            </div>
-          </div>
-          <div className="wrap site-footer-bottom">{t.footerRights(new Date().getFullYear())}</div>
-        </footer>
+        <SiteFooter locale={locale} />
       </body>
     </html>
   );

@@ -265,6 +265,220 @@ a {
   color: var(--accent);
 }
 
+/* El menú horizontal completo (enlaces + submenú) y el bloque de moneda/
+   idioma/acceso solo existen a partir de aquí: en pantallas angostas los
+   sustituye `MobileNav`, así que no compiten por el mismo espacio. */
+.site-nav,
+.site-header-meta {
+  display: none;
+}
+
+@media (min-width: 780px) {
+  .site-nav,
+  .site-header-meta {
+    display: flex;
+    align-items: center;
+  }
+
+  .mobile-nav {
+    display: none;
+  }
+}
+
+/* ---------- submenú de destinos ---------- */
+
+/* Mismo `<details>/<summary>` que `.mobile-nav`: el navegador ya sabe abrir y
+   cerrar un disclosure con teclado y con toque, sin JavaScript propio. */
+.site-nav-dropdown {
+  position: relative;
+}
+
+.site-nav-dropdown > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 14px;
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: var(--step--1);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.site-nav-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+.site-nav-dropdown > summary::after {
+  content: "▾";
+  margin-left: 6px;
+  font-size: 0.75em;
+}
+
+.site-nav-dropdown > summary:hover {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.site-nav-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 8px;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+.site-nav-dropdown-panel a {
+  display: block;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  padding-inline: 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--step--1);
+}
+
+.site-nav-dropdown-panel a:hover {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+/* ---------- insignia de moneda ---------- */
+
+.currency-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding-inline: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.site-header-meta {
+  gap: 10px;
+}
+
+.site-header-access {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  text-decoration: none;
+  font-size: var(--step--1);
+  font-weight: 650;
+}
+
+.site-header-access:hover {
+  background: var(--accent-hover);
+}
+
+/* ---------- menú móvil ---------- */
+
+/* `position: relative` + panel en `absolute`: abrir el menú no debe empujar
+   el resto de la cabecera ni desplazar el propio botón — el mismo defecto
+   que ya se evitó en el submenú de escritorio. */
+.mobile-nav {
+  position: relative;
+  margin-left: auto;
+}
+
+/* `<details>` ya trae un triángulo nativo en el summary; se quita para dibujar
+   el ícono de hamburguesa a mano con tres barras. */
+.mobile-nav-toggle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  list-style: none;
+}
+
+.mobile-nav-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-nav-toggle:hover {
+  background: var(--surface);
+}
+
+.mobile-nav-bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--text);
+  border-radius: 1px;
+}
+
+.mobile-nav-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+.mobile-nav-panel a {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 4px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--step-0);
+  font-weight: 600;
+}
+
+.mobile-nav-panel a:hover {
+  color: var(--accent);
+}
+
+.mobile-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+  margin-top: 6px;
+}
+
+.mobile-nav-group-label {
+  font-size: var(--step--1);
+  font-weight: 650;
+  color: var(--text-muted);
+  padding-inline: 4px;
+}
+
 /* ---------- pie ---------- */
 
 .site-footer {
@@ -320,6 +534,45 @@ a {
 .site-footer-bottom {
   border-top: 1px solid var(--line-soft);
   padding-block: 18px;
+}
+
+.footer-col-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.social-links {
+  display: flex;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+}
+
+.social-links a {
+  color: var(--text-faint);
+  text-decoration: none;
+  font-weight: 650;
+}
+
+.social-links a:hover {
+  color: var(--accent);
+}
+
+.trust-badges {
+  margin-top: 4px;
+}
+
+.trust-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: var(--step--1);
+  color: var(--text-muted);
 }
 
 /* ---------- página ---------- */
@@ -1801,14 +2054,39 @@ fieldset.field legend {
   padding: 4px 12px;
 }
 
-.destination-card-name {
+.destination-card-body {
   position: absolute;
   left: 16px;
+  right: 16px;
   bottom: 14px;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   color: #ffffff;
+}
+
+.destination-card-name {
   font-size: var(--step-1);
   font-weight: 650;
+}
+
+/* El "ver más" existe siempre en el DOM — lo anuncia un lector de pantalla
+   igual que el resto de la tarjeta, que ya es un enlace completo — pero solo
+   se revela visualmente al pasar el mouse o al enfocar con teclado. */
+.destination-card-more {
+  font-size: var(--step--1);
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease;
+}
+
+.destination-card:hover .destination-card-more,
+.destination-card:focus-visible .destination-card-more {
+  opacity: 0.9;
+  max-height: 1.5em;
+  transform: translateY(0);
 }
 
 /* Franja de cierre: el mensaje que sostiene todo el modelo de cobro —
@@ -1872,4 +2150,213 @@ fieldset.field legend {
 
 .gallery figure:hover img {
   transform: scale(1.03);
+}
+
+/* ---------- tarjeta destacada (moderna) ---------- */
+
+/* Variante de foto vertical con texto superpuesto — estilo "Popular Tours" /
+   "Hotel Rooms" de la referencia. Vive aparte de `.card` porque es una
+   segunda composición visual, no un ajuste de la primera. */
+/* Ancho fijo, no `width: 100%`: es una tarjeta de carrusel, dentro de un
+   contenedor flex sin ancho propio (`.carousel-item`). Un porcentaje contra un
+   contenedor sin ancho definido se resuelve como `auto`, y con `aspect-ratio`
+   sin ninguna dimensión definida de la que partir la tarjeta colapsa a 0×0 —
+   visible solo al medir el DOM, no en un vistazo rápido a una captura. */
+.featured-card {
+  position: relative;
+  display: block;
+  width: 260px;
+  aspect-ratio: 3 / 4;
+  border-radius: calc(var(--radius) * 1.4);
+  overflow: hidden;
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+
+.featured-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.featured-card:hover img {
+  transform: scale(1.05);
+}
+
+.featured-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 70%), transparent 60%);
+}
+
+.featured-card-kind {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  font-size: var(--step--1);
+  font-weight: 650;
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+}
+
+.featured-card-body {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #ffffff;
+}
+
+.featured-card-name {
+  font-size: var(--step-0);
+  font-weight: 650;
+}
+
+.featured-card-price {
+  font-size: var(--step--1);
+  opacity: 0.9;
+}
+
+/* ---------- carrusel ---------- */
+
+/* Scroll-snap nativo: las flechas solo mueven el scroll que el navegador ya
+   sabe hacer. Sin librería — ninguna está instalada en el proyecto. */
+.carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-item {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.carousel-controls {
+  display: flex;
+  gap: 8px;
+  align-self: flex-end;
+}
+
+.carousel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--step-1);
+  cursor: pointer;
+}
+
+.carousel-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- boletín ---------- */
+
+/* Presentacional únicamente — ver `NewsletterForm`. Los campos están
+   deshabilitados porque no hay proveedor de lista de correo configurado. */
+.newsletter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(24px, 5vw, 40px);
+  border-radius: calc(var(--radius) * 1.5);
+  background: var(--surface);
+}
+
+.newsletter-heading {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-2);
+}
+
+.newsletter-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (min-width: 480px) {
+  .newsletter-fields {
+    flex-direction: row;
+  }
+}
+
+.newsletter-input {
+  flex: 1;
+  min-height: var(--tap);
+  padding-inline: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--step-0);
+}
+
+.newsletter-input:disabled,
+.newsletter-form .btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- testimonio ---------- */
+
+/* Mismo motivo que `.featured-card`: ancho fijo porque vive dentro de
+   `.carousel-item`, un contenedor flex sin ancho propio. */
+.testimonial-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 280px;
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.testimonial-quote {
+  font-size: var(--step-0);
+  color: var(--text);
+}
+
+.testimonial-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.testimonial-name {
+  font-weight: 650;
+}
+
+.testimonial-role {
+  font-size: var(--step--1);
+  color: var(--text-muted);
 }

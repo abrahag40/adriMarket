@@ -27,6 +27,7 @@ export function AdminNav({ user, active }: { user: StaffUser; active: string }) 
     { href: "/admin/catalogo", label: "Catálogo" },
     { href: "/admin/ajustes", label: "Ajustes" },
     { href: "/admin/bitacora", label: "Bitácora" },
+    { href: "/admin/estilo", label: "Estilo" },
   ];
 
   return (
@@ -43,7 +44,12 @@ export function AdminNav({ user, active }: { user: StaffUser; active: string }) 
           </Link>
         ))}
       </nav>
-      <p className="admin-who">
+      {/* `<div>` y no `<p>`: un `<form>` dentro de un párrafo es HTML inválido
+          que el navegador reescribe al analizarlo, y React lo detecta como un
+          desajuste de hidratación — eso rompe la hidratación de esta página
+          entera, silenciosamente, hasta que algo dependa de JavaScript en el
+          cliente para funcionar. */}
+      <div className="admin-who">
         {user.fullName} · {ROLE_LABEL[user.role] ?? user.role}
         {/*
           Cerrar sesión no es cosmética en un mostrador: el teléfono se presta,
@@ -55,7 +61,7 @@ export function AdminNav({ user, active }: { user: StaffUser; active: string }) 
             Salir
           </button>
         </form>
-      </p>
+      </div>
     </header>
   );
 }
