@@ -173,12 +173,15 @@ Se dice aquí para que nadie lo descubra después:
   para rotar el mismo día, se bloquea el día a mano desde el panel.
 - **El cobro parcial del saldo se rechaza a propósito**, porque no hay regla de
   negocio acordada.
-- **Subir una foto de más de 4.5 MB falla en Vercel.** Es el límite de cuerpo
+- **Subir una foto de más de 4 MB falla en Vercel.** Es el límite de cuerpo
   de petición de una función, no un error del código; una foto de teléfono
-  moderno pesa de 3 a 8 MB. Arreglarlo exige subir directo desde el navegador
-  a Vercel Blob en vez de pasar por el servidor — ver
+  moderno pesa de 3 a 8 MB. La primera foto real publicada (post-Sprint 7)
+  reveló que el límite efectivo era peor de lo documentado — una Server
+  Action de Next.js parte de 1 MB, no de los 4.5 MB de Vercel — y ya está
+  subido a 4 MB (`next.config.ts`). Arreglarlo del todo exige subir directo
+  desde el navegador a Vercel Blob en vez de pasar por el servidor — ver
   [decisión 0005](decisiones/0005-vercel-y-blob.md). Queda para cuando el
-  cliente empiece a subir fotos reales.
+  cliente empiece a subir fotos reales de forma rutinaria.
 - **El latido depende de que el repositorio siga siendo público.** El
   mecanismo (bucle de un minuto dentro de un job de GitHub Actions,
   reiniciado cada 3 horas) solo es gratis con minutos de Actions

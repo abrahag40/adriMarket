@@ -92,12 +92,19 @@ cercano al minuto-a-minuto original que la opción C que se intentó primero.
   alternativa si el cliente algún día quiere volver a un plan de pago con
   disco y cron reales.
 - **Pendiente, no resuelto por esta decisión:** la subida de fotos por el
-  panel usa un formulario simple (`FormData` al servidor), y las funciones de
-  Vercel tienen un límite de **4.5 MB por cuerpo de petición**. Una foto de
-  teléfono moderno pesa de 3 a 8 MB — por encima del límite. Migrar a subida
-  directa desde el navegador (`@vercel/blob/client`) lo resuelve, pero exige
-  JavaScript en un formulario que hoy no lo necesita, así que queda para
-  cuando el cliente empiece a subir fotos reales y no antes.
+  panel usa un formulario simple (`FormData` a una Server Action), y las
+  funciones de Vercel tienen un límite de **4.5 MB por cuerpo de petición**.
+  Una foto de teléfono moderno pesa de 3 a 8 MB — por encima del límite.
+  Migrar a subida directa desde el navegador (`@vercel/blob/client`) lo
+  resuelve, pero exige JavaScript en un formulario que hoy no lo necesita, así
+  que queda para cuando el cliente empiece a subir fotos reales y no antes.
+  **Lo que esta decisión no anticipó:** una Server Action de Next.js tiene su
+  *propio* límite, más estricto que el de Vercel — 1 MB por defecto, no 4.5 —
+  y nadie lo había puesto a prueba hasta la primera foto real (post-Sprint 7,
+  al publicar el primer producto de verdad). `next.config.ts` ahora fija
+  `experimental.serverActions.bodySizeLimit` en `4mb`, justo bajo el techo de
+  la plataforma. Sigue sin resolver el caso de una foto de 5 MB o más — ahí
+  la migración a subida directa deja de ser opcional.
 
 ## Qué se rechazó explícitamente
 
