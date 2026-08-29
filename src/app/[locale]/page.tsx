@@ -97,6 +97,27 @@ export default async function CatalogPage({
      se queda solo con el texto — nunca con una imagen que no es del negocio. */
   const heroItem = items.find((item) => item.coverUrl !== null);
 
+  /* La sección de destinos reutiliza las fotos del catálogo: un destino sin
+     ningún producto con foto todavía no aparece. No hay una foto de destino
+     aparte que subir ni mantener — es la misma portada que ya se ve en la
+     tarjeta del producto. El conteo de la insignia es el mismo dato que
+     "N resultados" más abajo, contado por ubicación. */
+  const countByLocation = new Map<string, number>();
+  for (const item of items) {
+    if (item.locationSlug === null) continue;
+    countByLocation.set(item.locationSlug, (countByLocation.get(item.locationSlug) ?? 0) + 1);
+  }
+
+  const destinationsSeen = new Set<string>();
+  const destinations = items
+    .filter((item) => item.locationSlug !== null && item.coverUrl !== null)
+    .filter((item) => {
+      if (destinationsSeen.has(item.locationSlug!)) return false;
+      destinationsSeen.add(item.locationSlug!);
+      return true;
+    })
+    .slice(0, 6);
+
   return (
     <div className="stack">
       <section className="hero">
@@ -126,19 +147,38 @@ export default async function CatalogPage({
         <CatalogFilters locale={locale} locations={locations} selected={selected} />
       </div>
 
-      {locations.length > 0 ? (
-        <nav aria-label={t.exploreByLocation}>
-          <h2 className="visually-hidden">{t.exploreByLocation}</h2>
-          <ul className="destinations-list">
-            {locations.map((loc) => (
-              <li key={loc.slug}>
-                <Link className="destination-chip" href={`/${locale}?location=${loc.slug}`}>
-                  {loc.name}
+      {destinations.length > 0 ? (
+        <section aria-labelledby="destinations-heading">
+          <div className="section-head">
+            <h2 id="destinations-heading" className="section-title">
+              {t.destinationsHeading}
+            </h2>
+            <p className="muted">{t.destinationsSubtitle}</p>
+          </div>
+          <ul className="destinations-grid">
+            {destinations.map((item) => (
+              <li key={item.locationSlug}>
+                <Link
+                  className="destination-card"
+                  href={`/${locale}?location=${item.locationSlug}`}
+                >
+                  <ResponsiveImage
+                    src={item.coverUrl!}
+                    alt=""
+                    width={item.coverWidth ?? 600}
+                    height={item.coverHeight ?? 600}
+                    variants={item.coverVariants}
+                    sizes="(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
+                  />
+                  <span className="destination-card-count">
+                    {t.resultsCount(countByLocation.get(item.locationSlug!) ?? 1)}
+                  </span>
+                  <span className="destination-card-name">{item.locationName}</span>
                 </Link>
               </li>
             ))}
           </ul>
-        </nav>
+        </section>
       ) : null}
 
       <div className="results-head">
@@ -157,6 +197,16 @@ export default async function CatalogPage({
           ))}
         </ul>
       )}
+
+      <section className="cta-banner" aria-labelledby="cta-heading">
+        <h2 id="cta-heading" className="cta-heading">
+          {t.ctaHeading}
+        </h2>
+        <p className="cta-body">{t.ctaBody}</p>
+        <Link className="btn" href={`/${locale}`}>
+          {t.ctaButton}
+        </Link>
+      </section>
     </div>
   );
 }

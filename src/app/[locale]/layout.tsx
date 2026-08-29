@@ -89,6 +89,12 @@ export default async function LocaleLayout({
               <span className="brand-name">{t.siteName}</span>
               <span className="brand-tagline">{t.tagline}</span>
             </Link>
+
+            <nav className="site-nav" aria-label={t.navTours}>
+              <Link href={`/${locale}?kind=tour`}>{t.navTours}</Link>
+              <Link href={`/${locale}?kind=stay`}>{t.navStays}</Link>
+            </nav>
+
             {/* El cambio de idioma es un enlace, no un control con JavaScript:
                 cambia la URL porque cambia el documento. */}
             <Link className="lang-switch" href={alternate} hrefLang={other} lang={other}>
@@ -102,9 +108,33 @@ export default async function LocaleLayout({
         </main>
 
         <footer className="site-footer">
-          <div className="wrap">
-            {t.siteName} · {t.tagline}
+          <div className="wrap site-footer-grid">
+            <div className="footer-col">
+              <span className="brand-name">{t.siteName}</span>
+              <p className="muted">{t.tagline}</p>
+            </div>
+
+            <div className="footer-col">
+              <h2 className="footer-col-heading">{t.footerLinksHeading}</h2>
+              <ul className="footer-links">
+                <li>
+                  <Link href={`/${locale}`}>{t.footerHome}</Link>
+                </li>
+                <li>
+                  <Link href={`/${locale}?kind=tour`}>{t.navTours}</Link>
+                </li>
+                <li>
+                  <Link href={`/${locale}?kind=stay`}>{t.navStays}</Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="footer-col">
+              <h2 className="footer-col-heading">{t.footerHowHeading}</h2>
+              <p className="muted">{t.footerHowBody}</p>
+            </div>
           </div>
+          <div className="wrap site-footer-bottom">{t.footerRights(new Date().getFullYear())}</div>
         </footer>
       </body>
     </html>

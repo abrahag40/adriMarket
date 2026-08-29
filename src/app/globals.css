@@ -236,6 +236,30 @@ a {
   color: var(--text-muted);
 }
 
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 24px;
+}
+
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: 14px;
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  text-decoration: none;
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.site-nav a:hover {
+  background: var(--surface);
+  color: var(--accent);
+}
+
 .lang-switch {
   margin-left: auto;
   display: inline-flex;
@@ -260,9 +284,56 @@ a {
 .site-footer {
   margin-top: auto;
   border-top: 1px solid var(--line-soft);
-  padding-block: 24px;
+  padding-top: 40px;
   color: var(--text-faint);
   font-size: var(--step--1);
+}
+
+.site-footer-grid {
+  display: grid;
+  gap: 28px;
+  grid-template-columns: 1fr;
+  padding-bottom: 32px;
+}
+
+@media (min-width: 640px) {
+  .site-footer-grid {
+    grid-template-columns: 1.2fr 1fr 1.2fr;
+  }
+}
+
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-col-heading {
+  font-size: var(--step--1);
+  font-weight: 650;
+  color: var(--text);
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+
+.footer-links a {
+  color: var(--text-faint);
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: var(--accent);
+}
+
+.site-footer-bottom {
+  border-top: 1px solid var(--line-soft);
+  padding-block: 18px;
 }
 
 /* ---------- página ---------- */
@@ -409,19 +480,21 @@ main {
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius);
+  border-radius: calc(var(--radius) * 1.5);
   overflow: hidden;
   height: 100%;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .card:hover {
-  box-shadow: var(--shadow);
-  border-color: var(--line);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 
 .card-media {
-  aspect-ratio: 4 / 3;
+  position: relative;
+  aspect-ratio: 5 / 4;
   background: var(--surface-2);
   overflow: hidden;
 }
@@ -430,13 +503,18 @@ main {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.card:hover .card-media img {
+  transform: scale(1.05);
 }
 
 .card-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 16px;
+  padding: 20px;
   flex: 1;
 }
 
@@ -450,8 +528,8 @@ main {
 .card-title {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: var(--step-1);
-  line-height: 1.25;
+  font-size: var(--step-2);
+  line-height: 1.2;
 }
 
 .card-title a {
@@ -470,8 +548,7 @@ main {
 
 .card-foot {
   margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--line-soft);
+  padding-top: 6px;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -1608,54 +1685,118 @@ fieldset.field legend {
   flex: 1 1 auto;
 }
 
-.destinations-list {
+.section-head {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+/* Grid de destinos con foto, a foto completa: la misma portada que ya usa la
+   tarjeta de producto, sin banco de fotos aparte. El texto va encima de la
+   foto sobre un degradado oscuro, no debajo en una caja — así se lee sobre
+   cualquier foto sin depender de sus colores. */
+.destinations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
   list-style: none;
   padding: 0;
 }
 
-.destination-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  padding-inline: 16px;
-  border: 1px solid var(--line);
-  border-radius: 100px;
-  color: var(--text);
-  text-decoration: none;
-  font-size: var(--step--1);
+@media (min-width: 600px) {
+  .destinations-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
-.destination-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
-/* ---------- tarjeta de producto: pulido visual ---------- */
-
-.card {
-  border-radius: calc(var(--radius) * 1.5);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-}
-
-.card-media {
+.destination-card {
   position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  border-radius: calc(var(--radius) * 1.4);
+  overflow: hidden;
+  text-decoration: none;
+  box-shadow: var(--shadow);
 }
 
-.card-media img {
+.destination-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   transition: transform 0.3s ease;
 }
 
-.card:hover .card-media img {
-  transform: scale(1.04);
+.destination-card:hover img {
+  transform: scale(1.05);
 }
+
+.destination-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 65%), transparent 55%);
+}
+
+.destination-card-count {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  font-size: var(--step--1);
+  font-weight: 650;
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+}
+
+.destination-card-name {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  z-index: 1;
+  color: #ffffff;
+  font-size: var(--step-1);
+  font-weight: 650;
+}
+
+/* Franja de cierre: el mensaje que sostiene todo el modelo de cobro —
+   anticipo en línea, saldo en destino — en el mismo lenguaje visual que el
+   resto de bloques de acento. */
+.cta-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  padding: clamp(32px, 6vw, 56px);
+  border-radius: calc(var(--radius) * 1.5);
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.cta-heading {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-3);
+  max-width: 28ch;
+}
+
+.cta-body {
+  max-width: 48ch;
+}
+
+.cta-banner .btn {
+  background: var(--accent-contrast);
+  color: var(--accent);
+}
+
+.cta-banner .btn:hover {
+  background: var(--accent-contrast);
+  opacity: 0.9;
+}
+
+/* ---------- tarjeta de producto: insignia ---------- */
 
 .card-kind-badge {
   position: absolute;

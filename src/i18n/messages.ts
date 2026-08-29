@@ -16,7 +16,18 @@ export type Messages = {
   heroEyebrow: string;
   heroTitleStart: string;
   heroTitleAccent: string;
-  exploreByLocation: string;
+  navTours: string;
+  navStays: string;
+  destinationsHeading: string;
+  destinationsSubtitle: string;
+  ctaHeading: string;
+  ctaBody: string;
+  ctaButton: string;
+  footerLinksHeading: string;
+  footerHome: string;
+  footerHowHeading: string;
+  footerHowBody: string;
+  footerRights: (year: number) => string;
   filterHeading: string;
   filterKind: string;
   filterKindAll: string;
@@ -149,7 +160,19 @@ const es: Messages = {
   heroEyebrow: "Anticipo en línea · saldo en destino",
   heroTitleStart: "Encuentra tu próximo destino en el",
   heroTitleAccent: "Caribe",
-  exploreByLocation: "Explora por destino",
+  navTours: "Tours",
+  navStays: "Estancias",
+  destinationsHeading: "Destinos populares",
+  destinationsSubtitle: "Los lugares que más reservan nuestros huéspedes.",
+  ctaHeading: "Aparta hoy, paga el resto en destino",
+  ctaBody:
+    "Confirma tu lugar con un anticipo en línea y liquida el saldo al llegar. Sin sorpresas, sin cargos ocultos.",
+  ctaButton: "Ver todo el catálogo",
+  footerLinksHeading: "Explora",
+  footerHome: "Inicio",
+  footerHowHeading: "Cómo reservas",
+  footerHowBody: "Un anticipo confirma tu reserva en línea; el resto se paga en destino, en pesos o en la moneda local.",
+  footerRights: (year) => `© ${year} · Todos los derechos reservados.`,
   filterHeading: "Filtrar",
   filterKind: "Tipo",
   filterKindAll: "Todo",
@@ -284,7 +307,19 @@ const en: Messages = {
   heroEyebrow: "Deposit online · balance on arrival",
   heroTitleStart: "Find your next getaway in the",
   heroTitleAccent: "Caribbean",
-  exploreByLocation: "Explore by location",
+  navTours: "Tours",
+  navStays: "Stays",
+  destinationsHeading: "Popular destinations",
+  destinationsSubtitle: "The places our guests book the most.",
+  ctaHeading: "Book today, pay the rest on arrival",
+  ctaBody:
+    "Secure your spot with a deposit online and settle the balance when you get there. No surprises, no hidden fees.",
+  ctaButton: "See the full catalog",
+  footerLinksHeading: "Explore",
+  footerHome: "Home",
+  footerHowHeading: "How booking works",
+  footerHowBody: "A deposit confirms your booking online; the rest is paid on arrival, locally.",
+  footerRights: (year) => `© ${year} · All rights reserved.`,
   filterHeading: "Filter",
   filterKind: "Type",
   filterKindAll: "All",
