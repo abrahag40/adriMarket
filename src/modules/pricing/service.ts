@@ -354,6 +354,8 @@ export type TourQuoteResult = {
  *
  * Igual que en estancias: informa cupo, no lo aparta.
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function quoteTour(
   productId: string,
   departureId: string,
@@ -361,6 +363,14 @@ export async function quoteTour(
   now: Date = new Date(),
   couponCode?: string,
 ): Promise<TourQuoteResult> {
+  // El checkout llega desde una URL con `departure` como parámetro: un
+  // enlace manipulado o incompleto lo manda vacío o con basura. Sin este
+  // filtro, `::uuid` revienta en Postgres antes de que el `if (!departure)`
+  // de abajo tenga oportunidad de responder con el error de dominio normal.
+  if (!UUID_RE.test(departureId)) {
+    throw new QuoteError("departure_closed");
+  }
+
   const rows = await db.execute<{
     departure_id: string;
     starts_at: string;
