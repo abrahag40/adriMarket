@@ -27,9 +27,11 @@ export function SiteHeader({
   return (
     <header className="site-header">
       <div className="wrap site-header-inner">
-        <Link className="brand" href={`/${locale}`}>
+        {/* Una sola línea, sin la leyenda debajo: la referencia trae el
+            nombre solo en la cabecera — la leyenda vive en el pie. Dos
+            líneas aquí infla la cabecera y desalinea todo lo demás. */}
+        <Link className="brand brand-header" href={`/${locale}`}>
           <span className="brand-name">{t.siteName}</span>
-          <span className="brand-tagline">{t.tagline}</span>
         </Link>
 
         <nav className="site-nav" aria-label={t.navTours}>

@@ -189,8 +189,10 @@ a {
 
 /* ---------- cabecera ---------- */
 
+/* La referencia no separa la cabecera del resto de la página con una línea:
+   el fondo es el mismo y no hay borde ni sombra. Se quita el borde inferior
+   que tenía antes para igualar esa lectura "flotante". */
 .site-header {
-  border-bottom: 1px solid var(--line-soft);
   background: var(--bg);
 }
 
@@ -200,7 +202,7 @@ a {
   gap: 16px;
   min-height: 64px;
   flex-wrap: wrap;
-  padding-block: 12px;
+  padding-block: 18px;
 }
 
 .brand {
@@ -208,6 +210,13 @@ a {
   flex-direction: column;
   text-decoration: none;
   color: var(--text);
+}
+
+/* Una sola línea en la cabecera — la referencia trae el nombre solo, sin
+   leyenda debajo; la leyenda completa sigue viviendo en el pie. */
+.brand-header {
+  flex-direction: row;
+  align-items: center;
 }
 
 .brand-name {
@@ -222,32 +231,67 @@ a {
   color: var(--text-muted);
 }
 
+/* Medido directamente sobre la referencia (demo.goodlayers.com/traveltour):
+   texto plano, sin fondo de píldora al pasar el mouse — solo cambia de un
+   gris apagado a un texto oscuro, con un punto que aparece debajo. Esa
+   combinación (texto discreto + un solo acento de color) es la que hace que
+   el menú actual, con enlaces siempre oscuros sobre una píldora de fondo, se
+   lea distinto aunque use la misma tipografía y los mismos colores base. */
 .site-nav {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: 24px;
+  gap: 22px;
 }
 
-.site-nav a {
+.site-nav > a,
+.site-nav-dropdown > summary {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
-  padding-inline: 14px;
-  border-radius: var(--radius-pill);
-  color: var(--text);
+  color: var(--text-muted);
   text-decoration: none;
-  font-size: var(--step--1);
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 500;
+  transition: color 0.15s ease;
 }
 
-.site-nav a:hover {
-  background: var(--surface);
-  color: var(--accent);
+.site-nav > a:hover,
+.site-nav > a:focus-visible,
+.site-nav-dropdown > summary:hover,
+.site-nav-dropdown[open] > summary {
+  color: var(--text);
+}
+
+/* El punto que se desliza bajo el enlace activo en la referencia es un `div`
+   posicionado por JavaScript (mide y anima su `left` con cada salto de
+   página). Sin ese JavaScript, el mismo punto por enlace —revelado al pasar
+   el mouse o enfocar— da la misma lectura visual sin necesitar seguimiento
+   de ruta. */
+.site-nav > a::after,
+.site-nav-dropdown > summary::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+  transform: translateX(-50%) scale(0.4);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.site-nav > a:hover::after,
+.site-nav > a:focus-visible::after,
+.site-nav-dropdown > summary:hover::after,
+.site-nav-dropdown[open] > summary::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
 
 .lang-switch {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
@@ -288,37 +332,21 @@ a {
 /* ---------- submenú de destinos ---------- */
 
 /* Mismo `<details>/<summary>` que `.mobile-nav`: el navegador ya sabe abrir y
-   cerrar un disclosure con teclado y con toque, sin JavaScript propio. */
+   cerrar un disclosure con teclado y con toque, sin JavaScript propio. El
+   tamaño, color y el punto del summary ya quedaron definidos junto con
+   `.site-nav > a` arriba — este summary es, visualmente, un enlace más del
+   menú. Aquí solo lo que le falta por ser un `<details>`. */
 .site-nav-dropdown {
   position: relative;
 }
 
 .site-nav-dropdown > summary {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  padding-inline: 14px;
-  border-radius: var(--radius-pill);
-  color: var(--text);
-  font-size: var(--step--1);
-  font-weight: 600;
-  cursor: pointer;
   list-style: none;
+  cursor: pointer;
 }
 
 .site-nav-dropdown > summary::-webkit-details-marker {
   display: none;
-}
-
-.site-nav-dropdown > summary::after {
-  content: "▾";
-  margin-left: 6px;
-  font-size: 0.75em;
-}
-
-.site-nav-dropdown > summary:hover {
-  background: var(--surface);
-  color: var(--accent);
 }
 
 .site-nav-dropdown-panel {
@@ -356,34 +384,37 @@ a {
 
 /* ---------- insignia de moneda ---------- */
 
+/* Texto simple, sin insignia ni borde: en la referencia "USD ▾" no es una
+   caja, es una etiqueta de texto igual que un enlace del menú — se cambió
+   el diseño anterior (píldora con borde) por este, medido directamente
+   sobre la referencia. */
 .currency-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding-inline: 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
   color: var(--text-muted);
-  font-size: var(--step--1);
-  font-weight: 650;
-  letter-spacing: 0.02em;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .site-header-meta {
-  gap: 10px;
+  margin-left: auto;
+  gap: 20px;
 }
 
+/* Radio de 10px y no la píldora completa que usa el resto del sitio: así se
+   ve el botón "Login" de la referencia — medido sobre su propio elemento,
+   no sobre el contenedor con fondo transparente que lo envuelve. */
 .site-header-access {
   display: inline-flex;
   align-items: center;
-  min-height: var(--tap);
-  padding-inline: 16px;
-  border-radius: var(--radius-pill);
+  min-height: 44px;
+  padding-inline: 25px;
+  border-radius: 10px;
   background: var(--accent);
   color: var(--accent-contrast);
   text-decoration: none;
-  font-size: var(--step--1);
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .site-header-access:hover {
