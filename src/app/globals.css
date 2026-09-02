@@ -1166,7 +1166,8 @@ main {
 }
 
 .detail-tabs a:hover,
-.detail-tabs a:focus-visible {
+.detail-tabs a:focus-visible,
+.detail-tabs a[aria-current="page"] {
   color: var(--text);
   border-bottom-color: var(--accent);
 }
@@ -1175,6 +1176,43 @@ main {
   font-size: var(--step--1);
   color: var(--text-muted);
   text-align: center;
+}
+
+/* Caja de confianza del panel lateral — el lugar que ocupa "Book With
+   Confidence" en la referencia, con los mismos tres hechos reales de
+   `ValueProps` (no las cuatro afirmaciones de mercadeo de la referencia,
+   que no tienen nada real detrás en este negocio), en una columna angosta. */
+.detail-aside-confidence {
+  padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.detail-aside-confidence-heading {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-0);
+  margin-bottom: 12px;
+}
+
+.detail-aside-confidence .value-props {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.detail-aside-confidence .value-props .spec-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.detail-aside-confidence .value-prop-heading {
+  font-size: var(--step--1);
+  font-family: inherit;
+  font-weight: 650;
+  margin-bottom: 2px;
+}
+
+.detail-aside-confidence .value-props .muted {
+  font-size: var(--step--1);
 }
 
 /* ---------- selector y cotización · Sprint 2 ---------- */

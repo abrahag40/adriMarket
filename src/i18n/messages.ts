@@ -32,6 +32,7 @@ export type Messages = {
   staysSubtitle: string;
   relatedHeading: string;
   detailNavOverview: string;
+  confidenceHeading: string;
   carouselPrev: string;
   carouselNext: string;
   trustBadgeText: string;
@@ -201,6 +202,7 @@ const es: Messages = {
   staysSubtitle: "Casas y departamentos listos para tu próxima escapada.",
   relatedHeading: "También te puede interesar",
   detailNavOverview: "Detalle",
+  confidenceHeading: "Reserva con confianza",
   carouselPrev: "Anterior",
   carouselNext: "Siguiente",
   trustBadgeText: "Pago seguro con tarjeta, por Stripe",
@@ -375,6 +377,7 @@ const en: Messages = {
   staysSubtitle: "Homes and apartments ready for your next getaway.",
   relatedHeading: "You might also like",
   detailNavOverview: "Detail",
+  confidenceHeading: "Book with confidence",
   carouselPrev: "Previous",
   carouselNext: "Next",
   trustBadgeText: "Secure card payment, by Stripe",

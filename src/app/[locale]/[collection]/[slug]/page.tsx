@@ -14,11 +14,13 @@ import {
 import { getMessages, type Messages } from "@/i18n/messages";
 import { absoluteUrl } from "@/site";
 import { getProductDetail, listCatalog, type ProductDetail } from "@/modules/catalog/queries";
+import { DetailTabs } from "@/components/detail-tabs";
 import { ProductCard } from "@/components/product-card";
 import { ResponsiveImage } from "@/components/responsive-image";
 import { SpecIcon } from "@/components/spec-icon";
 import { StayBooking } from "@/components/stay-booking";
 import { TourBooking } from "@/components/tour-booking";
+import { ValueProps } from "@/components/marketing/value-props";
 
 type RouteParams = Promise<{ locale: string; collection: string; slug: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -240,15 +242,7 @@ export default async function ProductPage({
         {product.summary ? <p className="prose">{product.summary}</p> : null}
       </div>
 
-      {tabs.length > 1 ? (
-        <nav className="detail-tabs" aria-label={t.details}>
-          {tabs.map((tab) => (
-            <a key={tab.id} href={`#${tab.id}`}>
-              {tab.label}
-            </a>
-          ))}
-        </nav>
-      ) : null}
+      {tabs.length > 1 ? <DetailTabs tabs={tabs} /> : null}
 
       <div className="detail">
         <div className="stack">
@@ -344,6 +338,29 @@ export default async function ProductPage({
           )}
 
           <p className="detail-aside-trust">{t.trustBadgeText}</p>
+
+          <div className="detail-aside-confidence">
+            <h2 className="detail-aside-confidence-heading">{t.confidenceHeading}</h2>
+            <ValueProps
+              items={[
+                {
+                  icon: "wallet",
+                  heading: t.valuePropDepositHeading,
+                  body: t.valuePropDepositBody,
+                },
+                {
+                  icon: "bolt",
+                  heading: t.valuePropInstantHeading,
+                  body: t.valuePropInstantBody,
+                },
+                {
+                  icon: "shield",
+                  heading: t.valuePropCancelHeading,
+                  body: t.valuePropCancelBody,
+                },
+              ]}
+            />
+          </div>
         </aside>
       </div>
 
