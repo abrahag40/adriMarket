@@ -15,6 +15,7 @@ import { getMessages, type Messages } from "@/i18n/messages";
 import { absoluteUrl } from "@/site";
 import { getProductDetail, type ProductDetail } from "@/modules/catalog/queries";
 import { ResponsiveImage } from "@/components/responsive-image";
+import { SpecIcon } from "@/components/spec-icon";
 import { StayBooking } from "@/components/stay-booking";
 import { TourBooking } from "@/components/tour-booking";
 
@@ -78,20 +79,20 @@ function StaySpecs({ product, t }: { product: ProductDetail; t: Messages }) {
     <>
       <ul className="spec-list">
         <li>
-          <div className="spec-term">{t.guests}</div>
-          <div className="spec-value">{stay.maxGuests}</div>
+          <SpecIcon name="users" />
+          <span className="spec-value">{t.guestsCount(stay.maxGuests)}</span>
         </li>
         <li>
-          <div className="spec-term">{t.bedrooms}</div>
-          <div className="spec-value">{stay.bedrooms}</div>
+          <SpecIcon name="door" />
+          <span className="spec-value">{t.bedroomsCount(stay.bedrooms)}</span>
         </li>
         <li>
-          <div className="spec-term">{t.beds}</div>
-          <div className="spec-value">{stay.beds}</div>
+          <SpecIcon name="bed" />
+          <span className="spec-value">{t.bedsCount(stay.beds)}</span>
         </li>
         <li>
-          <div className="spec-term">{t.bathrooms}</div>
-          <div className="spec-value">{stay.bathrooms}</div>
+          <SpecIcon name="bath" />
+          <span className="spec-value">{t.bathroomsCount(stay.bathrooms)}</span>
         </li>
       </ul>
       <p className="muted">
@@ -117,19 +118,20 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
       <ul className="spec-list">
         {tour.durationMinutes !== null ? (
           <li>
-            <div className="spec-term">{t.duration}</div>
-            <div className="spec-value">{t.minutes(tour.durationMinutes)}</div>
+            <SpecIcon name="clock" />
+            <span className="spec-value">{t.minutes(tour.durationMinutes)}</span>
           </li>
         ) : null}
         <li>
-          <div className="spec-term">{t.guests}</div>
-          <div className="spec-value">{tour.capacity}</div>
+          <SpecIcon name="users" />
+          <span className="spec-value">{t.upToGuests(tour.capacity)}</span>
         </li>
       </ul>
 
       {tour.meetingPoint ? (
-        <p className="muted">
-          {t.meetingPoint}: {tour.meetingPoint}
+        <p className="muted spec-inline">
+          <SpecIcon name="pin" />
+          {tour.meetingPoint}
         </p>
       ) : null}
 
@@ -208,7 +210,7 @@ export default async function ProductPage({
       ) : null}
 
       <div className="stack-sm">
-        <h1 className="page-title">{product.name}</h1>
+        <h1 className="page-title product-title">{product.name}</h1>
         {product.locationName ? (
           <p className="muted">
             {t.location}: {product.locationName}

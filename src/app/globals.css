@@ -636,6 +636,14 @@ main {
   text-wrap: balance;
 }
 
+/* Solo la ficha de producto: la referencia titula a 40px, un paso más que
+   `--step-3`. El panel de operación comparte `.page-title` en veinte
+   páginas distintas — cambiarlo ahí habría sido un efecto secundario, no
+   el pedido. */
+.product-title {
+  font-size: var(--step-4);
+}
+
 .section-title {
   font-family: var(--serif);
   font-weight: 400;
@@ -972,22 +980,49 @@ main {
   top: 16px;
 }
 
+/* Fila de ícono + dato, medida sobre la referencia: ícono de 24px en el
+   color de texto normal, la cifra en gris apagado junto a él — sustituye el
+   par etiqueta-arriba/valor-abajo que tenía antes, que se leía como una
+   ficha técnica y no como el resumen visual rápido de la plantilla. */
 .spec-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 32px;
   list-style: none;
   padding: 0;
 }
 
-.spec-term {
-  font-size: var(--step--1);
-  color: var(--text-muted);
+.spec-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spec-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  color: var(--text);
 }
 
 .spec-value {
-  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* El punto de encuentro reutiliza el mismo lenguaje ícono + texto, en línea
+   con un párrafo en vez de en la fila de datos. */
+.spec-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spec-inline .spec-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .check-list {

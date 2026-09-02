@@ -65,14 +65,12 @@ export type Messages = {
   highlights: string;
   location: string;
   details: string;
-  guests: string;
-  bedrooms: string;
-  beds: string;
-  bathrooms: string;
+  guestsCount: (n: number) => string;
+  bedroomsCount: (n: number) => string;
+  bedsCount: (n: number) => string;
+  bathroomsCount: (n: number) => string;
   minNights: (n: number) => string;
   checkInOut: string;
-  duration: string;
-  meetingPoint: string;
   prices: string;
   paxAdult: string;
   paxChild: string;
@@ -223,14 +221,12 @@ const es: Messages = {
   highlights: "Lo mejor",
   location: "Ubicación",
   details: "Detalles",
-  guests: "Capacidad",
-  bedrooms: "Recámaras",
-  beds: "Camas",
-  bathrooms: "Baños",
+  guestsCount: (n) => (n === 1 ? "1 persona" : `${n} personas`),
+  bedroomsCount: (n) => (n === 1 ? "1 recámara" : `${n} recámaras`),
+  bedsCount: (n) => (n === 1 ? "1 cama" : `${n} camas`),
+  bathroomsCount: (n) => (n === 1 ? "1 baño" : `${n} baños`),
   minNights: (n) => (n === 1 ? "1 noche mínimo" : `${n} noches mínimo`),
   checkInOut: "Llegada y salida",
-  duration: "Duración",
-  meetingPoint: "Punto de encuentro",
   prices: "Precios",
   paxAdult: "Adulto",
   paxChild: "Menor",
@@ -383,14 +379,12 @@ const en: Messages = {
   highlights: "Highlights",
   location: "Location",
   details: "Details",
-  guests: "Sleeps",
-  bedrooms: "Bedrooms",
-  beds: "Beds",
-  bathrooms: "Bathrooms",
+  guestsCount: (n) => (n === 1 ? "Sleeps 1" : `Sleeps ${n}`),
+  bedroomsCount: (n) => (n === 1 ? "1 bedroom" : `${n} bedrooms`),
+  bedsCount: (n) => (n === 1 ? "1 bed" : `${n} beds`),
+  bathroomsCount: (n) => (n === 1 ? "1 bathroom" : `${n} bathrooms`),
   minNights: (n) => (n === 1 ? "1 night minimum" : `${n} nights minimum`),
   checkInOut: "Check-in and check-out",
-  duration: "Duration",
-  meetingPoint: "Meeting point",
   prices: "Prices",
   paxAdult: "Adult",
   paxChild: "Child",
