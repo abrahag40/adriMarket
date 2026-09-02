@@ -662,6 +662,80 @@ export async function toggleTourOption(
   };
 }
 
+/**
+ * Agrega un paso al horario de una opción de tour.
+ *
+ * Se agrega al final (`position` = el máximo actual + 1): no hay forma de
+ * reordenar todavía, así que el orden en que se capturan es el orden en que
+ * se van a mostrar — capturar en el orden real del día es la única manera
+ * de que salga bien.
+ */
+export async function createItineraryStep(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const productId = text(form, "productId");
+  const optionId = text(form, "optionId");
+  const timeLabel = text(form, "timeLabel") || null;
+  const titleEs = text(form, "titleEs");
+  const titleEn = text(form, "titleEn") || null;
+  const descriptionEs = text(form, "descriptionEs") || null;
+  const descriptionEn = text(form, "descriptionEn") || null;
+
+  if (!/^[0-9a-f-]{36}$/i.test(optionId)) return { error: "Opción no válida.", ok: null };
+  if (titleEs.length < 3) return { error: "Escribe el título del paso.", ok: null };
+
+  const rows = await db.execute<{ next_position: number }>(sql`
+    select coalesce(max(position), -1) + 1 as next_position
+      from tour_itinerary_steps
+     where tour_option_id = ${optionId}::uuid
+  `);
+  const nextPosition = Number(rows[0]?.next_position ?? 0);
+
+  await db.execute(sql`
+    insert into tour_itinerary_steps
+      (tour_option_id, position, time_label, title_es, title_en, description_es, description_en)
+    values (${optionId}::uuid, ${nextPosition}, ${timeLabel}, ${titleEs}, ${titleEn},
+            ${descriptionEs}, ${descriptionEn})
+  `);
+
+  await db.execute(sql`
+    select audit_record(${staff.id}::uuid, 'tour_itinerary_step.create', 'product', ${productId}, null,
+                        ${JSON.stringify({ optionId, timeLabel, titleEs })}::jsonb)
+  `);
+
+  revalidatePath(`/admin/catalogo/${productId}/opciones`);
+  return { error: null, ok: `Paso agregado: ${titleEs}.` };
+}
+
+/** Quita un paso del horario. Se borra de verdad, no se apaga: a diferencia
+    de una opción o una unidad, un paso del itinerario nunca queda referenciado
+    por una reserva — no hay nada que se rompa al desaparecer. */
+export async function deleteItineraryStep(
+  _previous: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const staff = await requireStaff("manager");
+
+  const stepId = text(form, "stepId");
+  const productId = text(form, "productId");
+  if (!/^[0-9a-f-]{36}$/i.test(stepId)) return { error: "Paso no válido.", ok: null };
+
+  const rows = await db.execute<{ title_es: string }>(sql`
+    delete from tour_itinerary_steps where id = ${stepId}::uuid returning title_es
+  `);
+
+  await db.execute(sql`
+    select audit_record(${staff.id}::uuid, 'tour_itinerary_step.delete', 'product', ${productId}, null,
+                        ${JSON.stringify({ stepId, titleEs: rows[0]?.title_es })}::jsonb)
+  `);
+
+  revalidatePath(`/admin/catalogo/${productId}/opciones`);
+  return { error: null, ok: "Paso eliminado." };
+}
+
 // ---------------------------------------------------------------------------
 // S8 · Unidades de estancia y planes de tarifa
 // ---------------------------------------------------------------------------

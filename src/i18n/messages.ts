@@ -78,6 +78,7 @@ export type Messages = {
   highlights: string;
   location: string;
   details: string;
+  itinerary: string;
   guestsCount: (n: number) => string;
   bedroomsCount: (n: number) => string;
   bedsCount: (n: number) => string;
@@ -252,6 +253,7 @@ const es: Messages = {
   highlights: "Lo mejor",
   location: "Ubicación",
   details: "Detalles",
+  itinerary: "Itinerario",
   guestsCount: (n) => (n === 1 ? "1 persona" : `${n} personas`),
   bedroomsCount: (n) => (n === 1 ? "1 recámara" : `${n} recámaras`),
   bedsCount: (n) => (n === 1 ? "1 cama" : `${n} camas`),
@@ -426,6 +428,7 @@ const en: Messages = {
   highlights: "Highlights",
   location: "Location",
   details: "Details",
+  itinerary: "Itinerary",
   guestsCount: (n) => (n === 1 ? "Sleeps 1" : `Sleeps ${n}`),
   bedroomsCount: (n) => (n === 1 ? "1 bedroom" : `${n} bedrooms`),
   bedsCount: (n) => (n === 1 ? "1 bed" : `${n} beds`),

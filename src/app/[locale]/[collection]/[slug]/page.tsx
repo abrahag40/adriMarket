@@ -186,10 +186,13 @@ export default async function ProductPage({
     .filter((item) => item.slug !== product.slug)
     .slice(0, 4);
 
+  const itinerary = product.tour?.itinerary ?? [];
+
   const tabs = [
     { id: "overview", label: t.detailNavOverview, show: true },
     { id: "highlights", label: t.highlights, show: product.highlights.length > 0 },
     { id: "details", label: t.details, show: true },
+    { id: "itinerary", label: t.itinerary, show: itinerary.length > 0 },
     { id: "included", label: t.included, show: product.included.length > 0 },
     { id: "excluded", label: t.notIncluded, show: product.excluded.length > 0 },
   ].filter((tab) => tab.show);
@@ -269,6 +272,23 @@ export default async function ProductPage({
               <TourSpecs product={product} t={t} locale={locale} />
             )}
           </section>
+
+          {itinerary.length > 0 ? (
+            <section id="itinerary" className="stack-sm">
+              <h2 className="section-title">{t.itinerary}</h2>
+              <ol className="itinerary-list">
+                {itinerary.map((step, index) => (
+                  <li key={index}>
+                    {step.timeLabel ? <span className="itinerary-time">{step.timeLabel}</span> : null}
+                    <span className="itinerary-body">
+                      <span className="itinerary-title">{step.title}</span>
+                      {step.description ? <span className="muted">{step.description}</span> : null}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
 
           {product.included.length > 0 ? (
             <section id="included" className="stack-sm">

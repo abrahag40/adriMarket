@@ -203,11 +203,14 @@ export type StayDetail = {
 
 export type TourPrice = { paxType: "adult" | "child" | "infant"; priceCents: number };
 
+export type TourItineraryStep = { timeLabel: string | null; title: string; description: string | null };
+
 export type TourDetail = {
   durationMinutes: number | null;
   meetingPoint: string | null;
   capacity: number;
   prices: TourPrice[];
+  itinerary: TourItineraryStep[];
 };
 
 export type ProductDetail = {
@@ -365,11 +368,29 @@ export async function getProductDetail(
          where pp.tour_option_id = ${option.id}::uuid
          order by pp.price_cents desc
       `);
+      const itinerarySteps = await db.execute<{
+        time_label: string | null;
+        title: string;
+        description: string | null;
+      }>(sql`
+        select s.time_label,
+               case when ${locale} = 'en' then coalesce(s.title_en, s.title_es) else s.title_es end as title,
+               case when ${locale} = 'en' then coalesce(s.description_en, s.description_es)
+                    else s.description_es end as description
+          from tour_itinerary_steps s
+         where s.tour_option_id = ${option.id}::uuid
+         order by s.position, s.created_at
+      `);
       tour = {
         durationMinutes: option.duration_minutes === null ? null : Number(option.duration_minutes),
         meetingPoint: option.meeting_point,
         capacity: Number(option.default_capacity),
         prices: prices.map((row) => ({ paxType: row.pax_type, priceCents: Number(row.price_cents) })),
+        itinerary: itinerarySteps.map((row) => ({
+          timeLabel: row.time_label,
+          title: row.title,
+          description: row.description,
+        })),
       };
       const adult = tour.prices.find((price) => price.paxType === "adult");
       fromCents = adult?.priceCents ?? null;

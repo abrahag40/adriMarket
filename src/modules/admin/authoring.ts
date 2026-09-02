@@ -389,6 +389,16 @@ export type TourOptionPaxPrice = {
   countsTowardCapacity: boolean;
 };
 
+export type TourItineraryStep = {
+  id: string;
+  position: number;
+  timeLabel: string | null;
+  titleEs: string;
+  titleEn: string | null;
+  descriptionEs: string | null;
+  descriptionEn: string | null;
+};
+
 export type TourOptionDetail = {
   id: string;
   code: string;
@@ -399,6 +409,7 @@ export type TourOptionDetail = {
   defaultCapacity: number;
   active: boolean;
   prices: TourOptionPaxPrice[];
+  itinerary: TourItineraryStep[];
 };
 
 /** Opciones de un tour concreto, con su precio por tipo de pasajero. A
@@ -435,6 +446,24 @@ export async function listProductTourOptions(productId: string): Promise<TourOpt
      where o.product_id = ${productId}::uuid
   `);
 
+  const itinerarySteps = await db.execute<{
+    tour_option_id: string;
+    id: string;
+    position: number;
+    time_label: string | null;
+    title_es: string;
+    title_en: string | null;
+    description_es: string | null;
+    description_en: string | null;
+  }>(sql`
+    select s.tour_option_id, s.id, s.position, s.time_label,
+           s.title_es, s.title_en, s.description_es, s.description_en
+      from tour_itinerary_steps s
+      join tour_options o on o.id = s.tour_option_id
+     where o.product_id = ${productId}::uuid
+     order by s.position, s.created_at
+  `);
+
   return rows.map((row) => ({
     id: row.id,
     code: row.code,
@@ -450,6 +479,17 @@ export async function listProductTourOptions(productId: string): Promise<TourOpt
         paxType: price.pax_type,
         priceCents: Number(price.price_cents),
         countsTowardCapacity: price.counts_toward_capacity,
+      })),
+    itinerary: itinerarySteps
+      .filter((step) => step.tour_option_id === row.id)
+      .map((step) => ({
+        id: step.id,
+        position: Number(step.position),
+        timeLabel: step.time_label,
+        titleEs: step.title_es,
+        titleEn: step.title_en,
+        descriptionEs: step.description_es,
+        descriptionEn: step.description_en,
       })),
   }));
 }
