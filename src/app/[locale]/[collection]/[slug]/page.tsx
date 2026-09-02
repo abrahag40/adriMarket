@@ -13,7 +13,8 @@ import {
 } from "@/i18n/config";
 import { getMessages, type Messages } from "@/i18n/messages";
 import { absoluteUrl } from "@/site";
-import { getProductDetail, type ProductDetail } from "@/modules/catalog/queries";
+import { getProductDetail, listCatalog, type ProductDetail } from "@/modules/catalog/queries";
+import { ProductCard } from "@/components/product-card";
 import { ResponsiveImage } from "@/components/responsive-image";
 import { SpecIcon } from "@/components/spec-icon";
 import { StayBooking } from "@/components/stay-booking";
@@ -131,6 +132,9 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
       {tour.meetingPoint ? (
         <p className="muted spec-inline">
           <SpecIcon name="pin" />
+          {/* El ícono ya lo dice visualmente; sin texto, un lector de pantalla
+              solo anunciaría el nombre del lugar, sin decir qué es. */}
+          <span className="visually-hidden">{t.meetingPoint}: </span>
           {tour.meetingPoint}
         </p>
       ) : null}
@@ -169,8 +173,24 @@ export default async function ProductPage({
   const basePath = productPath(locale, kind, product.slug);
 
   const [cover, ...rest] = product.media;
-  const secondary = rest.slice(0, 2);
+  const secondary = rest.slice(0, 4);
   const unit = kind === "stay" ? t.perNight : t.perPerson;
+
+  /* "También te puede interesar": mismo tipo de producto, sin el que ya se
+     está viendo. Reutiliza el listado del catálogo — no hay una consulta de
+     "relacionados" aparte, y con el tamaño actual del catálogo no la
+     necesita. */
+  const related = (await listCatalog(locale, { kind }))
+    .filter((item) => item.slug !== product.slug)
+    .slice(0, 4);
+
+  const tabs = [
+    { id: "overview", label: t.detailNavOverview, show: true },
+    { id: "highlights", label: t.highlights, show: product.highlights.length > 0 },
+    { id: "details", label: t.details, show: true },
+    { id: "included", label: t.included, show: product.included.length > 0 },
+    { id: "excluded", label: t.notIncluded, show: product.excluded.length > 0 },
+  ].filter((tab) => tab.show);
 
   return (
     <article className="stack">
@@ -202,7 +222,7 @@ export default async function ProductPage({
                 width={item.width ?? 800}
                 height={item.height ?? 600}
                 variants={item.variants}
-                sizes="(min-width: 900px) 33vw, 50vw"
+                sizes="(min-width: 900px) 16vw, 50vw"
               />
             </figure>
           ))}
@@ -220,14 +240,24 @@ export default async function ProductPage({
         {product.summary ? <p className="prose">{product.summary}</p> : null}
       </div>
 
+      {tabs.length > 1 ? (
+        <nav className="detail-tabs" aria-label={t.details}>
+          {tabs.map((tab) => (
+            <a key={tab.id} href={`#${tab.id}`}>
+              {tab.label}
+            </a>
+          ))}
+        </nav>
+      ) : null}
+
       <div className="detail">
         <div className="stack">
-          {product.description ? (
-            <p className="prose muted">{product.description}</p>
-          ) : null}
+          <div id="overview" className="stack-sm">
+            {product.description ? <p className="prose muted">{product.description}</p> : null}
+          </div>
 
           {product.highlights.length > 0 ? (
-            <section className="stack-sm">
+            <section id="highlights" className="stack-sm">
               <h2 className="section-title">{t.highlights}</h2>
               <ul className="check-list">
                 {product.highlights.map((item) => (
@@ -237,7 +267,7 @@ export default async function ProductPage({
             </section>
           ) : null}
 
-          <section className="stack-sm">
+          <section id="details" className="stack-sm">
             <h2 className="section-title">{t.details}</h2>
             {kind === "stay" ? (
               <StaySpecs product={product} t={t} />
@@ -247,7 +277,7 @@ export default async function ProductPage({
           </section>
 
           {product.included.length > 0 ? (
-            <section className="stack-sm">
+            <section id="included" className="stack-sm">
               <h2 className="section-title">{t.included}</h2>
               <ul className="check-list">
                 {product.included.map((item) => (
@@ -258,7 +288,7 @@ export default async function ProductPage({
           ) : null}
 
           {product.excluded.length > 0 ? (
-            <section className="stack-sm">
+            <section id="excluded" className="stack-sm">
               <h2 className="section-title">{t.notIncluded}</h2>
               <ul className="check-list excluded">
                 {product.excluded.map((item) => (
@@ -312,8 +342,23 @@ export default async function ProductPage({
               }}
             />
           )}
+
+          <p className="detail-aside-trust">{t.trustBadgeText}</p>
         </aside>
       </div>
+
+      {related.length > 0 ? (
+        <section className="stack-sm" aria-labelledby="related-heading">
+          <h2 id="related-heading" className="section-title">
+            {t.relatedHeading}
+          </h2>
+          <ul className="grid">
+            {related.map((item) => (
+              <ProductCard key={item.id} item={item} locale={locale} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </article>
   );
 }

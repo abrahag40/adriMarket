@@ -134,7 +134,7 @@ expect_status "/en/stays/depa-centro-tulum" 404 "y responde 404 en /en por no te
 
 echo
 echo "S1-5 · ficha de producto"
-expect_contains "/es/estancias/casa-akumal" "Recámaras" "la estancia muestra sus especificaciones"
+expect_contains "/es/estancias/casa-akumal" "recámaras" "la estancia muestra sus especificaciones"
 expect_contains "/es/estancias/casa-akumal" "Qué incluye" "la estancia muestra qué incluye"
 expect_contains "/es/estancias/casa-akumal" "Qué no incluye" "la estancia muestra qué no incluye"
 expect_contains "/es/estancias/casa-akumal" "noches mínimo" "la estancia muestra el mínimo de noches"

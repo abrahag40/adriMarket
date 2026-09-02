@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { CatalogFilters } from "@/components/catalog-filters";
+import { Carousel } from "@/components/marketing/carousel";
 import { DestinationCard } from "@/components/marketing/destination-card";
+import { FeaturedCard } from "@/components/marketing/featured-card";
 import { PromoBanner } from "@/components/marketing/promo-banner";
+import { RoomCard } from "@/components/marketing/room-card";
 import { ValueProps } from "@/components/marketing/value-props";
 import { ProductCard } from "@/components/product-card";
 import { ResponsiveImage } from "@/components/responsive-image";
@@ -92,7 +95,22 @@ export default async function CatalogPage({
   const t = getMessages(locale);
   const { filters, selected } = parseFilters(await searchParams);
 
-  const [items, locations] = await Promise.all([listCatalog(locale, filters), listLocations()]);
+  /* Los carruseles de tours y la cuadrícula de estancias son vitrinas del
+     inicio sin filtrar, no el resultado del buscador de arriba — pero solo
+     tienen sentido en el inicio sin filtros: con un filtro activo, huésped
+     ya pidió ver un subconjunto, y estas vitrinas seguirían mostrando todo
+     lo demás junto a ese resultado, contradiciéndolo (una estancia de Tulum
+     aparecería igual con `?location=playa-del-carmen`). */
+  const noFilters = !filters.kind && !filters.locationSlug && !filters.guests;
+
+  const [items, locations, allItems] = await Promise.all([
+    listCatalog(locale, filters),
+    listLocations(),
+    noFilters ? listCatalog(locale, {}) : Promise.resolve([]),
+  ]);
+
+  const featuredTours = allItems.filter((item) => item.kind === "tour" && item.coverUrl !== null);
+  const stays = allItems.filter((item) => item.kind === "stay" && item.coverUrl !== null);
 
   /* La foto del hero sale del catálogo real, no de un banco de imágenes: es el
      primer producto publicado que ya tiene fotos. Sin fotos todavía, el hero
@@ -170,6 +188,40 @@ export default async function CatalogPage({
                   coverHeight={item.coverHeight}
                   coverVariants={item.coverVariants}
                 />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {featuredTours.length > 0 ? (
+        <section aria-labelledby="featured-tours-heading">
+          <div className="section-head">
+            <h2 id="featured-tours-heading" className="section-title">
+              {t.featuredToursHeading}
+            </h2>
+            <p className="muted">{t.featuredToursSubtitle}</p>
+          </div>
+          <Carousel prevLabel={t.carouselPrev} nextLabel={t.carouselNext}>
+            {featuredTours.map((item) => (
+              <FeaturedCard key={item.id} item={item} locale={locale} />
+            ))}
+          </Carousel>
+        </section>
+      ) : null}
+
+      {stays.length > 0 ? (
+        <section aria-labelledby="stays-heading">
+          <div className="section-head">
+            <h2 id="stays-heading" className="section-title">
+              {t.staysHeading}
+            </h2>
+            <p className="muted">{t.staysSubtitle}</p>
+          </div>
+          <ul className="rooms-grid">
+            {stays.map((item) => (
+              <li key={item.id}>
+                <RoomCard item={item} locale={locale} />
               </li>
             ))}
           </ul>

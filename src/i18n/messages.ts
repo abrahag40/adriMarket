@@ -26,6 +26,12 @@ export type Messages = {
   destinationsHeading: string;
   destinationsSubtitle: string;
   destinationViewMore: string;
+  featuredToursHeading: string;
+  featuredToursSubtitle: string;
+  staysHeading: string;
+  staysSubtitle: string;
+  relatedHeading: string;
+  detailNavOverview: string;
   carouselPrev: string;
   carouselNext: string;
   trustBadgeText: string;
@@ -77,6 +83,8 @@ export type Messages = {
   bathroomsCount: (n: number) => string;
   minNights: (n: number) => string;
   checkInOut: string;
+  /** Solo para lectores de pantalla — el ícono ya lo dice visualmente. */
+  meetingPoint: string;
   prices: string;
   paxAdult: string;
   paxChild: string;
@@ -187,6 +195,12 @@ const es: Messages = {
   destinationsHeading: "Destinos populares",
   destinationsSubtitle: "Los lugares que más reservan nuestros huéspedes.",
   destinationViewMore: "Ver más",
+  featuredToursHeading: "Tours destacados",
+  featuredToursSubtitle: "Los favoritos de nuestros huéspedes.",
+  staysHeading: "Estancias",
+  staysSubtitle: "Casas y departamentos listos para tu próxima escapada.",
+  relatedHeading: "También te puede interesar",
+  detailNavOverview: "Detalle",
   carouselPrev: "Anterior",
   carouselNext: "Siguiente",
   trustBadgeText: "Pago seguro con tarjeta, por Stripe",
@@ -242,6 +256,7 @@ const es: Messages = {
   bathroomsCount: (n) => (n === 1 ? "1 baño" : `${n} baños`),
   minNights: (n) => (n === 1 ? "1 noche mínimo" : `${n} noches mínimo`),
   checkInOut: "Llegada y salida",
+  meetingPoint: "Punto de encuentro",
   prices: "Precios",
   paxAdult: "Adulto",
   paxChild: "Menor",
@@ -354,6 +369,12 @@ const en: Messages = {
   destinationsHeading: "Popular destinations",
   destinationsSubtitle: "The places our guests book the most.",
   destinationViewMore: "View more",
+  featuredToursHeading: "Featured tours",
+  featuredToursSubtitle: "Our guests' favorites.",
+  staysHeading: "Stays",
+  staysSubtitle: "Homes and apartments ready for your next getaway.",
+  relatedHeading: "You might also like",
+  detailNavOverview: "Detail",
   carouselPrev: "Previous",
   carouselNext: "Next",
   trustBadgeText: "Secure card payment, by Stripe",
@@ -408,6 +429,7 @@ const en: Messages = {
   bathroomsCount: (n) => (n === 1 ? "1 bathroom" : `${n} bathrooms`),
   minNights: (n) => (n === 1 ? "1 night minimum" : `${n} nights minimum`),
   checkInOut: "Check-in and check-out",
+  meetingPoint: "Meeting point",
   prices: "Prices",
   paxAdult: "Adult",
   paxChild: "Child",
