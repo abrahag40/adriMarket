@@ -33,6 +33,12 @@ export type Messages = {
   newsletterBody: string;
   newsletterPlaceholder: string;
   newsletterSubmit: string;
+  valuePropDepositHeading: string;
+  valuePropDepositBody: string;
+  valuePropInstantHeading: string;
+  valuePropInstantBody: string;
+  valuePropCancelHeading: string;
+  valuePropCancelBody: string;
   ctaHeading: string;
   ctaBody: string;
   ctaButton: string;
@@ -188,6 +194,15 @@ const es: Messages = {
   newsletterBody: "Avisos de nuevos tours y estancias, sin relleno.",
   newsletterPlaceholder: "Tu correo",
   newsletterSubmit: "Suscribirme",
+  valuePropDepositHeading: "Anticipo en línea, saldo en destino",
+  valuePropDepositBody:
+    "Confirmas tu lugar con un pago parcial seguro; liquidas el resto al llegar, sin cargos ocultos.",
+  valuePropInstantHeading: "Confirmación al instante",
+  valuePropInstantBody:
+    "El cupo se aparta en el momento de reservar: nunca se vende el mismo lugar dos veces.",
+  valuePropCancelHeading: "Cancelación clara",
+  valuePropCancelBody:
+    "Tu reserva queda con la política de cancelación vigente al reservar, congelada para ti.",
   ctaHeading: "Aparta hoy, paga el resto en destino",
   ctaBody:
     "Confirma tu lugar con un anticipo en línea y liquida el saldo al llegar. Sin sorpresas, sin cargos ocultos.",
@@ -346,6 +361,14 @@ const en: Messages = {
   newsletterBody: "New tours and stays, straight to your inbox — no filler.",
   newsletterPlaceholder: "Your email",
   newsletterSubmit: "Subscribe",
+  valuePropDepositHeading: "Deposit online, balance on arrival",
+  valuePropDepositBody:
+    "Confirm your spot with a secure partial payment; settle the rest when you arrive, no hidden fees.",
+  valuePropInstantHeading: "Confirmed on the spot",
+  valuePropInstantBody: "Your spot is held the moment you book — never sold twice.",
+  valuePropCancelHeading: "Clear cancellation terms",
+  valuePropCancelBody:
+    "Your booking keeps the cancellation policy in effect when you booked, frozen for you.",
   ctaHeading: "Book today, pay the rest on arrival",
   ctaBody:
     "Secure your spot with a deposit online and settle the balance when you get there. No surprises, no hidden fees.",

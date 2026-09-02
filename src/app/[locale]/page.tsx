@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CatalogFilters } from "@/components/catalog-filters";
 import { DestinationCard } from "@/components/marketing/destination-card";
 import { PromoBanner } from "@/components/marketing/promo-banner";
+import { ValueProps } from "@/components/marketing/value-props";
 import { ProductCard } from "@/components/product-card";
 import { ResponsiveImage } from "@/components/responsive-image";
 import { isLocale, type ProductKind } from "@/i18n/config";
@@ -193,6 +194,14 @@ export default async function CatalogPage({
       )}
 
       <PromoBanner locale={locale} />
+
+      <ValueProps
+        items={[
+          { icon: "wallet", heading: t.valuePropDepositHeading, body: t.valuePropDepositBody },
+          { icon: "bolt", heading: t.valuePropInstantHeading, body: t.valuePropInstantBody },
+          { icon: "shield", heading: t.valuePropCancelHeading, body: t.valuePropCancelBody },
+        ]}
+      />
     </div>
   );
 }

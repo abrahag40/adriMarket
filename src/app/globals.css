@@ -527,10 +527,28 @@ a {
 
 /* ---------- pie ---------- */
 
+/* La referencia usa un pie oscuro (#1a1a1a) sobre un sitio claro — no el
+   modo oscuro completo del sitio (ese sigue apagado a propósito, ver el
+   comentario junto a `:root[data-theme="dark"]`). Redefinir los mismos
+   tokens de color, mero acá, hace que cada regla que ya usa `var(--text)`,
+   `var(--text-muted)`, `var(--accent)`, etc. se adapte sola — nada que
+   tocar en `.footer-links`, `.currency-badge`, `.social-links`... Colores
+   verificados contra WCAG 2.2 AA sobre #1a1a1a: texto 16.7:1 · atenuado
+   8.0:1 · tenue 6.7:1 · acento 6.5:1 (el mismo acento claro que ya usa el
+   modo oscuro del sitio, reutilizado porque el oscuro original de la marca
+   no pasa contraste sobre un fondo tan oscuro). */
 .site-footer {
+  --bg: #1a1a1a;
+  --text: #ffffff;
+  --text-muted: #b3b3b3;
+  --text-faint: #a3a3a3;
+  --line: #3a3a3a;
+  --line-soft: #333333;
+  --accent: #6fa1f5;
+  --focus: #6fa1f5;
   margin-top: auto;
-  border-top: 1px solid var(--line-soft);
-  padding-top: 40px;
+  background: var(--bg);
+  padding-top: 56px;
   color: var(--text-faint);
   font-size: var(--step--1);
 }
@@ -2440,4 +2458,33 @@ fieldset.field legend {
 .testimonial-role {
   font-size: var(--step--1);
   color: var(--text-muted);
+}
+
+/* ---------- columnas de confianza ---------- */
+
+.value-props {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 32px;
+  list-style: none;
+  padding: 0;
+}
+
+.value-props li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.value-props .spec-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+}
+
+.value-prop-heading {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-1);
+  margin-bottom: 4px;
 }

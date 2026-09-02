@@ -1,11 +1,23 @@
 /**
- * Iconos de la fila de datos de la ficha (duración, personas, recámaras…).
+ * Set de íconos pequeños de una sola pieza: la fila de datos de la ficha
+ * (duración, personas, recámaras…) y las tres columnas de confianza del
+ * inicio.
  *
  * Trazos propios, no una librería de íconos ni la fuente de íconos de la
  * plantilla de referencia (`gdl-travel-*`, parte de su tema de pago) — mismo
  * patrón visual, sin copiar el activo.
  */
-export type SpecIconName = "clock" | "users" | "bed" | "door" | "bath" | "pin" | "calendar";
+export type SpecIconName =
+  | "clock"
+  | "users"
+  | "bed"
+  | "door"
+  | "bath"
+  | "pin"
+  | "calendar"
+  | "wallet"
+  | "shield"
+  | "bolt";
 
 const PATHS: Record<SpecIconName, string> = {
   clock: "M12 7v5l3 3 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
@@ -16,6 +28,11 @@ const PATHS: Record<SpecIconName, string> = {
   bath: "M4 12h16v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-3Z M7 12V6a2 2 0 0 1 3-1.7 M4 20v1 M18 20v1",
   pin: "M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
   calendar: "M4 5h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z M3 10h18 M8 3v4 M16 3v4",
+  wallet:
+    "M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2 M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2Z M16 14h.01",
+  shield:
+    "M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z M9 12l2 2 4-4",
+  bolt: "M13 2 4 14h6l-1 8 9-12h-6l1-8Z",
 };
 
 export function SpecIcon({ name }: { name: SpecIconName }) {
