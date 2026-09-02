@@ -196,13 +196,17 @@ a {
   background: var(--bg);
 }
 
+/* La referencia mide 97px de alto con el logo centrado — bastante más
+   respiro vertical que un header típico. `padding-block` mayor, no un
+   `min-height` más alto: así crece con el contenido real en vez de dejar
+   un hueco fijo. */
 .site-header-inner {
   display: flex;
   align-items: center;
   gap: 16px;
   min-height: 64px;
   flex-wrap: wrap;
-  padding-block: 18px;
+  padding-block: 26px;
 }
 
 .brand {
@@ -226,21 +230,27 @@ a {
   letter-spacing: -0.01em;
 }
 
+/* La referencia parte su propio nombre en dos: "Travel" en el color de
+   texto normal, "Tour" en el acento. El nuestro es una sola palabra
+   compuesta ("adriMarket"), pero el mismo tratamiento de dos tonos —ya
+   usado en el titular del inicio, `heroTitleAccent`— aplicado a la mitad
+   final ("Market") da la misma lectura de marca sin inventar texto nuevo. */
+.brand-accent {
+  color: var(--accent);
+}
+
 .brand-tagline {
   font-size: var(--step--1);
   color: var(--text-muted);
 }
 
 /* Medido directamente sobre la referencia (demo.goodlayers.com/traveltour):
-   texto plano, sin fondo de píldora al pasar el mouse — solo cambia de un
-   gris apagado a un texto oscuro, con un punto que aparece debajo. Esa
-   combinación (texto discreto + un solo acento de color) es la que hace que
-   el menú actual, con enlaces siempre oscuros sobre una píldora de fondo, se
-   lea distinto aunque use la misma tipografía y los mismos colores base. */
+   texto plano, sin fondo de píldora — gris apagado por defecto, oscuro en
+   la página activa o al pasar el mouse, con un punto de acento debajo. */
 .site-nav {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 36px;
 }
 
 .site-nav > a,
@@ -258,16 +268,18 @@ a {
 
 .site-nav > a:hover,
 .site-nav > a:focus-visible,
+.site-nav > a[aria-current="page"],
 .site-nav-dropdown > summary:hover,
-.site-nav-dropdown[open] > summary {
+.site-nav-dropdown[open] > summary,
+.site-nav-dropdown > summary[aria-current="page"] {
   color: var(--text);
 }
 
-/* El punto que se desliza bajo el enlace activo en la referencia es un `div`
-   posicionado por JavaScript (mide y anima su `left` con cada salto de
-   página). Sin ese JavaScript, el mismo punto por enlace —revelado al pasar
-   el mouse o enfocar— da la misma lectura visual sin necesitar seguimiento
-   de ruta. */
+/* El punto bajo el enlace activo en la referencia es un `div` que un script
+   mueve con cada salto de página. Aquí es un `::after` por enlace: visible
+   siempre en la página activa (`aria-current="page"`, calculado en el
+   servidor a partir de la ruta) y revelado también al pasar el mouse o
+   enfocar los demás — mismo efecto, sin seguimiento de ruta en el cliente. */
 .site-nav > a::after,
 .site-nav-dropdown > summary::after {
   content: "";
@@ -285,8 +297,10 @@ a {
 
 .site-nav > a:hover::after,
 .site-nav > a:focus-visible::after,
+.site-nav > a[aria-current="page"]::after,
 .site-nav-dropdown > summary:hover::after,
-.site-nav-dropdown[open] > summary::after {
+.site-nav-dropdown[open] > summary::after,
+.site-nav-dropdown > summary[aria-current="page"]::after {
   opacity: 1;
   transform: translateX(-50%) scale(1);
 }
@@ -490,7 +504,8 @@ a {
   font-weight: 600;
 }
 
-.mobile-nav-panel a:hover {
+.mobile-nav-panel a:hover,
+.mobile-nav-panel a[aria-current="page"] {
   color: var(--accent);
 }
 

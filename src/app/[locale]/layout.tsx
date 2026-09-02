@@ -72,10 +72,13 @@ export default async function LocaleLayout({
 
   const t = getMessages(locale);
   const requestHeaders = await headers();
-  const alternate = alternateForPathname(
-    locale,
-    requestHeaders.get("x-pathname") ?? `/${locale}`,
-  );
+  const pathname = requestHeaders.get("x-pathname") ?? `/${locale}`;
+  const alternate = alternateForPathname(locale, pathname);
+  // El menú necesita saber en qué página está el visitante para marcar el
+  // enlace activo, igual que la referencia. `x-pathname` no lleva la
+  // búsqueda (Tours/Estancias se distinguen solo por `?kind=`), así que se
+  // reconstruye con `x-search`, puesto por el mismo middleware.
+  const currentPath = `${pathname}${requestHeaders.get("x-search") ?? ""}`;
   const locations = await listLocations();
 
   return (
@@ -85,7 +88,12 @@ export default async function LocaleLayout({
           {t.skipToContent}
         </a>
 
-        <SiteHeader locale={locale} locations={locations} alternate={alternate} />
+        <SiteHeader
+          locale={locale}
+          locations={locations}
+          alternate={alternate}
+          currentPath={currentPath}
+        />
 
         <main id="content" className="wrap">
           {children}

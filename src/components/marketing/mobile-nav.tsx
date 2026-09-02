@@ -13,13 +13,16 @@ export function MobileNav({
   locale,
   locations,
   alternate,
+  currentPath,
 }: {
   locale: Locale;
   locations: LocationOption[];
   alternate: string;
+  currentPath: string;
 }) {
   const t = getMessages(locale);
   const other = otherLocale(locale);
+  const isActive = (href: string) => href === currentPath;
 
   return (
     <details className="mobile-nav">
@@ -29,15 +32,33 @@ export function MobileNav({
         <span className="mobile-nav-bar" />
       </summary>
       <nav className="mobile-nav-panel" aria-label={t.navTours}>
-        <Link href={`/${locale}`}>{t.navHome}</Link>
-        <Link href={`/${locale}?kind=tour`}>{t.navTours}</Link>
-        <Link href={`/${locale}?kind=stay`}>{t.navStays}</Link>
+        <Link href={`/${locale}`} aria-current={isActive(`/${locale}`) ? "page" : undefined}>
+          {t.navHome}
+        </Link>
+        <Link
+          href={`/${locale}?kind=tour`}
+          aria-current={isActive(`/${locale}?kind=tour`) ? "page" : undefined}
+        >
+          {t.navTours}
+        </Link>
+        <Link
+          href={`/${locale}?kind=stay`}
+          aria-current={isActive(`/${locale}?kind=stay`) ? "page" : undefined}
+        >
+          {t.navStays}
+        </Link>
 
         {locations.length > 0 ? (
           <div className="mobile-nav-group">
             <span className="mobile-nav-group-label">{t.navDestinations}</span>
             {locations.map((location) => (
-              <Link key={location.slug} href={`/${locale}?location=${location.slug}`}>
+              <Link
+                key={location.slug}
+                href={`/${locale}?location=${location.slug}`}
+                aria-current={
+                  isActive(`/${locale}?location=${location.slug}`) ? "page" : undefined
+                }
+              >
                 {location.name}
               </Link>
             ))}
