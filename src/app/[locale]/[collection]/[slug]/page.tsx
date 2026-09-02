@@ -74,12 +74,18 @@ export async function generateMetadata({ params }: { params: RouteParams }): Pro
   };
 }
 
-function StaySpecs({ product, t }: { product: ProductDetail; t: Messages }) {
-  const stay = product.stay;
-  if (!stay) return null;
-
-  return (
-    <>
+/**
+ * Fila de datos rápidos — ícono + cifra, directo bajo el título, antes de la
+ * galería. Es lo primero que la referencia muestra del producto (duración,
+ * huéspedes…), y aquí vivía enterrada dentro de la pestaña "Detalles", varias
+ * pantallas más abajo. `StaySpecs`/`TourSpecs` conservan lo que no cabe en una
+ * fila corta (política de entrada/salida, punto de encuentro, precios).
+ */
+function QuickFacts({ product, kind, t }: { product: ProductDetail; kind: ProductKind; t: Messages }) {
+  if (kind === "stay") {
+    const stay = product.stay;
+    if (!stay) return null;
+    return (
       <ul className="spec-list">
         <li>
           <SpecIcon name="users" />
@@ -98,11 +104,36 @@ function StaySpecs({ product, t }: { product: ProductDetail; t: Messages }) {
           <span className="spec-value">{t.bathroomsCount(stay.bathrooms)}</span>
         </li>
       </ul>
-      <p className="muted">
-        {t.minNights(stay.minNights)} · {t.checkInOut}: {stay.checkinTime.slice(0, 5)} /{" "}
-        {stay.checkoutTime.slice(0, 5)}
-      </p>
-    </>
+    );
+  }
+
+  const tour = product.tour;
+  if (!tour) return null;
+  return (
+    <ul className="spec-list">
+      {tour.durationMinutes !== null ? (
+        <li>
+          <SpecIcon name="clock" />
+          <span className="spec-value">{t.minutes(tour.durationMinutes)}</span>
+        </li>
+      ) : null}
+      <li>
+        <SpecIcon name="users" />
+        <span className="spec-value">{t.upToGuests(tour.capacity)}</span>
+      </li>
+    </ul>
+  );
+}
+
+function StaySpecs({ product, t }: { product: ProductDetail; t: Messages }) {
+  const stay = product.stay;
+  if (!stay) return null;
+
+  return (
+    <p className="muted">
+      {t.minNights(stay.minNights)} · {t.checkInOut}: {stay.checkinTime.slice(0, 5)} /{" "}
+      {stay.checkoutTime.slice(0, 5)}
+    </p>
   );
 }
 
@@ -118,19 +149,6 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
 
   return (
     <>
-      <ul className="spec-list">
-        {tour.durationMinutes !== null ? (
-          <li>
-            <SpecIcon name="clock" />
-            <span className="spec-value">{t.minutes(tour.durationMinutes)}</span>
-          </li>
-        ) : null}
-        <li>
-          <SpecIcon name="users" />
-          <span className="spec-value">{t.upToGuests(tour.capacity)}</span>
-        </li>
-      </ul>
-
       {tour.meetingPoint ? (
         <p className="muted spec-inline">
           <SpecIcon name="pin" />
@@ -204,6 +222,20 @@ export default async function ProductPage({
         {kind === "tour" ? t.filterKindTour : t.filterKindStay}
       </p>
 
+      {tabs.length > 1 ? <DetailTabs tabs={tabs} /> : null}
+
+      <div className="stack-sm">
+        <h1 className="page-title product-title">{product.name}</h1>
+        {product.locationName ? (
+          <p className="muted">
+            {t.location}: {product.locationName}
+            {product.state ? `, ${product.state}` : ""}
+          </p>
+        ) : null}
+        {product.summary ? <p className="prose">{product.summary}</p> : null}
+        <QuickFacts product={product} kind={kind} t={t} />
+      </div>
+
       {cover ? (
         <div className="gallery">
           <figure className="gallery-main">
@@ -233,19 +265,6 @@ export default async function ProductPage({
           ))}
         </div>
       ) : null}
-
-      <div className="stack-sm">
-        <h1 className="page-title product-title">{product.name}</h1>
-        {product.locationName ? (
-          <p className="muted">
-            {t.location}: {product.locationName}
-            {product.state ? `, ${product.state}` : ""}
-          </p>
-        ) : null}
-        {product.summary ? <p className="prose">{product.summary}</p> : null}
-      </div>
-
-      {tabs.length > 1 ? <DetailTabs tabs={tabs} /> : null}
 
       <div className="detail">
         <div className="stack">
