@@ -59,10 +59,15 @@ quedan descartados en cualquier caso.
       descripción, y es idempotente:
 
       ```bash
-      vercel env pull .env.production.local --environment=production --yes
-      ./scripts/demo-content.sh .env.production.local
-      rm .env.production.local
+      read -rs DATABASE_URL; export DATABASE_URL   # se pega desde Neon
+      ./scripts/demo-content.sh --from-env
       ```
+
+      **`vercel env pull` no sirve para esto.** `DATABASE_URL` está marcada
+      como sensible en el proyecto de Vercel, y las sensibles son de solo
+      escritura: el archivo baja con `DATABASE_URL=""`. La cadena se saca de
+      la consola de Neon. Sin credenciales en la máquina, la otra opción es
+      pegar `db/seed/demo_content.sql` en el editor SQL de Neon.
 
       El guion **imprime a qué servidor va antes de escribir** (con la
       contraseña tapada) y el SQL informa cuántas filas encontró vacías y
