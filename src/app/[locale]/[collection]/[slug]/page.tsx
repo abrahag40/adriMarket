@@ -237,7 +237,7 @@ export default async function ProductPage({
       </div>
 
       {cover ? (
-        <div className="gallery">
+        <div className={secondary.length > 0 ? "gallery" : "gallery gallery-solo"}>
           <figure className="gallery-main">
             {/* La principal se carga de inmediato: es lo que el huésped vino a
                 ver, y diferirla retrasa justo eso. */}
@@ -247,22 +247,31 @@ export default async function ProductPage({
               width={cover.width ?? 1200}
               height={cover.height ?? 800}
               variants={cover.variants}
-              sizes="(min-width: 900px) 66vw, 100vw"
+              sizes={secondary.length > 0 ? "(min-width: 900px) 66vw, 100vw" : "100vw"}
               priority
             />
           </figure>
-          {secondary.map((item) => (
-            <figure key={item.url}>
-              <ResponsiveImage
-                src={item.url}
-                alt={item.alt ?? ""}
-                width={item.width ?? 800}
-                height={item.height ?? 600}
-                variants={item.variants}
-                sizes="(min-width: 900px) 16vw, 50vw"
-              />
-            </figure>
-          ))}
+          {/* El catálogo real casi nunca llega a las cuatro fotos secundarias
+              de la referencia — la mayoría de los productos tiene una o dos.
+              Un `grid-template-columns` fijo a tres columnas dejaba ese
+              espacio vacío en vez de repartirlo: la principal se veía a la
+              mitad de su ancho. `.gallery-thumbs` reparte lo que haya. */}
+          {secondary.length > 0 ? (
+            <div className="gallery-thumbs">
+              {secondary.map((item) => (
+                <figure key={item.url}>
+                  <ResponsiveImage
+                    src={item.url}
+                    alt={item.alt ?? ""}
+                    width={item.width ?? 800}
+                    height={item.height ?? 600}
+                    variants={item.variants}
+                    sizes="(min-width: 900px) 16vw, 50vw"
+                  />
+                </figure>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

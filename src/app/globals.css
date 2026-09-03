@@ -982,18 +982,28 @@ main {
   grid-template-columns: 1fr;
 }
 
-/* Dos columnas de miniaturas junto a la principal, no una: con las cuatro
-   fotos secundarias que ahora se muestran (antes solo dos), una sola columna
-   las apilaba en una tira angosta y muy alta. Dos columnas de 1fr junto a la
-   principal (que ocupa las mismas dos filas) arma la cuadrícula 2×2 de la
-   referencia. */
+/* La principal + un panel de miniaturas aparte (`.gallery-thumbs`), no tres
+   columnas fijas: el catálogo real casi nunca trae las cuatro fotos
+   secundarias de la referencia, y una cuadrícula fija a 2fr/1fr/1fr dejaba
+   columnas vacías cuando había menos — la principal se veía a la mitad de
+   su ancho. La principal ocupa 2/3 del ancho y estira su altura a la del
+   panel; el panel reparte lo que haya en dos columnas propias. */
 @media (min-width: 720px) {
   .gallery {
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr;
+    align-items: stretch;
   }
-  .gallery-main {
-    grid-row: span 2;
-  }
+}
+
+/* Sin fotos secundarias: la principal es la única columna, a todo lo ancho,
+   con una relación de aspecto de portada en vez de la 3:2 recortada que
+   necesita cuando comparte fila con las miniaturas. */
+.gallery-solo {
+  grid-template-columns: 1fr;
+}
+
+.gallery-solo .gallery-main {
+  aspect-ratio: 21 / 9 !important;
 }
 
 .gallery figure {
@@ -1006,6 +1016,29 @@ main {
 
 .gallery-main {
   aspect-ratio: 3 / 2 !important;
+}
+
+.gallery-thumbs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  align-content: start;
+}
+
+/* Una sola miniatura: a todo el ancho del panel en vez de a la mitad, con
+   un hueco vacío al lado. */
+.gallery-thumbs figure:only-child {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  .gallery-thumbs {
+    height: 100%;
+  }
+
+  .gallery-thumbs figure {
+    aspect-ratio: auto;
+  }
 }
 
 .gallery img {
