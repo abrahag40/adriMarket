@@ -21,9 +21,15 @@
 
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
-
+# La ruta del archivo se resuelve **antes** de moverse al repositorio: si no,
+# un `.env.production.local` relativo se buscaría en la raíz del proyecto y no
+# donde está parado quien corre esto.
 env_file="${1:-.env}"
+if [[ "$env_file" != /* ]]; then
+  env_file="$PWD/$env_file"
+fi
+
+cd "$(dirname "$0")/.."
 
 if [[ ! -f "$env_file" ]]; then
   echo "No existe $env_file." >&2
