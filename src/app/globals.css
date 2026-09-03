@@ -1976,9 +1976,13 @@ main {
   align-self: flex-start;
 }
 
+/* Mismo caso que `.admin-badge-ok`: acento sobre `--accent-soft` se queda en
+   4.19:1. Esta píldora vive en la página pública de la reserva, que la
+   auditoría no visita —se encontró midiéndola a mano al arreglar la del
+   panel—, y a 17px tampoco califica como texto grande. */
 .status-ok {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-hover);
 }
 
 .status-wait {
@@ -2132,7 +2136,11 @@ a.admin-card:hover {
   border: 1px solid var(--line);
 }
 
-.admin-badge-ok { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+/* `--accent-hover`, no `--accent`, por lo mismo que `.cal-label`: a 12px sobre
+   `--accent-soft` el acento normal se queda en 4.19:1 y AA pide 4.5:1. El tono
+   de hover da 5.9:1 en el tema claro y más en el oscuro. El borde sí sigue
+   siendo `--accent`: un borde no es texto y no se mide igual. */
+.admin-badge-ok { background: var(--accent-soft); color: var(--accent-hover); border-color: var(--accent); }
 .admin-badge-wait { background: var(--surface-2); color: var(--text-muted); }
 .admin-badge-done { background: var(--surface); color: var(--text-muted); }
 .admin-badge-off { background: var(--surface); color: var(--text-faint); }
