@@ -59,9 +59,12 @@ quedan descartados en cualquier caso.
       descripción, y es idempotente:
 
       ```bash
-      read -rs DATABASE_URL; export DATABASE_URL   # se pega desde Neon
       ./scripts/demo-content.sh --from-env
       ```
+
+      Pide la cadena de conexión con el prompt tapado y la lee él mismo. No
+      se pasa un `read` desde la línea de comandos: en zsh no imprime prompt,
+      se ve como una terminal colgada y la variable termina vacía.
 
       **`vercel env pull` no sirve para esto.** `DATABASE_URL` está marcada
       como sensible en el proyecto de Vercel, y las sensibles son de solo

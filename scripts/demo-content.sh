@@ -19,8 +19,7 @@
 # escritura: el archivo baja con `DATABASE_URL=""`. La cadena se saca de la
 # consola de Neon y se pasa sin dejarla en el historial:
 #
-#   read -rs DATABASE_URL; export DATABASE_URL
-#   ./scripts/demo-content.sh --from-env
+#   ./scripts/demo-content.sh --from-env   (pide la cadena y la lee él mismo)
 #
 # La otra opción, sin credenciales en esta máquina, es pegar
 # db/seed/demo_content.sql en el editor SQL de Neon.
@@ -30,20 +29,36 @@ set -euo pipefail
 origen="${1:-}"
 
 if [[ "$origen" == "--from-env" ]]; then
-  # La cadena ya viene en el entorno y **no se pisa con .env**, que es el
-  # error que comete `scripts/db.sh`. Es el camino para producción: las
-  # variables sensibles de Vercel no se pueden volver a leer con
-  # `vercel env pull` —salen en blanco— así que la cadena se saca de Neon y
-  # se pasa sin dejarla en el historial:
+  # La cadena viene del entorno y **no se pisa con .env**, que es el error
+  # que comete `scripts/db.sh`. Si no viene, se pide aquí adentro.
   #
-  #   read -rs DATABASE_URL; export DATABASE_URL
-  #   ./scripts/demo-content.sh --from-env
+  # Pedirla aquí y no en la línea de comandos es a propósito: un
+  # `read -rs DATABASE_URL` escrito para zsh no muestra prompt, así que se ve
+  # como una terminal colgada, se presiona Enter y la variable llega vacía.
+  # Este guion corre en bash y `read -rsp` sí imprime el prompt.
+  cd "$(dirname "$0")/.."
+
   if [[ -z "${DATABASE_URL:-}" ]]; then
-    echo "Con --from-env, DATABASE_URL tiene que venir exportada." >&2
+    # La terminal se prueba abriéndola, no con `-r`: en un entorno sin
+    # terminal de control /dev/tty aparece legible y falla al abrirse
+    # ("Device not configured"). Si no hay terminal, se acepta por tubería,
+    # que es como la pasa un guion.
+    if { : < /dev/tty; } 2>/dev/null; then
+      printf 'Pega la cadena de conexión de Neon (no se muestra) y Enter: ' >&2
+      IFS= read -rs DATABASE_URL < /dev/tty || DATABASE_URL=""
+      printf '\n' >&2
+    elif [[ ! -t 0 ]]; then
+      IFS= read -rs DATABASE_URL || DATABASE_URL=""
+    fi
+  fi
+
+  if [[ -z "${DATABASE_URL:-}" ]]; then
+    echo "Sin cadena de conexión: no hay nada que hacer." >&2
+    echo "Se saca de la consola de Neon → Connection string." >&2
     exit 1
   fi
-  cd "$(dirname "$0")/.."
-  echo "→ origen:   DATABASE_URL del entorno"
+
+  echo "→ origen:   cadena de conexión dada a mano"
 else
   # La ruta del archivo se resuelve **antes** de moverse al repositorio: si
   # no, un `.env.production.local` relativo se buscaría en la raíz del
