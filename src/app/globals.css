@@ -935,6 +935,15 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+/* El precio del panel lateral es el dato que decide la reserva — en la
+   referencia mide 32px/800 de peso, no el mismo tamaño de texto que el
+   resto de la ficha. Medido en vivo sobre `.tourmaster-tour-discount-price`,
+   sin el precio tachado que lo acompaña ahí: ese no existe en este negocio. */
+.detail-aside .price-amount {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
 .price-unit {
   font-size: var(--step--1);
   color: var(--text-muted);
@@ -1016,11 +1025,17 @@ main {
   }
 }
 
+/* Tarjeta flotante, no una caja con borde: en la referencia es blanco puro
+   sobre blanco, separada del resto solo por una sombra grande y suave
+   (`0 20px 35px rgba(0,0,0,.1)`, medida en vivo con `getComputedStyle` sobre
+   su propio elemento). `--surface` con un borde de 1px, lo que tenía antes,
+   se perdía contra el fondo — casi no hay diferencia de tono entre los dos. */
 .detail-aside {
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius);
-  padding: 20px;
+  background: var(--bg);
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 20px 35px rgb(0 0 0 / 10%);
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2443,12 +2458,6 @@ fieldset.field legend {
   background: var(--accent);
   border-radius: 100px;
   padding: 4px 12px;
-}
-
-/* La ficha de producto usa la misma sombra que el hero: es la misma familia
-   de "tarjeta flotante" en los dos lugares donde el huésped decide algo. */
-.detail-aside {
-  box-shadow: var(--shadow);
 }
 
 .gallery img {
