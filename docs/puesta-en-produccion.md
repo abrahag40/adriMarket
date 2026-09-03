@@ -60,14 +60,21 @@ quedan descartados en cualquier caso.
 
       ```bash
       vercel env pull .env.production.local --environment=production --yes
-      set -a; source .env.production.local; set +a
-      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/seed/demo_content.sql
+      ./scripts/demo-content.sh .env.production.local
       rm .env.production.local
       ```
 
+      El guion **imprime a qué servidor va antes de escribir** (con la
+      contraseña tapada) y el SQL informa cuántas filas encontró vacías y
+      cuántas dejó. Eso no es adorno: la primera vez que se corrió a mano
+      contra producción no cambió nada, y sin ese informe no había forma de
+      distinguir "se conectó a la base de al lado" de "no había nada que
+      llenar". Si la línea `destino:` dice `127.0.0.1` o `localhost`, fue a
+      la base local.
+
       Ojo con `./scripts/db.sh`: hace `source .env` y eso **pisa** cualquier
-      `DATABASE_URL` que le pases por la línea de comandos. Para producción,
-      `psql` directo.
+      `DATABASE_URL` que le pases por la línea de comandos. Por eso el
+      relleno tiene su propio guion y recibe el archivo por argumento.
 - [ ] Copias de seguridad automáticas activadas y **una restauración probada**.
       Una copia que nunca se restauró no es una copia.
 

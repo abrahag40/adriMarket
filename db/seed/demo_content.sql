@@ -33,6 +33,37 @@
 
 begin;
 
+-- 0. Dónde estoy y qué encuentro ---------------------------------------------
+--
+-- Un guion de relleno que trabaja en silencio no dice si acertó la base. La
+-- primera corrida contra producción no cambió nada y no había forma de saber
+-- si fue porque se conectó a otra base o porque no encontró filas vacías.
+
+do $$
+declare
+  productos   integer;
+  traducciones integer;
+  vacias      integer;
+  opciones    integer;
+  sin_pasos   integer;
+begin
+  select count(*) into productos from products;
+  select count(*) into traducciones from product_translations;
+  select count(*) into vacias
+    from product_translations
+   where highlights = '[]'::jsonb or included = '[]'::jsonb or excluded = '[]'::jsonb;
+  select count(*) into opciones from tour_options where active;
+  select count(*) into sin_pasos
+    from tour_options o
+   where o.active
+     and not exists (select 1 from tour_itinerary_steps x where x.tour_option_id = o.id);
+
+  raise notice '── base: % en %', current_database(), coalesce(host(inet_server_addr()), 'local');
+  raise notice '── productos: %, traducciones: %', productos, traducciones;
+  raise notice '── traducciones con algún arreglo vacío: %  (son las que voy a llenar)', vacias;
+  raise notice '── opciones de tour activas: %, sin itinerario: %', opciones, sin_pasos;
+end $$;
+
 -- 1. Lo mejor, qué incluye y qué no ------------------------------------------
 
 with contenido (kind, locale, highlights, included, excluded) as (
@@ -96,5 +127,25 @@ select o.id, s.position, s.time_label, s.title_es, s.title_en, s.description_es,
    and not exists (
      select 1 from tour_itinerary_steps x where x.tour_option_id = o.id
    );
+
+-- 3. Qué quedó ---------------------------------------------------------------
+
+do $$
+declare
+  vacias integer;
+  pasos  integer;
+begin
+  select count(*) into vacias
+    from product_translations
+   where highlights = '[]'::jsonb or included = '[]'::jsonb or excluded = '[]'::jsonb;
+  select count(*) into pasos from tour_itinerary_steps;
+
+  raise notice '── al terminar: % traducción(es) con arreglos vacíos, % paso(s) de itinerario',
+    vacias, pasos;
+  if vacias > 0 then
+    raise notice '── ojo: quedan arreglos vacíos. Si esperabas cero, esas traducciones';
+    raise notice '   son de productos con un kind distinto de tour/stay.';
+  end if;
+end $$;
 
 commit;
