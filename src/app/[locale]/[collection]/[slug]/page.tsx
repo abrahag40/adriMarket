@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
@@ -15,8 +14,8 @@ import { getMessages, type Messages } from "@/i18n/messages";
 import { absoluteUrl } from "@/site";
 import { getProductDetail, listCatalog, type ProductDetail } from "@/modules/catalog/queries";
 import { DetailTabs } from "@/components/detail-tabs";
+import { Gallery } from "@/components/gallery";
 import { ProductCard } from "@/components/product-card";
-import { ResponsiveImage } from "@/components/responsive-image";
 import { SpecIcon } from "@/components/spec-icon";
 import { StayBooking } from "@/components/stay-booking";
 import { TourBooking } from "@/components/tour-booking";
@@ -72,6 +71,46 @@ export async function generateMetadata({ params }: { params: RouteParams }): Pro
       },
     },
   };
+}
+
+/**
+ * Las dos marcas de las listas de "qué incluye" / "qué no incluye". La
+ * referencia usa dos PNG de 32px (`icon_check.png`, su gemelo tachado)
+ * dibujados a 18px; aquí son trazos propios al mismo tamaño, igual que el
+ * resto del set de `SpecIcon` — mismo lenguaje visual, sin copiar el activo
+ * de un tema de pago.
+ */
+function CheckMark() {
+  return (
+    <svg
+      className="icon-list-mark"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m4 12.5 5.5 5.5L20 6" />
+    </svg>
+  );
+}
+
+function CrossMark() {
+  return (
+    <svg
+      className="icon-list-mark"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="m5 5 14 14M19 5 5 19" />
+    </svg>
+  );
 }
 
 /**
@@ -192,8 +231,6 @@ export default async function ProductPage({
   const sp = await searchParams;
   const basePath = productPath(locale, kind, product.slug);
 
-  const [cover, ...rest] = product.media;
-  const secondary = rest.slice(0, 4);
   const unit = kind === "stay" ? t.perNight : t.perPerson;
 
   /* "También te puede interesar": mismo tipo de producto, sin el que ya se
@@ -206,22 +243,20 @@ export default async function ProductPage({
 
   const itinerary = product.tour?.itinerary ?? [];
 
+  /* Pestañas gruesas, como la referencia: ahí son cinco —Detail, Itinerary,
+     Map, FAQ, Reviews— y "Detail" cubre de un golpe la descripción, lo que
+     incluye, lo que no, y qué esperar. Antes había una pestaña por sección
+     (seis) y la fila se leía como un índice, no como la navegación de la
+     plantilla. Lo que incluye y lo que no ya viven dentro del bloque de
+     descripción, así que no necesitan ancla propia. */
   const tabs = [
     { id: "overview", label: t.detailNavOverview, show: true },
-    { id: "highlights", label: t.highlights, show: product.highlights.length > 0 },
     { id: "details", label: t.details, show: true },
     { id: "itinerary", label: t.itinerary, show: itinerary.length > 0 },
-    { id: "included", label: t.included, show: product.included.length > 0 },
-    { id: "excluded", label: t.notIncluded, show: product.excluded.length > 0 },
   ].filter((tab) => tab.show);
 
   return (
     <article className="stack">
-      <p className="breadcrumb">
-        <Link href={`/${locale}`}>{t.siteName}</Link> ·{" "}
-        {kind === "tour" ? t.filterKindTour : t.filterKindStay}
-      </p>
-
       {tabs.length > 1 ? <DetailTabs tabs={tabs} /> : null}
 
       <div className="stack-sm">
@@ -236,55 +271,87 @@ export default async function ProductPage({
         <QuickFacts product={product} kind={kind} t={t} />
       </div>
 
-      {cover ? (
-        <div className={secondary.length > 0 ? "gallery" : "gallery gallery-solo"}>
-          <figure className="gallery-main">
-            {/* La principal se carga de inmediato: es lo que el huésped vino a
-                ver, y diferirla retrasa justo eso. */}
-            <ResponsiveImage
-              src={cover.url}
-              alt={cover.alt ?? product.name}
-              width={cover.width ?? 1200}
-              height={cover.height ?? 800}
-              variants={cover.variants}
-              sizes={secondary.length > 0 ? "(min-width: 900px) 66vw, 100vw" : "100vw"}
-              priority
-            />
-          </figure>
-          {/* El catálogo real casi nunca llega a las cuatro fotos secundarias
-              de la referencia — la mayoría de los productos tiene una o dos.
-              Un `grid-template-columns` fijo a tres columnas dejaba ese
-              espacio vacío en vez de repartirlo: la principal se veía a la
-              mitad de su ancho. `.gallery-thumbs` reparte lo que haya. */}
-          {secondary.length > 0 ? (
-            <div className="gallery-thumbs">
-              {secondary.map((item) => (
-                <figure key={item.url}>
-                  <ResponsiveImage
-                    src={item.url}
-                    alt={item.alt ?? ""}
-                    width={item.width ?? 800}
-                    height={item.height ?? 600}
-                    variants={item.variants}
-                    sizes="(min-width: 900px) 16vw, 50vw"
-                  />
-                </figure>
-              ))}
+      <Gallery
+        photos={product.media}
+        productName={product.name}
+        labels={{
+          open: t.galleryOpen,
+          close: t.galleryClose,
+          prev: t.carouselPrev,
+          next: t.carouselNext,
+          photoCount: t.galleryPhotoCount(product.media.length),
+          /* Resueltos aquí, uno por foto: el diccionario vive en el
+             servidor y una función no cruza al componente de cliente. */
+          openPhoto: product.media.map((_, index) => t.galleryOpenPhoto(index + 1)),
+          counter: product.media.map((_, index) =>
+            t.galleryCounter(index + 1, product.media.length),
+          ),
+        }}
+      />
+
+      {/* Arquitectura del bloque de descripción, copiada de la referencia:
+          un solo hilo de bloques separados por una línea de 1px, no seis
+          secciones apiladas con el mismo peso.
+
+            Detalle          título + párrafos a 18px
+            Qué incluye      etiqueta a la izquierda, lista a la derecha
+            Qué no incluye   igual, con la marca de tachado
+            ─────────────    divisor
+            Lo mejor         título + lista de viñetas redondas
+            ─────────────
+            Detalles         título + ficha técnica
+            ─────────────
+            Itinerario       título + pasos con divisor entre uno y otro
+
+          Lo que incluye y lo que no van en dos columnas al 50 % porque así
+          están en la referencia (`gdlr-core-column-30` + `gdlr-core-column-30`),
+          y porque una etiqueta corta al lado de una lista corta llena el
+          ancho que una sección apilada desperdicia. */}
+      <div className="detail">
+        <div className="detail-body">
+          <section id="overview" className="detail-block">
+            <h2 className="section-title">{t.detailNavOverview}</h2>
+            {product.description ? (
+              <div className="detail-prose">
+                {product.description.split(/\n{2,}/).map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          {product.included.length > 0 ? (
+            <div className="detail-split">
+              <p className="detail-split-label">{t.included}</p>
+              <ul className="icon-list">
+                {product.included.map((item) => (
+                  <li key={item}>
+                    <CheckMark />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
-        </div>
-      ) : null}
 
-      <div className="detail">
-        <div className="stack">
-          <div id="overview" className="stack-sm">
-            {product.description ? <p className="prose muted">{product.description}</p> : null}
-          </div>
+          {product.excluded.length > 0 ? (
+            <div className="detail-split">
+              <p className="detail-split-label">{t.notIncluded}</p>
+              <ul className="icon-list icon-list-excluded">
+                {product.excluded.map((item) => (
+                  <li key={item}>
+                    <CrossMark />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {product.highlights.length > 0 ? (
-            <section id="highlights" className="stack-sm">
+            <section id="highlights" className="detail-block detail-block-divided">
               <h2 className="section-title">{t.highlights}</h2>
-              <ul className="check-list">
+              <ul className="dot-list">
                 {product.highlights.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -292,7 +359,7 @@ export default async function ProductPage({
             </section>
           ) : null}
 
-          <section id="details" className="stack-sm">
+          <section id="details" className="detail-block detail-block-divided">
             <h2 className="section-title">{t.details}</h2>
             {kind === "stay" ? (
               <StaySpecs product={product} t={t} />
@@ -302,41 +369,24 @@ export default async function ProductPage({
           </section>
 
           {itinerary.length > 0 ? (
-            <section id="itinerary" className="stack-sm">
+            <section id="itinerary" className="detail-block detail-block-divided">
               <h2 className="section-title">{t.itinerary}</h2>
+              {/* La referencia esconde cada día detrás de un acordeón; aquí
+                  los pasos son las horas de un mismo día y son tres, no seis
+                  días. Se queda la tipografía y el divisor de la referencia
+                  —título en serif de 18px, línea entre paso y paso— con el
+                  contenido siempre a la vista. */}
               <ol className="itinerary-list">
                 {itinerary.map((step, index) => (
                   <li key={index}>
-                    {step.timeLabel ? <span className="itinerary-time">{step.timeLabel}</span> : null}
-                    <span className="itinerary-body">
-                      <span className="itinerary-title">{step.title}</span>
-                      {step.description ? <span className="muted">{step.description}</span> : null}
-                    </span>
+                    <p className="itinerary-title">
+                      {step.timeLabel ? <span className="itinerary-time">{step.timeLabel}</span> : null}
+                      {step.title}
+                    </p>
+                    {step.description ? <p className="itinerary-body">{step.description}</p> : null}
                   </li>
                 ))}
               </ol>
-            </section>
-          ) : null}
-
-          {product.included.length > 0 ? (
-            <section id="included" className="stack-sm">
-              <h2 className="section-title">{t.included}</h2>
-              <ul className="check-list">
-                {product.included.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {product.excluded.length > 0 ? (
-            <section id="excluded" className="stack-sm">
-              <h2 className="section-title">{t.notIncluded}</h2>
-              <ul className="check-list excluded">
-                {product.excluded.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
             </section>
           ) : null}
         </div>

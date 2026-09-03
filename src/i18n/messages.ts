@@ -35,6 +35,11 @@ export type Messages = {
   confidenceHeading: string;
   carouselPrev: string;
   carouselNext: string;
+  galleryOpen: string;
+  galleryClose: string;
+  galleryPhotoCount: (n: number) => string;
+  galleryCounter: (index: number, total: number) => string;
+  galleryOpenPhoto: (index: number) => string;
   trustBadgeText: string;
   newsletterHeading: string;
   newsletterBody: string;
@@ -206,6 +211,11 @@ const es: Messages = {
   confidenceHeading: "Reserva con confianza",
   carouselPrev: "Anterior",
   carouselNext: "Siguiente",
+  galleryOpen: "Galería",
+  galleryClose: "Cerrar galería",
+  galleryPhotoCount: (n) => (n === 1 ? "1 foto" : `${n} fotos`),
+  galleryCounter: (index, total) => `${index} de ${total}`,
+  galleryOpenPhoto: (index) => `Ver foto ${index} en grande`,
   trustBadgeText: "Pago seguro con tarjeta, por Stripe",
   newsletterHeading: "No te pierdas nada",
   newsletterBody: "Avisos de nuevos tours y estancias, sin relleno.",
@@ -382,6 +392,11 @@ const en: Messages = {
   confidenceHeading: "Book with confidence",
   carouselPrev: "Previous",
   carouselNext: "Next",
+  galleryOpen: "Gallery",
+  galleryClose: "Close gallery",
+  galleryPhotoCount: (n) => (n === 1 ? "1 photo" : `${n} photos`),
+  galleryCounter: (index, total) => `${index} of ${total}`,
+  galleryOpenPhoto: (index) => `View photo ${index} full size`,
   trustBadgeText: "Secure card payment, by Stripe",
   newsletterHeading: "Don't miss a thing",
   newsletterBody: "New tours and stays, straight to your inbox — no filler.",
