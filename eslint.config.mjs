@@ -20,6 +20,10 @@ const config = [
       // Generado por introspección de la base: lo que haya que corregir se
       // corrige en el esquema, no en el archivo generado.
       "src/db/generated/**",
+      // Copias del repositorio que crean las sesiones con worktree. Sin esto
+      // `npm run lint` recorre el clon entero —incluido su node_modules— y
+      // reporta miles de problemas que no son de este árbol.
+      ".claude/worktrees/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

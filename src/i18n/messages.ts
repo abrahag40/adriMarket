@@ -141,6 +141,8 @@ export type Messages = {
 
   // Checkout · Sprint 3
   bookNow: string;
+  /** Nombre accesible del enlace de la barra fija: no puede repetir el del botón real. */
+  bookNowJump: string;
   checkoutTitle: string;
   checkoutHolder: string;
   fieldName: string;
@@ -321,6 +323,7 @@ const es: Messages = {
   errDepartureClosed: "Esa salida no está disponible.",
 
   bookNow: "Reservar",
+  bookNowJump: "Ir a reservar",
   checkoutTitle: "Confirma tu reserva",
   checkoutHolder: "Datos de quien reserva",
   fieldName: "Nombre completo",
@@ -501,6 +504,7 @@ const en: Messages = {
   errDepartureClosed: "That departure is not available.",
 
   bookNow: "Book now",
+  bookNowJump: "Go to booking",
   checkoutTitle: "Confirm your booking",
   checkoutHolder: "Who is booking",
   fieldName: "Full name",

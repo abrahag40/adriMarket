@@ -9,6 +9,8 @@ node_modules/
 .next/
 dist/
 *.log
+# Copias del repositorio que crean las sesiones con worktree.
+.claude/worktrees/
 
 # Baseline que genera drizzle-kit al introspectar: no se aplica nunca, las
 # migraciones reales están escritas a mano en db/migrations.

@@ -209,7 +209,10 @@ else no(`los filtros no funcionan sin JavaScript (${soloTours} de ${tarjetas})`)
 await page.goto(`${base}/es/estancias/casa-akumal?${RANGO}`, { waitUntil: "domcontentloaded" });
 if ((await page.locator(".quote-total").count()) > 0) ok("la cotización se ve");
 else no("la cotización no se ve sin JavaScript");
-if ((await page.getByRole("link", { name: "Reservar" }).count()) > 0) ok("y se puede reservar");
+// Dentro de la tarjeta de reserva: el atajo de la barra fija del teléfono
+// se llama igual y aparecería aunque el enlace real no estuviera.
+if ((await page.locator("#reservar").getByRole("link", { name: "Reservar" }).count()) > 0)
+  ok("y se puede reservar");
 else no("no se puede llegar al checkout sin JavaScript");
 
 await page.goto(`${base}/es/checkout?kind=stay&slug=casa-akumal&${RANGO}`, {

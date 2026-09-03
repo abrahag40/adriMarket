@@ -736,10 +736,15 @@ main {
   align-items: flex-end;
 }
 
+/* `min-width: 0` en el campo y en el `select`: un `select` se ensancha solo
+   hasta su opción más larga, y "vie 4 de sep · 12 lugares disponibles" pedía
+   350px dentro de una tarjeta de 295 — la ficha entera se desplazaba en
+   horizontal en el teléfono. */
 .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 /* El reparto horizontal solo aplica dentro de una fila de filtros.
@@ -758,6 +763,8 @@ main {
 
 .field select {
   min-height: var(--tap);
+  min-width: 0;
+  max-width: 100%;
   padding: 0 12px;
   font: inherit;
   font-size: var(--step-0);
@@ -1209,11 +1216,20 @@ main {
    referencia (847 / 423 px sobre su contenedor de 1270). Un ancho fijo de
    320px dejaba el panel más angosto que el de la plantilla en cualquier
    pantalla grande. */
+/* `minmax(0, 1fr)` y no `1fr`: por omisión una pista de rejilla no baja del
+   ancho mínimo de su contenido, así que el calendario de disponibilidad
+   —siete columnas de días— estiraba la columna a 398px dentro de una
+   pantalla de 375 y **la página entera se desplazaba en horizontal**. */
 .detail {
   display: grid;
   gap: 32px;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
+}
+
+.detail-body,
+.detail-aside {
+  min-width: 0;
 }
 
 @media (min-width: 900px) {
@@ -1222,12 +1238,24 @@ main {
   }
 }
 
-/* Tarjeta flotante, no una caja con borde: en la referencia es blanco puro
-   sobre blanco, separada del resto solo por una sombra grande y suave
-   (`0 20px 35px rgba(0,0,0,.1)`, medida en vivo con `getComputedStyle` sobre
-   su propio elemento). `--surface` con un borde de 1px, lo que tenía antes,
-   se perdía contra el fondo — casi no hay diferencia de tono entre los dos. */
+/* El panel lateral es una columna de tarjetas sueltas, no una caja con todo
+   dentro. En la referencia son cajas independientes de 383px, blancas, con
+   10px de radio y sombra propia, separadas por 40px — ese aire entre ellas
+   es la mitad del efecto. Antes era un solo contenedor con sombra y los tres
+   bloques apretados adentro. */
 .detail-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  position: sticky;
+  top: 16px;
+}
+
+/* Blanco puro sobre blanco, separada del resto solo por una sombra grande y
+   suave (`0 20px 35px rgba(0,0,0,.1)`, medida en vivo con `getComputedStyle`
+   sobre su propio elemento). `--surface` con un borde de 1px, lo que tenía
+   antes, se perdía contra el fondo. */
+.aside-card {
   background: var(--bg);
   border: none;
   border-radius: 10px;
@@ -1236,8 +1264,6 @@ main {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 16px;
 }
 
 /* Fila de ícono + dato, medida sobre la referencia: ícono de 24px en el
@@ -1299,8 +1325,28 @@ main {
   flex-direction: column;
 }
 
+/* Sin JavaScript el enlace `#itinerario` lo resuelve el navegador, y sin este
+   margen la sección aterriza pegada al borde superior, debajo de la cabecera.
+   Es el mismo desplazamiento que aplica el clic con JavaScript. */
+.detail-body > [id] {
+  scroll-margin-top: 96px;
+}
+
+/*
+ * El ritmo vertical sale de medir la referencia en vivo, no de redondear a
+ * ojo. Distancias reales entre elementos:
+ *
+ *   título de sección → su párrafo            30–36 px
+ *   párrafo → primera viñeta de una lista     35 px
+ *   último párrafo → etiqueta del siguiente   55 px
+ *   último ítem de lista → divisor            65–72 px
+ *   divisor → siguiente título                56–61 px
+ *
+ * Estaba a 35 + 40 = 75 px entre sección y sección, contra los ~128 px de la
+ * referencia: por eso se leía apretado.
+ */
 .detail-block {
-  padding-bottom: 35px;
+  padding-bottom: 55px;
 }
 
 .detail-body > :last-child {
@@ -1309,12 +1355,13 @@ main {
 
 .detail-block-divided {
   border-top: 1px solid var(--line);
-  padding-top: 40px;
+  padding-top: 58px;
+  margin-top: 15px;
 }
 
 .detail-block .section-title {
   font-size: 1.625rem;
-  margin-bottom: 22px;
+  margin-bottom: 32px;
 }
 
 .detail-prose {
@@ -1334,8 +1381,8 @@ main {
 .detail-split {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px 24px;
-  padding-bottom: 35px;
+  gap: 14px 24px;
+  padding-bottom: 55px;
 }
 
 @media (min-width: 720px) {
@@ -1456,6 +1503,26 @@ main {
   border-bottom: none;
 }
 
+/* El paso es un `<details>`: se abre y se cierra sin JavaScript, y el
+   componente de cliente solo agrega la animación de altura. El triángulo
+   nativo se quita —hay un chevrón propio a la derecha, como la referencia. */
+.itinerary-list summary {
+  cursor: pointer;
+  list-style: none;
+  padding-right: 28px;
+  position: relative;
+}
+
+.itinerary-list summary::-webkit-details-marker {
+  display: none;
+}
+
+.itinerary-list summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 .itinerary-title {
   display: flex;
   align-items: baseline;
@@ -1465,10 +1532,38 @@ main {
   font-weight: 700;
 }
 
-/* El primer paso en el azul de acento: en la referencia es el día que el
+.itinerary-chevron {
+  position: absolute;
+  right: 0;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  transition: transform 200ms ease;
+}
+
+.itinerary-chevron svg {
+  width: 100%;
+  height: 100%;
+}
+
+.itinerary-list details[open] .itinerary-chevron {
+  transform: rotate(180deg);
+}
+
+/* El paso abierto en el azul de acento: en la referencia es el día que el
    acordeón deja abierto, y ese es su color. */
-.itinerary-list li:first-child .itinerary-title {
+.itinerary-list details[open] .itinerary-title {
   color: var(--accent);
+}
+
+.itinerary-list summary:hover .itinerary-step-name {
+  color: var(--accent);
+}
+
+/* La animación de altura necesita recortar lo que sobra mientras corre. */
+.itinerary-panel {
+  overflow: hidden;
 }
 
 /* La hora lleva color propio, no la del título rebajada con `opacity`: sobre
@@ -1577,17 +1672,19 @@ main {
 /* Caja de confianza del panel lateral — el lugar que ocupa "Book With
    Confidence" en la referencia, con los mismos tres hechos reales de
    `ValueProps` (no las cuatro afirmaciones de mercadeo de la referencia,
-   que no tienen nada real detrás en este negocio), en una columna angosta. */
+   que no tienen nada real detrás en este negocio), en una columna angosta.
+   Ya no lleva borde superior: es una tarjeta aparte, como allá. */
 .detail-aside-confidence {
-  padding-top: 4px;
-  border-top: 1px solid var(--line-soft);
+  padding: 28px 26px 32px;
+  gap: 0;
 }
 
+/* 23px en la referencia, no el tamaño del texto corrido. */
 .detail-aside-confidence-heading {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: var(--step-0);
-  margin-bottom: 12px;
+  font-size: 1.4375rem;
+  margin-bottom: 20px;
 }
 
 .detail-aside-confidence .value-props {
@@ -1865,17 +1962,77 @@ main {
   border: 1px solid var(--line);
 }
 
+/* ---------- la ficha en el teléfono ---------- */
+
 /*
- * En una sola columna la caja de reserva va arriba, no al final.
+ * La referencia en 375px hace cuatro cosas, y las cuatro están aquí:
  *
- * Sin esto, en un teléfono el huésped tiene que recorrer toda la descripción
- * antes de ver el precio: la decisión que vino a tomar queda escondida detrás
- * de la lectura opcional.
+ *   1. Esconde la fila de pestañas.
+ *   2. Apila la fila de datos rápidos, un dato por renglón.
+ *   3. Manda el panel de reserva **después** del contenido.
+ *   4. Fija abajo una barra con el precio y "Reservar"
+ *      (`tourmaster-mobile-booknow-bar`, 53px de alto, fondo blanco).
+ *
+ * El punto 3 era al revés aquí: el panel iba arriba (`order: -1`) porque si
+ * no, el precio quedaba al final de una página larguísima. La barra fija
+ * resuelve eso mejor —el precio y el botón están siempre a la vista— así que
+ * el panel puede volver a su lugar natural, después de lo que se lee.
  */
 @media (max-width: 899px) {
   .detail-aside {
-    order: -1;
     position: static;
+    gap: 24px;
+  }
+
+  .detail-tabs {
+    display: none;
+  }
+
+  .spec-list {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  /* Sitio para la barra fija: sin esto tapa el pie de página. */
+  body:has(.mobile-book-bar) {
+    padding-bottom: 72px;
+  }
+}
+
+.mobile-book-bar {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .mobile-book-bar {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px clamp(16px, 4vw, 32px);
+    background: var(--bg);
+    border-top: 1px solid var(--line-soft);
+    box-shadow: 0 -6px 20px rgb(10 10 10 / 8%);
+  }
+
+  .mobile-book-bar-price {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .mobile-book-bar .price-amount {
+    font-size: 1.25rem;
+    font-weight: 800;
+  }
+
+  .mobile-book-bar .price-unit {
+    display: none;
   }
 }
 

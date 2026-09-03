@@ -71,7 +71,9 @@ for (const salida of jueves) {
     `${base}/es/estancias/casa-akumal?from=${candidato.from}&to=${candidato.to}&guests=5`,
     { waitUntil: "networkidle" },
   );
-  if ((await page.getByRole("link", { name: "Reservar" }).count()) > 0) {
+  // Acotado a la tarjeta de reserva: la barra fija del teléfono tiene su
+  // propio enlace "Reservar" y existe siempre, haya o no disponibilidad.
+  if ((await page.locator("#reservar").getByRole("link", { name: "Reservar" }).count()) > 0) {
     rango = candidato;
     break;
   }
@@ -85,7 +87,11 @@ if (total.includes("16,184")) ok(`la ficha cotiza ${total}`);
 else fail(`total inesperado: ${total}`);
 await page.screenshot({ path: `${out}/01-ficha-con-boton.png`, fullPage: true });
 
-await page.getByRole("link", { name: "Reservar" }).click();
+// Acotado a la tarjeta de reserva: la barra fija del teléfono tiene su
+// propio enlace "Reservar" —un atajo a esta misma tarjeta— y sin acotar,
+// el recorrido hacía clic en el atajo y se quedaba esperando una
+// navegación que nunca ocurría.
+await page.locator("#reservar").getByRole("link", { name: "Reservar" }).click();
 await page.waitForURL(/\/checkout/);
 ok("el botón lleva al checkout");
 

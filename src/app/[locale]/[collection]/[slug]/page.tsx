@@ -15,6 +15,7 @@ import { absoluteUrl } from "@/site";
 import { getProductDetail, listCatalog, type ProductDetail } from "@/modules/catalog/queries";
 import { DetailTabs } from "@/components/detail-tabs";
 import { Gallery } from "@/components/gallery";
+import { Itinerary } from "@/components/itinerary";
 import { ProductCard } from "@/components/product-card";
 import { SpecIcon } from "@/components/spec-icon";
 import { StayBooking } from "@/components/stay-booking";
@@ -376,27 +377,20 @@ export default async function ProductPage({
           {itinerary.length > 0 ? (
             <section id="itinerary" className="detail-block detail-block-divided">
               <h2 className="section-title">{t.itinerary}</h2>
-              {/* La referencia esconde cada día detrás de un acordeón; aquí
-                  los pasos son las horas de un mismo día y son tres, no seis
-                  días. Se queda la tipografía y el divisor de la referencia
-                  —título en serif de 18px, línea entre paso y paso— con el
-                  contenido siempre a la vista. */}
-              <ol className="itinerary-list">
-                {itinerary.map((step, index) => (
-                  <li key={index}>
-                    <p className="itinerary-title">
-                      {step.timeLabel ? <span className="itinerary-time">{step.timeLabel}</span> : null}
-                      {step.title}
-                    </p>
-                    {step.description ? <p className="itinerary-body">{step.description}</p> : null}
-                  </li>
-                ))}
-              </ol>
+              <Itinerary steps={itinerary} />
             </section>
           ) : null}
         </div>
 
+        {/* Tres tarjetas sueltas, no una caja con todo dentro: en la
+            referencia el panel lateral son cajas independientes —la de
+            reserva y la de "Book With Confidence", cada una blanca con su
+            sombra y 10px de radio, separadas por 40px— y eso es lo que le
+            da aire. La tercera de allá, "Need Help?" con borde negro, lleva
+            un teléfono y un correo de atención que este negocio todavía no
+            tiene; inventarlos sería peor que no ponerla. */}
         <aside className="detail-aside">
+          <div className="aside-card" id="reservar">
           {product.fromCents !== null ? (
             <p className="price">
               <span className="price-label">{t.fromPrice}</span>
@@ -440,9 +434,10 @@ export default async function ProductPage({
             />
           )}
 
-          <p className="detail-aside-trust">{t.trustBadgeText}</p>
+            <p className="detail-aside-trust">{t.trustBadgeText}</p>
+          </div>
 
-          <div className="detail-aside-confidence">
+          <div className="aside-card detail-aside-confidence">
             <h2 className="detail-aside-confidence-heading">{t.confidenceHeading}</h2>
             <ValueProps
               items={[
@@ -466,6 +461,30 @@ export default async function ProductPage({
           </div>
         </aside>
       </div>
+
+      {/* Barra fija de reserva en el teléfono, como la
+          `tourmaster-mobile-booknow-bar` de la referencia: el panel lateral
+          queda al final de una página muy larga, y sin esto el precio y el
+          botón de reservar solo existen después de mucho desplazamiento. */}
+      {product.fromCents !== null ? (
+        <div className="mobile-book-bar">
+          <p className="mobile-book-bar-price">
+            <span className="price-label">{t.fromPrice}</span>
+            <span className="price-amount">
+              {formatMoney(product.fromCents, product.currency, locale)}
+            </span>
+            <span className="price-unit">{unit}</span>
+          </p>
+          {/* El nombre accesible no puede ser el mismo que el del botón real
+              de la tarjeta: dos enlaces llamados "Reservar" que llevan a
+              lugares distintos confunden a quien navega por lista de
+              enlaces. El texto visible sí se queda ("Reservar"), y el
+              nombre accesible lo contiene, como pide WCAG 2.5.3. */}
+          <a className="btn btn-primary" href="#reservar" aria-label={t.bookNowJump}>
+            {t.bookNow}
+          </a>
+        </div>
+      ) : null}
 
       {related.length > 0 ? (
         <section className="stack-sm" aria-labelledby="related-heading">

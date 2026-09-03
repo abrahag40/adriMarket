@@ -128,20 +128,62 @@ select o.id, s.position, s.time_label, s.title_es, s.title_en, s.description_es,
      select 1 from tour_itinerary_steps x where x.tour_option_id = o.id
    );
 
--- 3. Qué quedó ---------------------------------------------------------------
+-- 3. Fotos de relleno --------------------------------------------------------
+--
+-- La cuadrícula de la referencia es una principal más cuatro miniaturas en
+-- 2×2. Con una sola foto —como están los tres tours de producción— se ve la
+-- variante de portada a todo lo ancho y nunca la cuadrícula, que es
+-- justamente lo que hay que poder juzgar.
+--
+-- Son fotos de relleno de un servicio público (picsum.photos), con semilla
+-- fija para que cada producto tenga siempre las mismas y no bailen entre
+-- recargas. **No son las fotos del negocio**: se van en cuanto el cliente
+-- suba las suyas por el panel, que es lo que llena `product_media` de
+-- verdad. Solo se agregan a los productos que tienen menos de cinco.
+
+with faltantes as (
+  select p.id,
+         count(m.id) as tiene,
+         5 - count(m.id) as faltan,
+         coalesce(max(m.position), -1) as ultima
+    from products p
+    left join product_media m on m.product_id = p.id
+   group by p.id
+  having count(m.id) between 1 and 4
+)
+insert into product_media (product_id, url, alt_es, alt_en, width, height, position)
+select f.id,
+       'https://picsum.photos/seed/' || f.id || '-' || n || '/1200/800',
+       'Foto de relleno', 'Filler photo',
+       1200, 800,
+       f.ultima + n
+  from faltantes f
+ cross join generate_series(1, 4) n
+ where n <= f.faltan;
+
+-- 4. Qué quedó ---------------------------------------------------------------
 
 do $$
 declare
   vacias integer;
   pasos  integer;
+  fotos  integer;
+  pocas  integer;
 begin
   select count(*) into vacias
     from product_translations
    where highlights = '[]'::jsonb or included = '[]'::jsonb or excluded = '[]'::jsonb;
   select count(*) into pasos from tour_itinerary_steps;
+  select count(*) into fotos from product_media;
+  select count(*) into pocas from (
+    select p.id from products p
+      join product_media m on m.product_id = p.id
+     group by p.id having count(m.id) < 5
+  ) q;
 
   raise notice '── al terminar: % traducción(es) con arreglos vacíos, % paso(s) de itinerario',
     vacias, pasos;
+  raise notice '── fotos: % en total, % producto(s) con menos de cinco', fotos, pocas;
   if vacias > 0 then
     raise notice '── ojo: quedan arreglos vacíos. Si esperabas cero, esas traducciones';
     raise notice '   son de productos con un kind distinto de tour/stay.';
