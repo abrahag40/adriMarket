@@ -1213,12 +1213,14 @@ main {
 /* Franja ancha, no una línea de enlaces al ras del contenido: la referencia
    la pone justo bajo la cabecera, con su propio espacio arriba y abajo, para
    que se lea como la navegación principal de la ficha — no como un detalle
-   perdido entre el título y la descripción. */
+   perdido entre el título y la descripción. 22px de relleno vertical, medido
+   directo sobre su HTML (`padding-top/bottom: 22px` en cada enlace), no un
+   valor a ojo — el doble de lo que tenía antes. */
 .detail-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 32px;
-  padding-block: 14px;
+  padding-block: 22px;
   border-top: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft);
 }
