@@ -19,11 +19,21 @@
  * producción.
  */
 
+import { existsSync } from "node:fs";
+
 import { chromium } from "playwright";
 
 const base = process.env.BASE_URL ?? "http://127.0.0.1:3100";
 const out = process.argv[2] ?? ".";
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+/* La ruta fija es la del contenedor donde se escribió esto, y ahí sigue
+   valiendo. En una máquina de trabajo no existe y el recorrido tronaba antes
+   del primer paso ("executable doesn't exist"), así que si no está se deja
+   que Playwright resuelva el Chromium que ya tiene instalado.
+   `CHROMIUM_PATH` manda sobre las dos. */
+const chromiumPath = process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium";
+const browser = await chromium.launch(
+  existsSync(chromiumPath) ? { executablePath: chromiumPath } : {},
+);
 const ctx = await browser.newContext({ deviceScaleFactor: 2, viewport: { width: 390, height: 900 } });
 const page = await ctx.newPage();
 

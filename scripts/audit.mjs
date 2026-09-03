@@ -22,7 +22,7 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { chromium } from "playwright";
 
@@ -55,7 +55,16 @@ function query(sql) {
 const PRESUPUESTO = { total: 200, js: 140 };
 
 const axe = readFileSync("node_modules/axe-core/axe.min.js", "utf8");
-const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+
+/* La ruta fija es la del contenedor donde se escribió esto, y ahí sigue
+   valiendo. En una máquina de trabajo no existe y la auditoría tronaba antes
+   de la primera comprobación ("executable doesn't exist"), así que si no está
+   se deja que Playwright resuelva el Chromium que ya tiene instalado.
+   `CHROMIUM_PATH` manda sobre las dos. */
+const chromiumPath = process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium";
+const browser = await chromium.launch(
+  existsSync(chromiumPath) ? { executablePath: chromiumPath } : {},
+);
 
 const RANGO = "from=2026-09-17&to=2026-09-20&guests=5";
 const publicas = [
