@@ -1,6 +1,11 @@
 node_modules/
+# Cualquier variante, no solo estas dos: `vercel env pull` escribe
+# `.env.production.local` por omisión, y ahí viene la cadena de conexión a la
+# base de producción. Con `.env` y `.env.local` sueltos, ese archivo entraba
+# al repositorio sin que nadie lo notara.
 .env
-.env.local
+.env.*
+!.env.example
 .next/
 dist/
 *.log

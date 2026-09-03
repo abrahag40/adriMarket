@@ -52,6 +52,22 @@ quedan descartados en cualquier caso.
       el límite real es *(instancias × este valor)* y las instancias suben solas.
 - [ ] `npm run db:migrate` — aplica en orden y registra lo aplicado.
 - [ ] **No correr el seed.** Son datos de desarrollo.
+- [ ] Opcional, y **no es el seed**: `db/seed/demo_content.sql` rellena los
+      bloques de la ficha que estén vacíos —qué incluye, qué no incluye, lo
+      mejor e itinerario— para que la página no se vea a medias mientras el
+      cliente escribe su copia. Solo llena lo vacío, nunca toca la
+      descripción, y es idempotente:
+
+      ```bash
+      vercel env pull .env.production.local --environment=production --yes
+      set -a; source .env.production.local; set +a
+      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/seed/demo_content.sql
+      rm .env.production.local
+      ```
+
+      Ojo con `./scripts/db.sh`: hace `source .env` y eso **pisa** cualquier
+      `DATABASE_URL` que le pases por la línea de comandos. Para producción,
+      `psql` directo.
 - [ ] Copias de seguridad automáticas activadas y **una restauración probada**.
       Una copia que nunca se restauró no es una copia.
 
