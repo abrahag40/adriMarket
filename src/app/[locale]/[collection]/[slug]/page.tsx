@@ -309,14 +309,19 @@ export default async function ProductPage({
           ancho que una sección apilada desperdicia. */}
       <div className="detail">
         <div className="detail-body">
-          <section id="overview" className="detail-block">
-            <h2 className="section-title">{t.detailNavOverview}</h2>
+          {/* Un producto sin descripción cargada deja el ancla en pie —la
+              pestaña "Detalle" sigue apuntando a algo— pero no un título
+              huérfano encima de la nada. */}
+          <section id="overview" className={product.description ? "detail-block" : undefined}>
             {product.description ? (
-              <div className="detail-prose">
-                {product.description.split(/\n{2,}/).map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-              </div>
+              <>
+                <h2 className="section-title">{t.detailNavOverview}</h2>
+                <div className="detail-prose">
+                  {product.description.split(/\n{2,}/).map((paragraph) => (
+                    <p key={paragraph}>{paragraph}</p>
+                  ))}
+                </div>
+              </>
             ) : null}
           </section>
 
