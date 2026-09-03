@@ -679,12 +679,14 @@ main {
   text-wrap: balance;
 }
 
-/* Solo la ficha de producto: la referencia titula a 40px, un paso más que
-   `--step-3`. El panel de operación comparte `.page-title` en veinte
-   páginas distintas — cambiarlo ahí habría sido un efecto secundario, no
-   el pedido. */
+/* Solo la ficha de producto: la referencia titula a 44px/1.2, medido en vivo
+   sobre `.tourmaster-tour-title-item-title` — ni `--step-3` (32px) ni
+   `--step-4` (40px) caen ahí. El panel de operación comparte `.page-title`
+   en veinte páginas distintas — cambiarlo ahí habría sido un efecto
+   secundario, no el pedido. */
 .product-title {
-  font-size: var(--step-4);
+  font-size: 2.75rem;
+  line-height: 1.2;
 }
 
 .section-title {
@@ -976,7 +978,7 @@ main {
 
 .gallery {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   grid-template-columns: 1fr;
 }
 
