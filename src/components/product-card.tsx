@@ -48,6 +48,12 @@ export function ProductCard({ item, locale }: { item: CatalogCard; locale: Local
         {/* Sin foto no hay dónde poner la insignia: el tipo se queda como
             etiqueta de texto para no perder el dato. */}
         {item.coverUrl ? null : <span className="card-kind">{kindLabel}</span>}
+        {/* El enlace del título se estira sobre toda la tarjeta con un
+            pseudoelemento (`.card-title a::after`), así que se entra al
+            detalle pulsando cualquier parte —la foto, el precio, el hueco—
+            y no solo las letras del nombre. Sigue siendo **un solo enlace**
+            con el nombre del producto: repetir el enlace en la foto le daría
+            dos entradas idénticas a un lector de pantalla. */}
         <h3 className="card-title">
           <Link href={href}>{item.name}</Link>
         </h3>

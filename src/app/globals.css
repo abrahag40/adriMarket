@@ -849,7 +849,11 @@ main {
   padding: 0;
 }
 
+/* `position: relative` para que el enlace del título pueda estirarse sobre
+   toda la tarjeta: se entra al detalle pulsando cualquier parte, no solo las
+   letras del nombre. */
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -911,6 +915,17 @@ main {
 .card-title a {
   color: var(--text);
   text-decoration: none;
+}
+
+/* La zona pulsable es la tarjeta entera. Se hace con un pseudoelemento y no
+   envolviendo todo en un `<a>` porque dentro hay una insignia y un precio:
+   meterlos en el enlace le daría a un lector de pantalla un nombre larguísimo
+   en vez del nombre del producto. */
+.card-title a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
 }
 
 .card-title a:hover {

@@ -184,8 +184,12 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
   const paxLabel: Record<string, string> = {
     adult: t.paxAdult,
     child: t.paxChild,
-    infant: t.paxInfant,
   };
+
+  /* Sin renglón de infante: la ficha ya no ofrece contarlos aparte —para
+     quien reserva son menores— y dejar un precio de algo que no se puede
+     elegir es una pregunta sin respuesta. */
+  const precios = tour.prices.filter((price) => price.paxType !== "infant");
 
   return (
     <>
@@ -199,11 +203,11 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
         </p>
       ) : null}
 
-      {tour.prices.length > 0 ? (
+      {precios.length > 0 ? (
         <table className="price-table">
           <caption className="visually-hidden">{t.prices}</caption>
           <tbody>
-            {tour.prices.map((price) => (
+            {precios.map((price) => (
               <tr key={price.paxType}>
                 <th scope="row">{paxLabel[price.paxType] ?? price.paxType}</th>
                 <td>
@@ -234,13 +238,32 @@ export default async function ProductPage({
 
   const unit = kind === "stay" ? t.perNight : t.perPerson;
 
-  /* "También te puede interesar": mismo tipo de producto, sin el que ya se
-     está viendo. Reutiliza el listado del catálogo — no hay una consulta de
-     "relacionados" aparte, y con el tamaño actual del catálogo no la
-     necesita. */
-  const related = (await listCatalog(locale, { kind }))
-    .filter((item) => item.slug !== product.slug)
-    .slice(0, 4);
+  /* "También te puede interesar": tres tarjetas, siempre tres, y distintas en
+     cada visita.
+     
+     Se barajan en vez de tomar las primeras del listado porque si no, todas
+     las fichas de tour recomiendan exactamente los mismos dos productos y la
+     sección deja de ser un descubrimiento. La página es `force-dynamic`, así
+     que cada carga trae otra combinación.
+     
+     Si el mismo tipo no alcanza para tres, se completa con el otro: una fila
+     de tres huecos con dos tarjetas se lee como algo que no cargó. */
+  const [mismoTipo, otroTipo] = await Promise.all([
+    listCatalog(locale, { kind }),
+    listCatalog(locale, { kind: kind === "tour" ? "stay" : "tour" }),
+  ]);
+
+  const barajar = <T,>(items: T[]): T[] => {
+    const copia = [...items];
+    for (let i = copia.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copia[i], copia[j]] = [copia[j]!, copia[i]!];
+    }
+    return copia;
+  };
+
+  const candidatos = barajar(mismoTipo.filter((item) => item.slug !== product.slug));
+  const related = [...candidatos, ...barajar(otroTipo)].slice(0, 3);
 
   const itinerary = product.tour?.itinerary ?? [];
 

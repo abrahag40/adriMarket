@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { otherLocale, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
-import type { LocationOption } from "@/modules/catalog/queries";
 
 /**
  * Panel móvil con `<details>/<summary>`: el navegador ya sabe abrir y cerrar
@@ -11,12 +10,10 @@ import type { LocationOption } from "@/modules/catalog/queries";
  */
 export function MobileNav({
   locale,
-  locations,
   alternate,
   currentPath,
 }: {
   locale: Locale;
-  locations: LocationOption[];
   alternate: string;
   currentPath: string;
 }) {
@@ -48,22 +45,6 @@ export function MobileNav({
           {t.navStays}
         </Link>
 
-        {locations.length > 0 ? (
-          <div className="mobile-nav-group">
-            <span className="mobile-nav-group-label">{t.navDestinations}</span>
-            {locations.map((location) => (
-              <Link
-                key={location.slug}
-                href={`/${locale}?location=${location.slug}`}
-                aria-current={
-                  isActive(`/${locale}?location=${location.slug}`) ? "page" : undefined
-                }
-              >
-                {location.name}
-              </Link>
-            ))}
-          </div>
-        ) : null}
 
         <Link href={alternate} hrefLang={other} lang={other}>
           {t.switchLanguage}

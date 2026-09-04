@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import { otherLocale, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
-import type { LocationOption } from "@/modules/catalog/queries";
 
 import { CurrencyBadge } from "./currency-badge";
 import { MobileNav } from "./mobile-nav";
@@ -14,12 +13,10 @@ import { MobileNav } from "./mobile-nav";
  */
 export function SiteHeader({
   locale,
-  locations,
   alternate,
   currentPath,
 }: {
   locale: Locale;
-  locations: LocationOption[];
   alternate: string;
   currentPath: string;
 }) {
@@ -31,7 +28,6 @@ export function SiteHeader({
   // "Estancias" comparten el mismo `pathname` y solo se distinguen por
   // `?kind=`, así que un `startsWith` marcaría los tres a la vez.
   const isActive = (href: string) => href === currentPath;
-  const isDestinationActive = currentPath.includes("location=");
 
   return (
     <header className="site-header">
@@ -67,26 +63,10 @@ export function SiteHeader({
             {t.navStays}
           </Link>
 
-          {locations.length > 0 ? (
-            <details className="site-nav-dropdown">
-              <summary aria-current={isDestinationActive ? "page" : undefined}>
-                {t.navDestinations}
-              </summary>
-              <div className="site-nav-dropdown-panel">
-                {locations.map((location) => (
-                  <Link
-                    key={location.slug}
-                    href={`/${locale}?location=${location.slug}`}
-                    aria-current={
-                      isActive(`/${locale}?location=${location.slug}`) ? "page" : undefined
-                    }
-                  >
-                    {location.name}
-                  </Link>
-                ))}
-              </div>
-            </details>
-          ) : null}
+          {/* Sin "Destinos" en el menú: los seis destinos viven en el inicio,
+              con su foto y su conteo, que es donde se eligen mirando. Un
+              desplegable de texto en la cabecera repetía esa navegación en su
+              peor forma y alargaba el menú en el teléfono. */}
         </nav>
 
         <div className="site-header-meta">
@@ -99,7 +79,7 @@ export function SiteHeader({
           </Link>
         </div>
 
-        <MobileNav locale={locale} locations={locations} alternate={alternate} currentPath={currentPath} />
+        <MobileNav locale={locale} alternate={alternate} currentPath={currentPath} />
       </div>
     </header>
   );

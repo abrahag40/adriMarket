@@ -7,7 +7,6 @@ import type { ReactNode } from "react";
 import "../globals.css";
 import { LOCALES, alternateForPathname, isLocale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
-import { listLocations } from "@/modules/catalog/queries";
 import { absoluteUrl } from "@/site";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
@@ -79,7 +78,6 @@ export default async function LocaleLayout({
   // búsqueda (Tours/Estancias se distinguen solo por `?kind=`), así que se
   // reconstruye con `x-search`, puesto por el mismo middleware.
   const currentPath = `${pathname}${requestHeaders.get("x-search") ?? ""}`;
-  const locations = await listLocations();
 
   return (
     <html lang={locale} className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
@@ -90,7 +88,6 @@ export default async function LocaleLayout({
 
         <SiteHeader
           locale={locale}
-          locations={locations}
           alternate={alternate}
           currentPath={currentPath}
         />
