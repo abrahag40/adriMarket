@@ -50,8 +50,21 @@ quedan descartados en cualquier caso.
 - [ ] `DATABASE_URL` apuntando a la conexión **directa** para migraciones.
 - [ ] Si el runtime usa un pooler en modo transacción, `DATABASE_POOL_MAX` bajo:
       el límite real es *(instancias × este valor)* y las instancias suben solas.
-- [ ] `npm run db:migrate` — aplica en orden y registra lo aplicado.
+- [ ] `npm run db:migrate` — aplica en orden y registra lo aplicado. La
+      `DATABASE_URL` que se exporte manda sobre `.env`, e imprime el servidor
+      de destino con la contraseña tapada antes de tocar nada: si lo que sale
+      no es Neon, hay que parar.
 - [ ] **No correr el seed.** Son datos de desarrollo.
+- [ ] Pero el seed carga una cosa que **no** es dato de desarrollo:
+      `settings.notifications.admin_email`, a quién se le avisa de una reserva
+      nueva. Saltárselo fue lo que dejó producción encolando un aviso muerto
+      por reserva. Se carga aparte:
+
+      ```bash
+      SEED_FILE=db/arreglos/cargar-correo-admin.sql ./scripts/demo-content.sh --from-env
+      ```
+
+      Si falta, `/api/health` lo dice en el chequeo `config` y responde 503.
 - [ ] Opcional, y **no es el seed**: `db/seed/demo_content.sql` rellena los
       bloques de la ficha que estén vacíos —qué incluye, qué no incluye, lo
       mejor e itinerario— para que la página no se vea a medias mientras el

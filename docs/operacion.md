@@ -124,9 +124,24 @@ de algo que le importaba** — su reserva, su recordatorio, su cancelación.
 
 ### 3.1 Avisos sin destinatario
 
-No se pueden entregar nunca: no hay a dónde. **Hay que avisarle a esa persona a
-mano**, buscando su reserva en el panel por código o teléfono, y después retirar
-la fila de la cola.
+**Primero mira de qué plantilla es**, porque son dos fallas distintas con dos
+arreglos distintos.
+
+Si es `booking_confirmed_admin`, no falta el dato de un huésped: falta el
+ajuste `settings.notifications.admin_email`, y eso se arregla una vez para
+todas las reservas. Pasó en producción el 2026-09-04 —la base se desplegó sin
+ese ajuste, que solo carga `dev_seed.sql`— y desde entonces `/api/health` lo
+dice por su nombre en el chequeo `config` en vez de dejarlo aparecer como
+aviso muerto. El arreglo carga el ajuste y revive lo atorado:
+
+```bash
+SEED_FILE=db/arreglos/cargar-correo-admin.sql ./scripts/demo-content.sh --from-env
+```
+
+Si es cualquier otra —la del huésped, un recordatorio, una cancelación— sí es
+un dato faltante de esa reserva y no se puede entregar nunca: no hay a dónde.
+**Hay que avisarle a esa persona a mano**, buscando su reserva en el panel por
+código o teléfono, y después retirar la fila de la cola.
 
 > **Antes de tratarlo como defecto, mira el cliente de la reserva.** Si el
 > cliente sí tiene correo, el aviso no salió vacío del sistema: alguien lo dejó

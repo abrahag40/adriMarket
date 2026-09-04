@@ -17,11 +17,21 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if [[ -f .env ]]; then
+# `.env` **no pisa una DATABASE_URL ya exportada**. Antes sí lo hacía, y eso
+# convertía en trampa la instrucción del §1 de puesta-en-produccion:
+# `DATABASE_URL=<neon> npm run db:migrate` decía "aplicando…" y migraba la base
+# local, porque el archivo se cargaba después. En una máquina sin .env
+# funcionaba; en la de quien desarrolla, no — y sin decirlo. Es el mismo error
+# que `demo-content.sh` ya evitaba.
+if [[ -f .env && -z "${DATABASE_URL:-}" ]]; then
   set -a; source .env; set +a
 fi
 
 : "${DATABASE_URL:?Falta DATABASE_URL (ver .env.example)}"
+
+# Y se enseña a dónde va, con la contraseña tapada: es la única forma de saber,
+# antes de escribir, si vamos a la base que creemos.
+echo "→ destino: $(printf '%s' "$DATABASE_URL" | sed -E 's#://[^@/]*@#://***@#')" >&2
 
 PSQL=(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -q)
 

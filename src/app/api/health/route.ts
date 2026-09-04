@@ -19,6 +19,9 @@ import { db } from "@/db/index";
  *   reserva. Nadie se entera si no se mira.
  * - **No hay reembolsos pendientes atorados.** Es dinero que se prometió
  *   devolver y no salió.
+ * - **Hay a quién avisarle de una reserva nueva.** Es configuración, no
+ *   operación, y por eso se comprueba aquí: sin ella nada da error, solo deja
+ *   de pasar. Igual que el cron del latido.
  *
  * Responde 200 cuando todo está bien y **503 cuando algo lo está**, porque es lo
  * que un monitor entiende sin configurarle reglas. El detalle va en el cuerpo
@@ -64,6 +67,7 @@ export async function GET() {
     reembolsos_atorados: number;
     apartados_vencidos: number;
     fotos_falladas: number;
+    correo_admin: string | null;
   }>(sql`
     select
       (select max(created_at)::text from audit_log where action = 'job.tick') as ultimo_latido,
@@ -81,7 +85,13 @@ export async function GET() {
       (select count(*)::int from bookings
         where status = 'hold' and deposit_due_at < now() - interval '5 minutes')
         as apartados_vencidos,
-      (select count(*)::int from media_jobs where status = 'failed') as fotos_falladas
+      (select count(*)::int from media_jobs where status = 'failed') as fotos_falladas,
+      -- Configuración, no operación: sin esto nadie recibe el aviso de
+      -- reserva nueva. Antes se manifestaba como un aviso muerto por cada
+      -- reserva —el síntoma más caro de leer, porque parece falla de
+      -- entrega y es un ajuste que nunca se cargó.
+      (select nullif(trim(value ->> 'admin_email'), '')
+         from settings where key = 'notifications') as correo_admin
   `);
 
   const row = rows[0]!;
@@ -115,6 +125,14 @@ export async function GET() {
   checks.media = {
     ok: row.fotos_falladas === 0,
     detail: `${row.fotos_falladas} fotos sin procesar`,
+  };
+
+  checks.config = {
+    ok: row.correo_admin !== null,
+    detail:
+      row.correo_admin === null
+        ? "falta settings.notifications.admin_email: nadie se entera de una reserva nueva"
+        : "correo de administración configurado",
   };
 
   const healthy = Object.values(checks).every((check) => check.ok);

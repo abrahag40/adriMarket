@@ -34,7 +34,7 @@ en el `PATH`.
 cp .env.example .env          # y apuntar DATABASE_URL a tu Postgres
 npm install
 
-npm run db:migrate            # aplica las 13 migraciones en orden
+npm run db:migrate            # aplica las 16 migraciones en orden
 npm run db:seed               # datos de desarrollo
 npm run dev                   # http://localhost:3000
 ```
@@ -219,6 +219,21 @@ Están aquí porque cada una se pagó una vez.
   un defecto del inventario. Ahora cada una crea la suya con `test_departure()`.
   La misma lección estaba escrita en la cabecera del archivo desde el Sprint 2,
   pero solo se le había aplicado a las estancias.
+- **`scripts/db.sh` cargaba `.env` encima de la `DATABASE_URL` exportada.** El
+  §1 de puesta en producción dice `DATABASE_URL=<neon> npm run db:migrate`, y en
+  una máquina con `.env` eso decía "aplicando…" mientras migraba la base local.
+  En un contenedor limpio funcionaba; en la máquina de quien desarrolla, no —y
+  sin decirlo. Ahora la variable exportada manda y el guion imprime el destino
+  con la contraseña tapada antes de tocar nada. La misma protección que
+  `demo-content.sh` ya tenía; faltaba trasladarla.
+- **Un ajuste que solo carga el seed no existe en producción.** El seed **no**
+  se corre allá, y con razón. Pero `settings.notifications.admin_email` viajaba
+  ahí dentro, así que producción encolaba el aviso a la administración con
+  destinatario vacío y lo mataba tras seis intentos —uno por reserva—. La
+  garantía 21 pasaba en verde todo ese tiempo **porque el seed sí lo carga en
+  desarrollo**: una garantía que depende del seed comprueba el seed. Ahora la 21
+  corre también sin el ajuste, `booking_confirm` no encola lo que no puede
+  entregar y `/api/health` reporta la configuración faltante por su nombre.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 

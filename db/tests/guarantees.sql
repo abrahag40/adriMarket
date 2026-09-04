@@ -933,7 +933,35 @@ begin
              where b.id = v_booking),
     'FALLO: la confirmación no va al correo del huésped';
 
-  raise notice '✔ 21. toda confirmación se encola con destinatario';
+  -- Y ahora sin el ajuste cargado, que es como estaba producción.
+  --
+  -- Esta mitad faltaba y por eso la garantía pasó en verde mientras producción
+  -- acumulaba un aviso muerto por reserva: `dev_seed.sql` carga
+  -- `notifications.admin_email`, así que la prueba nunca vio el caso que sí
+  -- ocurrió. Una garantía que depende del seed comprueba el seed, no el
+  -- sistema. Se borra el ajuste dentro de la transacción —que se revierte— y
+  -- se confirma otra reserva.
+  delete from settings where key = 'notifications';
+
+  v_booking := test_confirmed_stay(900);
+
+  select count(*)::int into v_vacios from outbox
+   where booking_id = v_booking and coalesce(to_address, '') = '';
+
+  assert v_vacios = 0,
+    format('FALLO: sin el ajuste cargado se encolaron %s avisos sin destinatario', v_vacios);
+
+  assert (select count(*) from outbox
+           where booking_id = v_booking and template = 'booking_confirmed_admin') = 0,
+    'FALLO: se encoló el aviso a la administración sin tener a dónde mandarlo';
+
+  -- Pero el del huésped sí sale: no depende de ninguna configuración.
+  assert (select count(*) from outbox
+           where booking_id = v_booking and template = 'booking_confirmed_guest'
+             and channel = 'email') = 1,
+    'FALLO: la falta del ajuste dejó al huésped sin su confirmación';
+
+  raise notice '✔ 21. toda confirmación se encola con destinatario (con ajuste y sin él)';
 end;
 $$;
 
