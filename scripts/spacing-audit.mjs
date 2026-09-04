@@ -10,9 +10,11 @@
  *      conjunto de tamaño fijo: reserva una columna de más y aprieta las
  *      reales. Así se encontró que las tres columnas de confianza partían el
  *      texto a 22 caracteres por línea.
- *   2. Medida de línea fuera de rango. Menos de 32 caracteres se lee en
- *      zigzag; más de 85 hace perder el renglón al saltar. Lo cómodo son 45
- *      a 75, y esto avisa cuando algo se sale por mucho.
+ *   2. Renglones de más de 85 caracteres, donde se pierde el salto de línea.
+ *      El renglón **corto** no se reporta: en una tarjeta de 325px o en un
+ *      teléfono caben treinta caracteres y eso es correcto. Cuando el texto
+ *      sí está apretado por la maqueta lo delata la pista vacía del punto 1,
+ *      que se mide con certeza en vez de inferirse.
  *   3. Destinos de toque a menos de 8px. Dos enlaces contiguos más juntos
  *      que eso se leen como un bloque y el dedo cae entre ambos — es la
  *      separación que piden las guías de iOS y Android.
@@ -42,7 +44,7 @@ const rutas = [
 ];
 
 const analisis = () => {
-  const out = { rejillasMalas: [], columnasAngostas: [], toques: [], desborde: null };
+  const out = { rejillasMalas: [], lineasLargas: [], toques: [], desborde: null };
   const de = document.documentElement;
   if (de.scrollWidth > de.clientWidth + 1) out.desborde = { scrollW: de.scrollWidth, clientW: de.clientWidth };
 
@@ -57,15 +59,36 @@ const analisis = () => {
       out.rejillasMalas.push({ clase: (g.className || g.tagName).toString().slice(0, 30), pistas: pistas.length, hijos, vacias });
   }
 
+  /* La medida se calcula con el ancho real del glifo en **esta** fuente, no
+     suponiendo que un carácter mide media eme. En DM Sans el "0" mide 0.68
+     em, así que la suposición inflaba la cuenta un 35 %: reportó 88
+     caracteres donde había 64, y 22 donde había 18. Un detector que miente
+     en esa dirección hace perseguir defectos que no existen. */
+  const anchoDeCaracter = (cs) => {
+    const probe = document.createElement("span");
+    probe.textContent = "0".repeat(100);
+    probe.style.cssText = `font: ${cs.font}; position:absolute; visibility:hidden; white-space:nowrap`;
+    document.body.appendChild(probe);
+    const ancho = probe.getBoundingClientRect().width / 100;
+    probe.remove();
+    return ancho;
+  };
+
   for (const p of document.querySelectorAll("p, li")) {
     const r = p.getBoundingClientRect();
     if (r.width === 0 || r.height < 18) continue;
     const texto = p.textContent.trim();
     if (texto.length < 60 || p.querySelector("p,li")) continue;
-    const fs = parseFloat(getComputedStyle(p).fontSize);
-    const ch = r.width / (fs * 0.5);
-    if (ch < 32) out.columnasAngostas.push({ texto: texto.slice(0, 30), ancho: Math.round(r.width), ch: Math.round(ch) });
-    if (ch > 85) out.columnasAngostas.push({ texto: texto.slice(0, 30), ancho: Math.round(r.width), ch: Math.round(ch), largo: true });
+    const ch = r.width / anchoDeCaracter(getComputedStyle(p));
+    /* Solo se reporta la línea **larga**. El renglón corto no se puede juzgar
+       por su número: en una tarjeta de 325px o en un teléfono de 390 caben
+       treinta caracteres y eso es correcto, no un defecto — la regla de 45 a
+       75 es para prosa corrida, no para el resumen de una tarjeta. Cuando el
+       texto sí está apretado por la maqueta, lo que lo delata es una pista de
+       rejilla vacía, y eso se mide arriba con certeza en vez de inferirlo.
+       El renglón largo sí es viewport-independiente: pasando de 85 se pierde
+       el salto de línea. */
+    if (ch > 85) out.lineasLargas.push({ texto: texto.slice(0, 30), ancho: Math.round(r.width), ch: Math.round(ch) });
   }
 
   // Elementos interactivos demasiado juntos (menos de 8px entre cajas vecinas)
@@ -83,7 +106,7 @@ const analisis = () => {
     }
   }
   out.toques = out.toques.slice(0, 4);
-  out.columnasAngostas = out.columnasAngostas.slice(0, 5);
+  out.lineasLargas = out.lineasLargas.slice(0, 5);
   return out;
 };
 
@@ -99,11 +122,16 @@ for (const [ancho, alto, etiqueta] of [[1440, 1000, "escritorio"], [390, 844, "t
   console.log(`\n═══ ${etiqueta} (${ancho}px) ═══`);
   for (const [ruta, nombre] of rutas) {
     await page.goto(base + ruta, { waitUntil: "networkidle" });
+    /* Se espera a las tipografías antes de medir. Sin esto la medida sale con
+       la fuente de respaldo, cuyo glifo es más ancho, y el guion reporta 31
+       caracteres donde hay 64 — un detector que mide antes de tiempo inventa
+       defectos. */
+    await page.evaluate(() => document.fonts.ready);
     const r = await page.evaluate(analisis);
     const problemas = [];
     if (r.desborde) problemas.push(`desborde horizontal: ${r.desborde.scrollW} > ${r.desborde.clientW}`);
     for (const g of r.rejillasMalas) problemas.push(`rejilla ${g.clase}: ${g.pistas} pistas para ${g.hijos} → ${g.vacias} vacía(s)`);
-    for (const c of r.columnasAngostas) problemas.push(`${c.largo ? "línea larga" : "columna angosta"} (${c.ch} car.): "${c.texto}…"`);
+    for (const c of r.lineasLargas) problemas.push(`línea larga (${c.ch} car.): "${c.texto}…"`);
     for (const t of r.toques) problemas.push(`interactivos a ${t.dy}px: "${t.a}" / "${t.b}"`);
     console.log(`  ${nombre}: ${problemas.length ? "" : "sin hallazgos"}`);
     for (const p of problemas) console.log(`    · ${p}`);
