@@ -162,8 +162,10 @@ export default async function CatalogPage({
       if (destinationsSeen.has(item.locationSlug!)) return false;
       destinationsSeen.add(item.locationSlug!);
       return true;
-    })
-    .slice(0, 6);
+    });
+  /* Sin tope: al quitar "Destinos" del menú, el inicio quedó como la única
+     puerta a los destinos. Cortar a seis dejaba los demás alcanzables solo
+     escribiendo la URL a mano. El carrusel absorbe los que haya. */
 
   return (
     <div className="stack">
