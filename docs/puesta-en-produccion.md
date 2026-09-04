@@ -50,10 +50,12 @@ quedan descartados en cualquier caso.
 - [ ] `DATABASE_URL` apuntando a la conexión **directa** para migraciones.
 - [ ] Si el runtime usa un pooler en modo transacción, `DATABASE_POOL_MAX` bajo:
       el límite real es *(instancias × este valor)* y las instancias suben solas.
-- [ ] `npm run db:migrate` — aplica en orden y registra lo aplicado. La
-      `DATABASE_URL` que se exporte manda sobre `.env`, e imprime el servidor
-      de destino con la contraseña tapada antes de tocar nada: si lo que sale
-      no es Neon, hay que parar.
+- [ ] Migrar **sin teclear la cadena**, que es de donde salió el peor error
+      de este proyecto. Dos caminos, los dos con la cadena guardada una sola
+      vez: `npm run prod:migrate` (la lee de `.env.production.local` y
+      verifica que sea el servidor anclado) o la pestaña **Actions** de
+      GitHub → *Migrar producción* (la lee del secreto del repositorio).
+      `npm run db:migrate` a pelo sigue existiendo para desarrollo.
 - [ ] **No correr el seed.** Son datos de desarrollo.
 - [ ] Pero el seed carga una cosa que **no** es dato de desarrollo:
       `settings.notifications.admin_email`, a quién se le avisa de una reserva
@@ -61,7 +63,7 @@ quedan descartados en cualquier caso.
       por reserva. Se carga aparte:
 
       ```bash
-      SEED_FILE=db/arreglos/cargar-correo-admin.sql ./scripts/demo-content.sh --from-env
+      npm run prod:sql -- db/arreglos/cargar-correo-admin.sql
       ```
 
       Si falta, `/api/health` lo dice en el chequeo `config` y responde 503.

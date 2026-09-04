@@ -81,6 +81,18 @@ confirmar_destino() {
   fi
   echo >&2
 
+  # Una automatización nunca debe estrenar un esquema en una base remota.
+  #
+  # `DB_CONFIRM=si` existe para que un workflow migre producción sin humano
+  # delante. Pero migrar de cero es otra cosa: significa que la base está
+  # vacía, y una base de producción vacía es siempre un error de destino, no
+  # una intención. Se necesita decirlo aparte y a propósito.
+  if [[ "$desde_cero" == "si" && "${DB_BOOTSTRAP:-}" != "si" ]]; then
+    echo "  Esta base está vacía y no es local: NO se estrena un esquema aquí." >&2
+    echo "  Si de verdad es lo que quieres, DB_BOOTSTRAP=si." >&2
+    exit 1
+  fi
+
   if [[ "${DB_CONFIRM:-}" == "si" ]]; then
     echo "  (DB_CONFIRM=si: se continúa sin preguntar)" >&2
     return

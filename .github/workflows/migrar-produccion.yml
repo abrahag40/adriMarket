@@ -1,0 +1,78 @@
+# Migrar producción · post-Sprint 7
+#
+# Existe porque aplicar migraciones a mano salió caro: el 2026-09-04 se pegó la
+# cadena de otro proyecto de Neon y se estrenó el esquema completo en una base
+# ajena mientras producción se quedaba sin migrar. El destino estaba impreso en
+# pantalla y aun así pasó — dos cadenas de Neon se diferencian en ocho
+# caracteres a media línea.
+#
+# La cadena que no se teclea no se equivoca. Aquí vive una sola vez, como
+# secreto del repositorio (Settings → Secrets and variables → Actions), igual
+# que JOBS_SECRET para el latido.
+#
+# Es `workflow_dispatch` a propósito y no `push`: el despliegue de este
+# proyecto se dispara a mano con `vercel --prod`, así que migrar en cada push
+# adelantaría el esquema a un código que todavía no está arriba. Cuando el
+# despliegue se automatice, aquí se agrega `push` a la rama que despliega.
+
+name: Migrar producción
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  # Dos migraciones a la vez sobre la misma base no tienen sentido.
+  group: migrar-produccion
+  cancel-in-progress: false
+
+jobs:
+  migrar:
+    name: Aplicar migraciones pendientes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      # `DB_CONFIRM=si` salta la pregunta interactiva, que aquí no tiene a
+      # nadie que la conteste. Lo que NO salta es la negativa a estrenar un
+      # esquema en una base remota: si esta base apareciera vacía, el guion
+      # aborta pidiendo DB_BOOTSTRAP y este workflow no lo pasa. Una base de
+      # producción vacía es siempre un destino equivocado.
+      - name: Migraciones pendientes
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_CONFIRM: "si"
+        run: ./scripts/db.sh migrate
+
+      # Ajuste obligatorio que no viaja en ninguna migración porque es
+      # configuración, no esquema: a quién se le avisa de una reserva nueva.
+      # Sin él, /api/health responde 503 en el chequeo `config`. Se carga desde
+      # un secreto para no versionar el correo de una persona: este repositorio
+      # es público.
+      - name: Correo de la administración
+        if: ${{ secrets.ADMIN_EMAIL != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -q \
+            -v correo="$ADMIN_EMAIL" -f db/arreglos/cargar-correo-admin.sql
+
+      - name: Salud después de migrar
+        run: |
+          sleep 5
+          codigo=$(curl -s -o /tmp/salud.json -w "%{http_code}" \
+            https://adrimarket.vercel.app/api/health)
+          cat /tmp/salud.json
+          echo
+          # No falla el job si está degradada: puede estarlo por algo ajeno a
+          # esta migración, y un rojo que miente se aprende a ignorar.
+          echo "HTTP $codigo"

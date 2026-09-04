@@ -235,6 +235,15 @@ Están aquí porque cada una se pagó una vez.
   copiarlo de la pantalla. Y `db:migrate` grita cuando la primera migración
   está pendiente —una base ya desplegada nunca lo está—, que era la pista que
   estaba a la vista y nadie leyó.
+
+  Pero la guarda no es la lección: **la cadena que no se teclea no se
+  equivoca.** Contra producción se usa `npm run prod:migrate` y
+  `npm run prod:sql -- <archivo>`, que la leen de `.env.production.local` y
+  verifican contra el servidor anclado ahí; o la pestaña Actions de GitHub →
+  *Migrar producción*, que la lee de un secreto del repositorio. Ninguna
+  automatización puede estrenar un esquema en una base remota: eso exige
+  `DB_BOOTSTRAP=si` a mano, porque una base de producción vacía siempre es un
+  destino equivocado.
 - **Un ajuste que solo carga el seed no existe en producción.** El seed **no**
   se corre allá, y con razón. Pero `settings.notifications.admin_email` viajaba
   ahí dentro, así que producción encolaba el aviso a la administración con

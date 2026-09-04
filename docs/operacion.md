@@ -93,11 +93,11 @@ de algo que le importaba** — su reserva, su recordatorio, su cancelación.
 
 **Qué hacer.**
 
-1. Ver qué pasó. Contra producción, sin abrir psql a mano y sin arriesgarse a
-   pegarle a la base de al lado —el guion enseña el servidor de destino antes
-   de correr y la consulta solo lee, con el destinatario tapado—:
+1. Ver qué pasó. Contra producción, sin pegar ninguna cadena —la toma de
+   `.env.production.local`, verifica que sea el servidor anclado y solo lee,
+   con el destinatario tapado—:
    ```bash
-   SEED_FILE=db/consultas/avisos-atorados.sql ./scripts/demo-content.sh --from-env
+   npm run prod:sql -- db/consultas/avisos-atorados.sql
    ```
    Con una sesión ya abierta en la base correcta basta:
    ```sql
@@ -135,8 +135,11 @@ dice por su nombre en el chequeo `config` en vez de dejarlo aparecer como
 aviso muerto. El arreglo carga el ajuste y revive lo atorado:
 
 ```bash
-SEED_FILE=db/arreglos/cargar-correo-admin.sql ./scripts/demo-content.sh --from-env
+npm run prod:sql -- db/arreglos/cargar-correo-admin.sql
 ```
+
+O desde GitHub sin tocar la terminal: pestaña **Actions** → *Migrar
+producción* → **Run workflow**, que además aplica lo que falte del esquema.
 
 Si es cualquier otra —la del huésped, un recordatorio, una cancelación— sí es
 un dato faltante de esa reserva y no se puede entregar nunca: no hay a dónde.

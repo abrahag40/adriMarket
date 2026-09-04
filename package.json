@@ -24,7 +24,9 @@
     "test:e2e:publicar": "node --env-file-if-exists=.env scripts/e2e-publicar.mjs",
     "audit": "node --env-file-if-exists=.env scripts/audit.mjs",
     "audit:spacing": "node scripts/spacing-audit.mjs",
-    "probar:correo": "tsx --env-file-if-exists=.env scripts/probar-correo.ts"
+    "probar:correo": "tsx --env-file-if-exists=.env scripts/probar-correo.ts",
+    "prod:migrate": "./scripts/produccion.sh migrate",
+    "prod:sql": "./scripts/produccion.sh sql"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

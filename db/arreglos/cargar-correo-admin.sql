@@ -9,22 +9,24 @@
 -- /api/health dice que falta el ajuste en vez de reportarlo como aviso muerto.
 -- Este guion es la otra mitad: cargar el ajuste y revivir lo que quedó atorado.
 --
---   SEED_FILE=db/arreglos/cargar-correo-admin.sql ./scripts/demo-content.sh --from-env
+-- A mano:
+--   npm run prod:sql -- db/arreglos/cargar-correo-admin.sql     (lo pregunta)
 --
--- La dirección se pide aquí y no se escribe en el archivo a propósito: este
--- repositorio es público —tiene que serlo para que el latido de GitHub Actions
--- sea gratis— y un correo de una persona no se versiona.
+-- Desde el workflow, sin nadie delante:
+--   psql … -v correo="$ADMIN_EMAIL" -f db/arreglos/cargar-correo-admin.sql
+--
+-- Un solo archivo para los dos casos a propósito: dos copias del mismo SQL se
+-- separan en cuanto alguien toca una, y la que se rompe es siempre la que
+-- corre sin nadie mirando.
+--
+-- La dirección no se escribe aquí: este repositorio es público —tiene que
+-- serlo para que el latido de GitHub Actions sea gratis— y el correo de una
+-- persona no se versiona.
 
-\pset border 2
-\pset format aligned
-
-select coalesce(value ->> 'admin_email', '(sin cargar)') as correo_admin_actual
-  from settings where key = 'notifications'
-union all
-select '(no existe la fila settings.notifications)'
- where not exists (select 1 from settings where key = 'notifications');
-
+\if :{?correo}
+\else
 \prompt 'Correo que recibe el aviso de reserva nueva: ' correo
+\endif
 
 begin;
 
@@ -53,6 +55,7 @@ update outbox
 
 commit;
 
+\echo
 select value ->> 'admin_email' as correo_admin_cargado
   from settings where key = 'notifications';
 
