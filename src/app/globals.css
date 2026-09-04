@@ -1752,6 +1752,214 @@ main {
   color: var(--text-faint);
 }
 
+/* ---------- selector de salida con calendario ---------- */
+
+/*
+ * Calca el datepicker de la referencia, medido sobre su propio elemento con
+ * el calendario abierto: campo blanco de 60px con borde de 1px, ícono de
+ * calendario en su propia columna a la izquierda, y el panel encima con
+ * fondo #f5f5f5, borde de 2px, celdas de 32px y el día elegido en un círculo
+ * lleno del azul de acento.
+ *
+ * La diferencia de fondo con el calendario que tenía antes: aquel era una
+ * sección aparte ("Disponibilidad") que navegaba de mes recargando la
+ * página. Este vive pegado al campo y navega en el navegador, porque las
+ * salidas de los próximos doce meses ya viajan en el HTML.
+ */
+.picker-label {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+
+.picker {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.picker-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--accent);
+}
+
+.picker-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.picker-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  padding: 15px 17px;
+  font: inherit;
+  /* 14px sobre #565656, como el campo de la referencia: es un dato elegido,
+     no un título. A 17px en negro competía con el precio de arriba. */
+  font-size: var(--step--1);
+  text-align: left;
+  color: var(--text-body);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.picker-field:hover {
+  border-color: var(--text-faint);
+}
+
+.picker-field:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.picker-vacio {
+  color: var(--text-faint);
+}
+
+.picker-chevron {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.picker-chevron svg {
+  width: 100%;
+  height: 100%;
+}
+
+.picker-pop {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 34px;
+  right: 0;
+  padding: 10px;
+  background: var(--surface);
+  border: 2px solid var(--line-soft);
+  box-shadow: var(--shadow-lg);
+}
+
+.picker-nav {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.picker-nav button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.picker-nav button:hover {
+  background: var(--accent-soft);
+}
+
+.picker-nav button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.picker-nav svg {
+  width: 16px;
+  height: 16px;
+}
+
+.picker-month {
+  text-align: center;
+  font-weight: 600;
+  font-size: var(--step--1);
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.picker-week,
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.picker-week {
+  margin-bottom: 4px;
+}
+
+.picker-week span {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.picker-day {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Un día sin salida no es un botón: no hay nada que pulsar ahí.
+   La referencia los pinta en #c0c0c0, que sobre su fondo gris da 1.9:1 y no
+   pasa WCAG AA. Aquí se quedan en `--text-faint` —4.6:1 sobre este fondo— y
+   la diferencia con un día vendible la carga el peso: los vendibles van en
+   semibold y en el color del texto normal. */
+.picker-day-off {
+  color: var(--text-faint);
+}
+
+.picker-day-fuera {
+  visibility: hidden;
+}
+
+.picker-day-libre {
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.picker-day-libre:hover {
+  background: var(--accent-soft);
+}
+
+.picker-day-libre:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.picker-day-elegido,
+.picker-day-elegido:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.picker-seats {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  padding-left: 34px;
+}
+
 .quote {
   display: flex;
   flex-direction: column;

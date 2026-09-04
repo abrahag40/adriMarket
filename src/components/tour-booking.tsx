@@ -1,14 +1,14 @@
 import Link from "next/link";
 
 import { BookingSelector } from "@/components/booking-selector";
-import { TourCalendar } from "@/components/availability-calendar";
+import { DeparturePicker } from "@/components/departure-picker";
 import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown";
 import { LOCALE_TAG, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 import { tourDepartures } from "@/modules/availability/calendar";
 import { quoteTour } from "@/modules/pricing/service";
 import { QuoteError } from "@/modules/pricing/types";
-import { startOfMonth, startOfNextMonth, todayIn } from "@/time";
+import { startOfMonth, todayIn } from "@/time";
 
 /**
  * Selección de salida y pasajeros · S2-2, S2-3, S2-4
@@ -43,14 +43,13 @@ export async function TourBooking({
   const today = todayIn(timezone);
 
   const month = startOfMonth(params.month && /^\d{4}-\d{2}-\d{2}$/.test(params.month) ? params.month : today);
-  const nextMonth = startOfNextMonth(month);
 
-  // Dos consultas: las salidas del mes para el calendario, y las próximas para
-  // el desplegable — que no debe quedarse vacío si el mes visible no tiene.
-  const [monthDepartures, upcoming] = await Promise.all([
-    tourDepartures(productId, month, nextMonth),
-    tourDepartures(productId, today, startOfNextMonth(startOfNextMonth(today))),
-  ]);
+  /* Una sola consulta, con un horizonte largo: el calendario desplegable
+     navega entre meses **sin tocar el servidor**, igual que la referencia,
+     que manda todas las fechas vendibles en el HTML (`data-tour-date`). Doce
+     meses de salidas diarias son ~360 filas de tres campos: cabe de sobra en
+     el presupuesto de bytes de la página. */
+  const upcoming = await tourDepartures(productId, today, addMonths(today, 12));
 
   const adults = count(params.adults, 2, capacity);
   const children = count(params.children, 0, capacity);
@@ -60,17 +59,6 @@ export async function TourBooking({
     upcoming.find((day) => day.departureId === params.departure) ??
     upcoming.find((day) => day.seatsLeft > 0) ??
     null;
-
-  function hrefWithMonth(target: string): string {
-    const next = new URLSearchParams({
-      adults: String(adults),
-      children: String(children),
-      infants: String(infants),
-      month: target,
-    });
-    if (selected) next.set("departure", selected.departureId);
-    return `${basePath}?${next.toString()}`;
-  }
 
   let quoteNode: React.ReactNode = <p className="notice">{t.priceNotice}</p>;
 
@@ -112,17 +100,39 @@ export async function TourBooking({
     <>
       <BookingSelector action={basePath}>
         <div className="selector-row">
-          <div className="field field-wide">
-            <label htmlFor="departure">{t.departureLabel}</label>
-            <select id="departure" name="departure" defaultValue={selected?.departureId ?? ""}>
-              {upcoming.map((day) => (
-                <option key={day.departureId} value={day.departureId} disabled={day.seatsLeft === 0}>
-                  {dateFormat.format(new Date(day.startsAt))} ·{" "}
-                  {day.seatsLeft === 0 ? t.soldOut : t.seatsLeft(day.seatsLeft)}
-                </option>
-              ))}
-            </select>
-          </div>
+          <DeparturePicker
+            locale={LOCALE_TAG[locale]}
+            selectedId={selected?.departureId ?? null}
+            departures={upcoming.map((day) => ({
+              id: day.departureId,
+              date: day.date,
+              label: dateFormat.format(new Date(day.startsAt)),
+              seats: day.seatsLeft,
+              seatsLabel: day.seatsLeft === 0 ? t.soldOut : t.seatsLeft(day.seatsLeft),
+            }))}
+            labels={{
+              field: t.departureLabel,
+              placeholder: t.calendarNoDeparture,
+              open: t.calendarHeading,
+              prevMonth: t.calendarPrev,
+              nextMonth: t.calendarNext,
+              weekdays: t.weekdays,
+              noDeparture: t.calendarNoDeparture,
+            }}
+            fallback={
+              <div className="field field-wide">
+                <label htmlFor="departure">{t.departureLabel}</label>
+                <select id="departure" name="departure" defaultValue={selected?.departureId ?? ""}>
+                  {upcoming.map((day) => (
+                    <option key={day.departureId} value={day.departureId} disabled={day.seatsLeft === 0}>
+                      {dateFormat.format(new Date(day.startsAt))} ·{" "}
+                      {day.seatsLeft === 0 ? t.soldOut : t.seatsLeft(day.seatsLeft)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            }
+          />
         </div>
 
         <div className="selector-row">
@@ -165,20 +175,13 @@ export async function TourBooking({
       </BookingSelector>
 
       {quoteNode}
-
-      <TourCalendar
-        departures={monthDepartures}
-        month={month}
-        locale={locale}
-        prevHref={month <= startOfMonth(today) ? null : hrefWithMonth(prevMonthOf(month))}
-        nextHref={hrefWithMonth(nextMonth)}
-      />
     </>
   );
 }
 
-function prevMonthOf(month: string): string {
-  const date = new Date(`${month}T00:00:00Z`);
-  date.setUTCMonth(date.getUTCMonth() - 1);
-  return date.toISOString().slice(0, 10);
+/** Horizonte del calendario desplegable. */
+function addMonths(date: string, months: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return d.toISOString().slice(0, 10);
 }
