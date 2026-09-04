@@ -24,8 +24,12 @@
 --     queda corto —y quedarse corto es el lado seguro del error.
 --
 -- Se corre pegándolo en el editor SQL de Neon, sobre la base ajena.
-
-\set ON_ERROR_STOP on
+--
+-- **Sin meta-comandos de psql.** El primer intento traía `\set ON_ERROR_STOP
+-- on` en la cabecera y el editor web lo mandó tal cual a Postgres, que no
+-- entiende `\`: error de sintaxis en la primera línea y nada se ejecutó. No
+-- hace falta: todo el trabajo va dentro de un solo `do`, que es una sola
+-- transacción — si algo revienta, revierte completo por sí mismo.
 
 do $$
 declare
