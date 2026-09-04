@@ -228,7 +228,11 @@ async function notificationData(bookingId: string): Promise<BookingNotification 
       b.quote, b.cancellation_policy_snapshot as policy,
       c.full_name as holder_name,
       i.kind,
-      coalesce(t.name, tes.name) as product_name,
+      -- El slug es el último recurso y no debería hacer falta: publicar
+      -- exige nombre en español, así que toda reserva real tiene
+      -- traducción. Está porque el hueco no se ve hasta que el asunto del
+      -- correo del huésped dice "null", y para entonces ya se envió.
+      coalesce(t.name, tes.name, p.slug) as product_name,
       coalesce(l.timezone, 'America/Cancun') as timezone,
       d.starts_at,
       o.meeting_point,

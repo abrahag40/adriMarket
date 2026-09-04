@@ -14,7 +14,7 @@ reales. Lo que impide vender son tres cuentas que el cliente todavía no entreg�
 | # | Qué | De quién | Estado |
 |---|---|---|---|
 | 1 | Cuenta de Stripe con llaves de producción | Cliente | **pendiente desde el Sprint 3** |
-| 2 | Dominio con SPF, DKIM y DMARC para el correo | Cliente | pendiente |
+| 2 | Dominio propio, verificado en Resend con SPF, DKIM y DMARC | Cliente | pendiente — **no hay dominio todavía**; la cuenta de Resend existe y no tiene ninguno |
 | 3 | Número de empresa y plantillas aprobadas en Meta | Cliente | pendiente |
 
 Los tres son trámites, no desarrollo. El 3 es el más lento: la aprobación de
@@ -165,10 +165,41 @@ tampoco. Nada da error; simplemente deja de pasar.
 
 ## 6. Correo
 
-- [ ] Dominio verificado con SPF, DKIM y DMARC.
-- [ ] `MAIL_FROM` en ese dominio.
+El camino está completo y probado —el aviso se encola en la misma transacción
+que confirma la reserva, el latido lo despacha, se reintenta con espera
+creciente y se guarda el texto exacto que recibió el huésped— pero contra el
+transporte local. **Lo único que nunca se ha ejercitado es la última pulgada:
+que Resend acepte el mensaje y llegue a una bandeja.**
+
+Estado revisado el 2026-09-04, en la cuenta de Resend del cliente:
+
+| Qué | Cómo está |
+|---|---|
+| Llaves de API | dos, una con acceso total y otra de envío |
+| Dominios verificados | **ninguno** |
+| `RESEND_API_KEY` y `MAIL_FROM` en Vercel | **no están** — producción usa el transporte local |
+
+- [ ] **Dominio propio.** Es el mismo bloqueante que deja al sitio en
+      `adrimarket.vercel.app` (decisión 0005): sin dominio no hay dónde poner
+      SPF, DKIM y DMARC, y Resend no tiene qué verificar.
+- [ ] Dominio verificado en Resend con esos tres registros.
+- [ ] `MAIL_FROM` en ese dominio, y `RESEND_API_KEY` cargadas en Vercel.
 - [ ] Prueba de entrega real a **Gmail, Outlook e iCloud**, revisando que no
       caiga en no deseado. Son los tres que usa el 95% de los huéspedes.
+
+La prueba de entrega tiene sonda. Manda una confirmación real, con su
+comprobante QR adjunto, armada con las mismas funciones que usa el worker, y
+sin tocar la bandeja de salida:
+
+```bash
+RESEND_API_KEY=re_… MAIL_FROM=reservas@… npm run probar:correo -- destinatario@ejemplo.com
+```
+
+> **Cargar `RESEND_API_KEY` sin dominio verificado es peor que no cargarla.**
+> Resend solo entrega desde `onboarding@resend.dev` a la dirección dueña de la
+> cuenta; a cualquier otra responde `403`. El aviso del huésped se reintentaría
+> seis veces, quedaría `dead` y `/api/health` pasaría a `degraded`. Hoy, sin
+> llaves, al menos el correo queda renderizado y consultable en la bandeja.
 
 ## 7. WhatsApp
 

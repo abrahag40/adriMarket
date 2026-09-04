@@ -93,7 +93,13 @@ de algo que le importaba** — su reserva, su recordatorio, su cancelación.
 
 **Qué hacer.**
 
-1. Ver qué pasó:
+1. Ver qué pasó. Contra producción, sin abrir psql a mano y sin arriesgarse a
+   pegarle a la base de al lado —el guion enseña el servidor de destino antes
+   de correr y la consulta solo lee, con el destinatario tapado—:
+   ```bash
+   SEED_FILE=db/consultas/avisos-atorados.sql ./scripts/demo-content.sh --from-env
+   ```
+   Con una sesión ya abierta en la base correcta basta:
    ```sql
    select template, to_address, left(last_error, 120), count(*)
      from outbox where status = 'dead'

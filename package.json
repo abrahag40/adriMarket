@@ -23,7 +23,8 @@
     "test:e2e:sme": "node --env-file-if-exists=.env scripts/e2e-sme.mjs",
     "test:e2e:publicar": "node --env-file-if-exists=.env scripts/e2e-publicar.mjs",
     "audit": "node --env-file-if-exists=.env scripts/audit.mjs",
-    "audit:spacing": "node scripts/spacing-audit.mjs"
+    "audit:spacing": "node scripts/spacing-audit.mjs",
+    "probar:correo": "tsx --env-file-if-exists=.env scripts/probar-correo.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

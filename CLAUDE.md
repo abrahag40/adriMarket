@@ -314,6 +314,11 @@ Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
 - **No hay colchón de rotación entre estancias** (se bloquea el día a mano).
 - **El cobro parcial del saldo se rechaza a propósito**: no hay regla de negocio.
 - **Stripe, correo y WhatsApp no se han ejecutado contra el servicio real.**
+  Para el correo hay sonda: `npm run probar:correo -- alguien@ejemplo.com`
+  manda una confirmación de verdad por Resend, con las mismas funciones que
+  usa el worker, y se niega a correr sin llaves —con el transporte local
+  pasaría siempre. Falta el dominio propio: sin él Resend solo entrega a la
+  dirección dueña de la cuenta.
 
 ## Decisiones del cliente que siguen abiertas
 
