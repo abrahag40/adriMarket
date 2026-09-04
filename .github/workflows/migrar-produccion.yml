@@ -31,6 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    # A nivel de job para que el `if` del paso del correo pueda leerlo: un `if`
+    # ve `env`, nunca `secrets`.
+    env:
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -57,11 +62,16 @@ jobs:
       # Sin él, /api/health responde 503 en el chequeo `config`. Se carga desde
       # un secreto para no versionar el correo de una persona: este repositorio
       # es público.
+      #
+      # La condición mira `env` y no `secrets` porque **el contexto `secrets` no
+      # existe dentro de un `if`**: ahí solo se puede leer lo que ya se copió a
+      # `env`. Escrito como `if: secrets.ADMIN_EMAIL != ''` este paso no corre
+      # nunca, y sin fallar — la clase de error que se descubre preguntándose
+      # por qué producción sigue sin el ajuste después de un workflow en verde.
       - name: Correo de la administración
-        if: ${{ secrets.ADMIN_EMAIL != '' }}
+        if: ${{ env.ADMIN_EMAIL != '' }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -q \
             -v correo="$ADMIN_EMAIL" -f db/arreglos/cargar-correo-admin.sql
