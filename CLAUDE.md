@@ -223,9 +223,18 @@ Están aquí porque cada una se pagó una vez.
   §1 de puesta en producción dice `DATABASE_URL=<neon> npm run db:migrate`, y en
   una máquina con `.env` eso decía "aplicando…" mientras migraba la base local.
   En un contenedor limpio funcionaba; en la máquina de quien desarrolla, no —y
-  sin decirlo. Ahora la variable exportada manda y el guion imprime el destino
-  con la contraseña tapada antes de tocar nada. La misma protección que
-  `demo-content.sh` ya tenía; faltaba trasladarla.
+  sin decirlo. Ahora la variable exportada manda.
+- **Enseñar el destino no evita apuntarle a la base equivocada.** El mismo día,
+  con el destino impreso en pantalla y completo, se pegó la cadena de **otro
+  proyecto de Neon**: se crearon las 16 migraciones en una base ajena y vacía
+  mientras producción seguía sin migrar. Dos cadenas de Neon se diferencian en
+  ocho caracteres a media línea (`ep-late-king-avk9v1d6` contra
+  `ep-bitter-feather-aro32vx5`) y el ojo lee lo que espera. **Leer no es
+  verificar.** Ahora `db.sh` y `demo-content.sh` **tapan** el identificador del
+  servidor y piden escribirlo: quien no sabe en qué base está, no puede
+  copiarlo de la pantalla. Y `db:migrate` grita cuando la primera migración
+  está pendiente —una base ya desplegada nunca lo está—, que era la pista que
+  estaba a la vista y nadie leyó.
 - **Un ajuste que solo carga el seed no existe en producción.** El seed **no**
   se corre allá, y con razón. Pero `settings.notifications.admin_email` viajaba
   ahí dentro, así que producción encolaba el aviso a la administración con

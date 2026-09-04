@@ -29,9 +29,22 @@ fi
 
 : "${DATABASE_URL:?Falta DATABASE_URL (ver .env.example)}"
 
-# Y se enseña a dónde va, con la contraseña tapada: es la única forma de saber,
-# antes de escribir, si vamos a la base que creemos.
-echo "→ destino: $(printf '%s' "$DATABASE_URL" | sed -E 's#://[^@/]*@#://***@#')" >&2
+# Y se enseña a dónde va. Contra una base remota el identificador del servidor
+# va **tapado**: enseñarlo entero no evitó que el 2026-09-04 se migrara la base
+# de otro proyecto de Neon con la cadena a la vista. Dos cadenas de Neon se
+# diferencian en ocho caracteres a media línea, y el ojo lee lo que espera.
+DB_HOST="$(printf '%s' "$DATABASE_URL" | sed -E 's#^[^@]*@##; s#[:/?].*$##')"
+DB_SERVIDOR="${DB_HOST%%.*}"
+
+es_local() {
+  [[ "$DATABASE_URL" == *localhost* || "$DATABASE_URL" == *127.0.0.1* ]]
+}
+
+if es_local; then
+  echo "→ destino: $(printf '%s' "$DATABASE_URL" | sed -E 's#://[^@/]*@#://***@#')" >&2
+else
+  echo "→ destino: ***@${DB_SERVIDOR%%-*}-••••••••${DB_HOST#"$DB_SERVIDOR"}  (servidor tapado)" >&2
+fi
 
 PSQL=(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -q)
 
@@ -43,27 +56,87 @@ ensure_registry() {
     );" >/dev/null
 }
 
+# Confirmación antes de escribir en una base que no es la propia.
+#
+# Enseñar el destino no bastó. El 2026-09-04 se pegó la cadena de otro proyecto
+# de Neon: el guion imprimió el destino correctamente, decía "Neon", y nadie
+# comparó *cuál* Neon. Se aplicaron las 16 migraciones en una base ajena y vacía
+# mientras producción se quedaba sin migrar.
+#
+# La pista estaba en pantalla y era inconfundible: **una base ya desplegada no
+# tiene pendiente 0001_foundation.sql**. Si el primer archivo está pendiente, la
+# base está vacía, y eso casi nunca es lo que uno quiere en un servidor remoto.
+# Así que ahora se dice en voz alta y hay que teclear para seguir.
+confirmar_destino() {
+  local pendientes="$1" desde_cero="$2"
+
+  echo >&2
+  echo "  ⚠ Esta base NO es local." >&2
+  echo "    pendientes: $pendientes migración(es)" >&2
+  if [[ "$desde_cero" == "si" ]]; then
+    echo >&2
+    echo "    ATENCIÓN: incluye la primera migración, así que esta base está" >&2
+    echo "    VACÍA. Una base ya desplegada no tiene pendiente 0001. Si creías" >&2
+    echo "    estar apuntando a producción, esta NO es." >&2
+  fi
+  echo >&2
+
+  if [[ "${DB_CONFIRM:-}" == "si" ]]; then
+    echo "  (DB_CONFIRM=si: se continúa sin preguntar)" >&2
+    return
+  fi
+
+  if ! { : < /dev/tty; } 2>/dev/null; then
+    echo "  Sin terminal para confirmar. Exporta DB_CONFIRM=si si es a propósito." >&2
+    exit 1
+  fi
+
+  # Se pide el identificador del servidor, no una palabra fija: teclear
+  # "aplicar" demuestra que se leyó el aviso, no que se sabe en qué base se
+  # está. Y como arriba va tapado, no se puede copiar de la pantalla.
+  local respuesta
+  printf "  Escribe el identificador del servidor (ep-…) para continuar: " >&2
+  IFS= read -r respuesta < /dev/tty || respuesta=""
+  if [[ "${respuesta%-pooler}" != "${DB_SERVIDOR%-pooler}" ]]; then
+    echo "  No coincide con este servidor. Cancelado, no se tocó nada." >&2
+    exit 1
+  fi
+}
+
 cmd_migrate() {
   ensure_registry
-  local applied=0
+
+  # Primero se calcula qué falta, y recién entonces se decide si preguntar: hay
+  # que poder decir cuántas son y si empiezan desde cero antes de aplicar nada.
+  local pendientes=() desde_cero="no" primera=""
   for f in db/migrations/*.sql; do
     local name; name="$(basename "$f")"
+    [[ -z "$primera" ]] && primera="$name"
     local seen; seen="$("${PSQL[@]}" -tAc \
       "select 1 from schema_migrations where filename = '$name'")"
-    if [[ -n "$seen" ]]; then
-      continue
+    if [[ -z "$seen" ]]; then
+      pendientes+=("$f")
+      [[ "$name" == "$primera" ]] && desde_cero="si"
     fi
+  done
+
+  if [[ ${#pendientes[@]} -eq 0 ]]; then
+    echo "Sin migraciones pendientes."
+    return
+  fi
+
+  if ! es_local; then
+    confirmar_destino "${#pendientes[@]}" "$desde_cero"
+  fi
+
+  for f in "${pendientes[@]}"; do
+    local name; name="$(basename "$f")"
     echo "→ aplicando $name"
     "${PSQL[@]}" -f "$f"
     "${PSQL[@]}" -c \
       "insert into schema_migrations (filename) values ('$name')" >/dev/null
-    applied=$((applied + 1))
   done
-  if [[ $applied -eq 0 ]]; then
-    echo "Sin migraciones pendientes."
-  else
-    echo "Listo: $applied migración(es) aplicada(s)."
-  fi
+  echo "Listo: ${#pendientes[@]} migración(es) aplicada(s)."
 }
 
 cmd_seed() {

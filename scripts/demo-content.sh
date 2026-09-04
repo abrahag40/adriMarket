@@ -100,12 +100,47 @@ else
   echo "→ archivo:  $env_file"
 fi
 
-# Se enseña el destino con la contraseña tapada: es la única forma de saber,
-# antes de escribir, si vamos a la base que creemos.
-destino="$(printf '%s' "$DATABASE_URL" | sed -E 's#://[^@/]*@#://***@#')"
-echo "→ destino:  $destino"
+# Se enseña el destino, pero con el identificador del servidor TAPADO.
+#
+# Enseñarlo entero no bastó. El 2026-09-04 se pegó aquí la cadena de otro
+# proyecto de Neon: el destino salió impreso, correcto y completo, y aun así
+# pasó. Cuando las dos cadenas empiezan igual —`postgresql://***@ep-…-pooler
+# .…aws.neon.tech/neondb`— la diferencia son ocho caracteres a media línea, y
+# el ojo lee lo que espera. **Leer no es verificar.**
+#
+# Así que se tapa justo la parte que distingue una base de otra y hay que
+# escribirla. Quien no sabe en qué servidor está, no escribe nada, que es
+# exactamente lo que debe pasar.
+host="$(printf '%s' "$DATABASE_URL" | sed -E 's#^[^@]*@##; s#[:/?].*$##')"
+servidor="${host%%.*}"
+resto="${host#"$servidor"}"
+
+if [[ "$DATABASE_URL" == *localhost* || "$DATABASE_URL" == *127.0.0.1* ]]; then
+  echo "→ destino:  $(printf '%s' "$DATABASE_URL" | sed -E 's#://[^@/]*@#://***@#')"
+else
+  echo "→ destino:  ***@${servidor%%-*}-••••••••${resto}  (servidor tapado a propósito)"
+fi
 echo "→ guion:    $seed_file"
 echo
+
+if [[ "$DATABASE_URL" != *localhost* && "$DATABASE_URL" != *127.0.0.1* ]]; then
+  if [[ "${DB_CONFIRM:-}" == "si" ]]; then
+    echo "  (DB_CONFIRM=si: se continúa sin preguntar)" >&2
+  elif { : < /dev/tty; } 2>/dev/null; then
+    printf 'Escribe el identificador del servidor (ep-…) para continuar: ' >&2
+    IFS= read -r respuesta < /dev/tty || respuesta=""
+    # Se acepta con o sin el sufijo -pooler: la consola de Neon lo enseña de
+    # las dos formas y no es la parte que distingue nada.
+    if [[ "${respuesta%-pooler}" != "${servidor%-pooler}" ]]; then
+      echo "  No coincide con este servidor. Cancelado, no se tocó nada." >&2
+      exit 1
+    fi
+    echo >&2
+  else
+    echo "Sin terminal para confirmar. Exporta DB_CONFIRM=si si es a propósito." >&2
+    exit 1
+  fi
+fi
 
 if [[ ! -f "$seed_file" ]]; then
   echo "No existe $seed_file (se eligió con SEED_FILE)." >&2
