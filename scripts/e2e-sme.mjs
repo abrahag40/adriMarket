@@ -43,6 +43,52 @@ function query(sql) {
   }).trim();
 }
 
+// ---------------------------------------------------------------------------
+// Este recorrido recoge los reembolsos que ensucia
+// ---------------------------------------------------------------------------
+
+/** Códigos de reserva creados por esta corrida. La limpieza se acota a ellos. */
+const creadas = [];
+
+// Cancelar una salida **registra** un reembolso que nadie ejecuta: es deuda
+// declarada y correcta, no un defecto. Lo que sí es un defecto es dejar la fila
+// en la base de desarrollo: a las 24 h `/api/health` la cuenta como
+// `refunds: { ok: false, "N sin procesar por más de 24 h" }`, la salud pasa a
+// `degraded` y **tumba un criterio de `smoke.sh`**. Al día siguiente de correr
+// el recorrido la barra de verificación falla sola y parece un defecto de
+// producción que no lo es. La pista que lo delata: los reembolsos atorados
+// cuelgan todos de reservas con motivo "Cierre de puerto por mal tiempo", que
+// es texto de este guion y no de nadie más.
+//
+// Se acota por los códigos que generó esta corrida. Un `delete from refunds` a
+// ciegas se llevaría los de otra corrida —o los de un ambiente compartido—, y
+// eso sería peor que el problema que resuelve.
+//
+// Corre en `exit` y no al final del guion a propósito: el recorrido que ensucia
+// es justo el que falla a medias, y el `exit` también cubre el caso en que
+// Playwright revienta a la mitad.
+process.on("exit", () => {
+  if (creadas.length === 0) return;
+  const lista = creadas.map((code) => `'${code}'`).join(",");
+  try {
+    query(`
+      delete from refunds r
+       using payments p, bookings b
+       where r.payment_id = p.id
+         and p.booking_id = b.id
+         and b.code in (${lista})
+    `);
+  } catch (error) {
+    // Callar aquí devolvería el problema entero. Se dice qué correr a mano.
+    console.error(
+      `\n  ✘ no se pudieron recoger los reembolsos de esta corrida: ${error.message}` +
+        `\n    córrelo a mano o /api/health lo reportará en 24 h:` +
+        `\n    delete from refunds r using payments p, bookings b` +
+        `\n     where r.payment_id = p.id and p.booking_id = b.id and b.code in (${lista});`,
+    );
+  }
+});
+
 /* La ruta fija es la del contenedor donde se escribió esto, y ahí sigue
    valiendo. En una máquina de trabajo no existe y el recorrido tronaba antes
    del primer paso ("executable doesn't exist"), así que si no está se deja
@@ -152,6 +198,7 @@ const setup = query(`
 
 const [departureId, codeList] = setup.split("|");
 const codes = codeList.split(",");
+creadas.push(...codes);
 if (codes.length === 3) ok(`salida de mañana con 3 reservas: ${codes.join(", ")}`);
 else fail(`no se prepararon las reservas: ${setup}`);
 
@@ -367,6 +414,11 @@ const stayCode = query(`
   .split("\n")
   .pop()
   .trim();
+
+// Hoy esta reserva se mueve de fecha y no se cancela, así que no deja reembolso.
+// Se anota igual: el día que el recorrido crezca y la cancele, la limpieza ya
+// la cubre y nadie tendrá que acordarse.
+creadas.push(stayCode);
 
 const saldoAntes = query(`
   select p.amount_cents::text from payments p join bookings b on b.id = p.booking_id

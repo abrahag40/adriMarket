@@ -192,6 +192,33 @@ describe("cancelaciones y cambios de fecha", () => {
   });
 
   after(async () => {
+    // Se recogen los reembolsos que deja esta prueba, y no es limpieza cosmética.
+    //
+    // Cancelar **registra** un reembolso que nadie ejecuta: es deuda declarada y
+    // correcta. Lo que no es correcto es dejar la fila en la misma base que usa
+    // el desarrollo, porque a las 24 h `/api/health` la cuenta como
+    // `refunds: { ok: false, "N sin procesar por más de 24 h" }`, la salud pasa
+    // a `degraded` y **tumba un criterio de `smoke.sh`**. Al día siguiente la
+    // barra de verificación falla sola por basura de prueba, con la forma exacta
+    // de un defecto de producción. La pista que lo delata: los reembolsos
+    // atorados cuelgan de productos en borrador con slug `s5-…`, que solo esta
+    // prueba crea; una reserva de verdad nunca compra un producto sin publicar.
+    //
+    // Se acota a los productos que creó *esta* corrida —el sufijo es aleatorio—,
+    // nunca a la tabla entera: un `delete from refunds` a ciegas se llevaría los
+    // de otra corrida o los de un ambiente compartido.
+    //
+    // Si `before` reventó no hay productos que nombrar —ni reservas que hayan
+    // dejado nada—, y el borrado sin acotar es justo lo que no se quiere.
+    if (productId && tourProductId) {
+      await db.execute(sql`
+        delete from refunds r
+         using payments p, booking_items i
+         where r.payment_id = p.id
+           and p.booking_id = i.booking_id
+           and i.product_id in (${productId}::uuid, ${tourProductId}::uuid)
+      `);
+    }
     await sqlClient.end();
   });
 
