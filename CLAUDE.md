@@ -196,6 +196,17 @@ Están aquí porque cada una se pagó una vez.
   reporta avisos muertos que **parecen un defecto de producción y no lo son**.
   Costó una investigación entera. La pista que lo delata: una fila de WhatsApp
   sin destinatario es imposible desde `outbox_enqueue_whatsapp`.
+- **Cancelar en una prueba deja un reembolso que caduca a las 24 h.** Registrar
+  el reembolso sin ejecutarlo es deuda declarada y correcta; dejar la fila en la
+  base de desarrollo no lo es. Al día siguiente `/api/health` reporta
+  `refunds: { ok: false, "N sin procesar por más de 24 h" }`, la salud pasa a
+  `degraded` y **falla el criterio de `/api/health` de `smoke.sh`** — la barra se
+  cae sola, sin que nadie haya tocado el código. Por eso `e2e-sme.mjs` y
+  `cancel.test.ts` **borran al salir los reembolsos que ellos crearon**, acotados
+  a los códigos de reserva y a los productos de su propia corrida, nunca a la
+  tabla entera. La pista que lo delata: los reembolsos atorados cuelgan de
+  reservas con motivo "Cierre de puerto por mal tiempo" o de productos en
+  borrador con slug `s5-…`, y una reserva de verdad no compra sin publicar.
 - **`smoke.sh` provoca un latido antes de preguntar por la salud.** Sobre una
   base recién creada, `/api/health` responde 503 con "nunca ha latido" — y eso es
   correcto, no un fallo.
