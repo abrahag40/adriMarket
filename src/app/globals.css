@@ -512,10 +512,14 @@ a {
   z-index: 5;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 220px;
+  /* 8px entre destinos de toque, no 2. Con 2px dos enlaces contiguos se
+     leen como un bloque y el dedo cae entre ambos: es la separación que
+     piden las guías de iOS y Android, y lo que WCAG 2.2 exige junto al
+     tamaño mínimo del blanco. */
+  gap: 8px;
+  min-width: 240px;
   max-width: calc(100vw - 32px);
-  padding: 10px 16px 16px;
+  padding: 12px 16px 16px;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -3554,12 +3558,40 @@ fieldset.field legend {
 
 /* ---------- columnas de confianza ---------- */
 
+/*
+ * Columnas explícitas, no `auto-fill`. La distinción importa y es la que
+ * estaba mal: `auto-fill` es para listas de largo variable —el catálogo, los
+ * destinos— donde una tarjeta sola no debe estirarse al ancho del
+ * contenedor. Estas son **siempre tres**, y ahí `auto-fill` hace lo
+ * contrario de lo que uno quiere: reservaba una cuarta pista vacía, apretaba
+ * las tres reales a 240px y partía el texto a 22 caracteres por línea. La
+ * medida legible son 45 a 75; a 22 se lee en zigzag.
+ *
+ * Móvil primero: una columna, y tres cuando hay ancho de sobra.
+ */
 .value-props {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 32px;
   list-style: none;
   padding: 0;
+}
+
+@media (min-width: 760px) {
+  .value-props {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 40px;
+  }
+
+  /* El ícono pasa arriba del texto en las tres columnas de la vitrina. Con
+     el ícono en línea se comía 56px de los 325 de la columna y el renglón
+     bajaba a unos 30 caracteres; arriba, el texto usa la columna entera.
+     En el panel lateral de la ficha sigue en línea: ahí la columna es
+     angosta y apilar el ícono desperdiciaría altura. */
+  .value-props li {
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
 .value-props li {
