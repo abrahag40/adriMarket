@@ -820,7 +820,7 @@ main {
 /*
  * Sistema de grid del catálogo · mobile-first
  *
- * Una sola regla, sin puntos de quiebre: `auto-fit` decide cuántas columnas
+ * Una sola regla, sin puntos de quiebre: el navegador decide cuántas columnas
  * caben según el ancho disponible, de una en móvil a tres en escritorio,
  * de forma continua — no hay un número de columnas "de escritorio" fijo
  * que forzar con media queries.
@@ -840,11 +840,22 @@ main {
  * sobrante — por eso `.card` fija su propio `max-width`: sin él, una sola
  * tarjeta en una fila hereda el ancho completo del contenedor.
  */
+/*
+ * `auto-fill`, no `auto-fit`. Es una palabra y cambia todo: `auto-fit`
+ * colapsa las pistas vacías a 0px y estira las llenas, así que una fila de
+ * dos tarjetas las inflaba a 520px cada una y una sola ocupaba los 1056 del
+ * contenedor — el mismo componente se veía de un tamaño distinto en cada
+ * sección según cuántos resultados hubiera. Con `auto-fill` la pista vacía
+ * conserva su ancho y una tarjeta mide lo mismo esté sola o acompañada.
+ *
+ * El hueco sube de 20px a los 40 de la referencia, encogiendo en pantallas
+ * chicas: es el aire entre tarjetas que faltaba.
+ */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   justify-content: center;
-  gap: 20px;
+  gap: clamp(20px, 3vw, 40px);
   list-style: none;
   padding: 0;
 }
@@ -3018,11 +3029,30 @@ fieldset.field legend {
   flex: 1 1 auto;
 }
 
+/*
+ * Ritmo del inicio, medido sobre la referencia: cada sección abre con 60px
+ * de aire (ahí van de 50 a 90 según el bloque), el título mide 50px sobre un
+ * contenedor de 1300 —aquí, sobre 1120, la proporción equivalente es 44— y
+ * hay 55px entre el título y la primera tarjeta.
+ *
+ * Antes no había relleno vertical de sección: todo colgaba del hueco de 24px
+ * de la pila, y por eso "se veía todo junto y apretado". El `clamp` mantiene
+ * el mismo diseño en un teléfono sin desperdiciar media pantalla en aire.
+ */
+.home-section {
+  padding-block: clamp(32px, 5vw, 60px);
+}
+
 .section-head {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: clamp(24px, 4vw, 55px);
+}
+
+.home-section .section-title {
+  font-size: clamp(1.75rem, 3.2vw, 2.75rem);
+  line-height: 1.15;
 }
 
 /* Grid de destinos con foto, a foto completa: la misma portada que ya usa la
@@ -3039,9 +3069,9 @@ fieldset.field legend {
  */
 .destinations-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr));
   justify-content: center;
-  gap: 16px;
+  gap: clamp(16px, 3vw, 40px);
   list-style: none;
   padding: 0;
 }
@@ -3052,7 +3082,7 @@ fieldset.field legend {
        mínimo de 130px deje caber más de tres columnas (hasta seis, el tope
        de destinos que se muestran) — este mínimo mayor mantiene el mismo
        "tres por fila" del diseño en vez de una sola fila apretada de seis. */
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   }
 }
 
@@ -3270,9 +3300,9 @@ fieldset.field legend {
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
   justify-content: center;
-  gap: 24px;
+  gap: clamp(20px, 3vw, 40px);
   list-style: none;
   padding: 0;
 }
@@ -3506,7 +3536,7 @@ fieldset.field legend {
 
 .value-props {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 32px;
   list-style: none;
   padding: 0;

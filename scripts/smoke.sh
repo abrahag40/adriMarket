@@ -140,7 +140,12 @@ expect_contains "/es/estancias/casa-akumal" "Qué no incluye" "la estancia muest
 expect_contains "/es/estancias/casa-akumal" "noches mínimo" "la estancia muestra el mínimo de noches"
 expect_contains "/es/tours/snorkel-cenotes-tulum" "Punto de encuentro" "el tour muestra el punto de encuentro"
 expect_contains "/es/tours/snorkel-cenotes-tulum" "Adulto" "el tour muestra precios por tipo de pasajero"
-expect_contains "/es/tours/snorkel-cenotes-tulum" "Sin costo" "el infante aparece sin costo"
+# La ficha ya no ofrece contar infantes —para quien reserva son menores— así
+# que tampoco muestra su precio: un renglón de algo que no se puede elegir es
+# una pregunta sin respuesta. El parámetro sigue vivo del lado del servidor,
+# y eso lo comprueba el bloque S2-1 más abajo con `infants=1`.
+expect_absent "/es/tours/snorkel-cenotes-tulum" "Sin costo" "la ficha no ofrece precio de infante"
+expect_contains "/es/tours/snorkel-cenotes-tulum" "Menor" "pero sí el de menor"
 expect_contains "/en/tours/snorkel-cenotes-tulum" "Meeting point" "la ficha en inglés está en inglés"
 expect_contains "/es/estancias/casa-akumal" "Desde" "la ficha muestra precio desde"
 expect_status "/es/estancias/no-existe-esta-casa" 404 "un slug inexistente responde 404"

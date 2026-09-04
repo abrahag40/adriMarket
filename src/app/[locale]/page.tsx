@@ -168,34 +168,38 @@ export default async function CatalogPage({
       </div>
 
       {destinations.length > 0 ? (
-        <section aria-labelledby="destinations-heading">
+        <section className="home-section" aria-labelledby="destinations-heading">
           <div className="section-head">
             <h2 id="destinations-heading" className="section-title">
               {t.destinationsHeading}
             </h2>
             <p className="muted">{t.destinationsSubtitle}</p>
           </div>
-          <ul className="destinations-grid">
+          {/* Carrusel y no cuadrícula: con seis destinos una rejilla de tres
+              obliga a dos filas y empuja los tours media pantalla hacia
+              abajo. El carrusel los deja recorrer en su propia línea, igual
+              que los tours de abajo, y usa el scroll-snap del navegador —sin
+              librería— así que en el teléfono se arrastra con el dedo. */}
+          <Carousel prevLabel={t.carouselPrev} nextLabel={t.carouselNext}>
             {destinations.map((item) => (
-              <li key={item.locationSlug}>
-                <DestinationCard
-                  locale={locale}
-                  slug={item.locationSlug!}
-                  name={item.locationName!}
-                  count={countByLocation.get(item.locationSlug!) ?? 1}
-                  coverUrl={item.coverUrl!}
-                  coverWidth={item.coverWidth}
-                  coverHeight={item.coverHeight}
-                  coverVariants={item.coverVariants}
-                />
-              </li>
+              <DestinationCard
+                key={item.locationSlug}
+                locale={locale}
+                slug={item.locationSlug!}
+                name={item.locationName!}
+                count={countByLocation.get(item.locationSlug!) ?? 1}
+                coverUrl={item.coverUrl!}
+                coverWidth={item.coverWidth}
+                coverHeight={item.coverHeight}
+                coverVariants={item.coverVariants}
+              />
             ))}
-          </ul>
+          </Carousel>
         </section>
       ) : null}
 
       {featuredTours.length > 0 ? (
-        <section aria-labelledby="featured-tours-heading">
+        <section className="home-section" aria-labelledby="featured-tours-heading">
           <div className="section-head">
             <h2 id="featured-tours-heading" className="section-title">
               {t.featuredToursHeading}
@@ -211,7 +215,7 @@ export default async function CatalogPage({
       ) : null}
 
       {stays.length > 0 ? (
-        <section aria-labelledby="stays-heading">
+        <section className="home-section" aria-labelledby="stays-heading">
           <div className="section-head">
             <h2 id="stays-heading" className="section-title">
               {t.staysHeading}
