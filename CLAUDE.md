@@ -321,6 +321,7 @@ docs/               plan maestro, arquitectura, esquema, sprints y decisiones
 | [`docs/operacion.md`](docs/operacion.md) | qué hacer cuando algo falla |
 | [`docs/manual-del-panel.md`](docs/manual-del-panel.md) | el equipo del cliente |
 | `docs/sprint-0N.md` | qué se hizo, qué se encontró y qué quedó pendiente |
+| [`docs/bitacora-2026-09-04.md`](docs/bitacora-2026-09-04.md) | la sesión que revisó el correo y migró la base equivocada, con sus errores |
 | `docs/decisiones/` | decisiones con su alternativa descartada |
 
 ---
