@@ -44,10 +44,12 @@ AYUDA
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "$ARCHIVO"
-set +a
+# Se lee sin interpretar: la cadena de Neon trae `&channel_binding=require`, y
+# con `source` ese `&` manda la asignación a segundo plano y la variable llega
+# vacía sin decir nada. Ver scripts/cargar-env.sh.
+# shellcheck source=scripts/cargar-env.sh
+source "$(dirname "$0")/cargar-env.sh"
+cargar_env "$ARCHIVO"
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "$ARCHIVO no trae DATABASE_URL (o la trae vacía)." >&2

@@ -23,8 +23,11 @@ cd "$(dirname "$0")/.."
 # local, porque el archivo se cargaba después. En una máquina sin .env
 # funcionaba; en la de quien desarrolla, no — y sin decirlo. Es el mismo error
 # que `demo-content.sh` ya evitaba.
+# shellcheck source=scripts/cargar-env.sh
+source "$(dirname "$0")/cargar-env.sh"
+
 if [[ -f .env && -z "${DATABASE_URL:-}" ]]; then
-  set -a; source .env; set +a
+  cargar_env .env
 fi
 
 : "${DATABASE_URL:?Falta DATABASE_URL (ver .env.example)}"

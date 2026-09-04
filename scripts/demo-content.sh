@@ -82,11 +82,11 @@ else
     exit 1
   fi
 
-  # `source` en subshell no serviría: las variables se necesitan aquí.
-  set -a
-  # shellcheck disable=SC1090
-  source "$env_file"
-  set +a
+  # Se lee sin interpretar: un `&` en la cadena mandaría la asignación a
+  # segundo plano y la variable llegaría vacía. Ver scripts/cargar-env.sh.
+  # shellcheck source=scripts/cargar-env.sh
+  source "$(dirname "$0")/cargar-env.sh"
+  cargar_env "$env_file"
 
   if [[ -z "${DATABASE_URL:-}" ]]; then
     echo "$env_file no trae DATABASE_URL (o la trae vacía)." >&2
