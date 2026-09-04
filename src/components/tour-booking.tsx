@@ -156,17 +156,11 @@ export async function TourBooking({
               ))}
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="infants">{t.paxInfants}</label>
-            <select id="infants" name="infants" defaultValue={String(infants)}>
-              {Array.from({ length: 5 }, (_, index) => index).map((n) => (
-                <option key={n} value={String(n)}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <span className="field-hint">{t.paxInfantsHint}</span>
-          </div>
+          {/* Sin campo de infantes: para quien reserva es lo mismo que un
+              menor, y dos casillas que se leen igual hacen dudar en el peor
+              momento. El parámetro sigue existiendo del lado del servidor
+              —una URL con `infants=1` se cotiza igual que siempre— así que
+              esto es una decisión de interfaz, no un cambio de precios. */}
           <button className="btn" type="submit">
             {t.quoteRecalculate}
           </button>

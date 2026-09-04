@@ -1960,6 +1960,30 @@ main {
   padding-left: 34px;
 }
 
+/* ---------- también te puede interesar ---------- */
+
+/*
+ * La sección venía pegada a lo anterior: 24px arriba del título y 10 hasta
+ * las tarjetas, contra los 102 y 28 de la referencia. Con eso no se lee como
+ * una sección nueva, se lee como la cola de la anterior — es la queja de que
+ * "no respiran" los elementos.
+ *
+ * Los 78px de aquí se suman a los 24 del espaciado de la página: 102 en
+ * total, los mismos que separan "Related Tours" del bloque de arriba allá.
+ */
+.related {
+  padding-top: 78px;
+}
+
+.related .section-title {
+  margin-bottom: 28px;
+}
+
+/* Y entre tarjeta y tarjeta: 20px las apretaba en una fila de tres. */
+.related .grid {
+  gap: 36px 32px;
+}
+
 .quote {
   display: flex;
   flex-direction: column;

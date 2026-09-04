@@ -487,7 +487,7 @@ export default async function ProductPage({
       ) : null}
 
       {related.length > 0 ? (
-        <section className="stack-sm" aria-labelledby="related-heading">
+        <section className="related" aria-labelledby="related-heading">
           <h2 id="related-heading" className="section-title">
             {t.relatedHeading}
           </h2>
