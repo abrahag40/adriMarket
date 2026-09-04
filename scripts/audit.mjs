@@ -201,10 +201,29 @@ const tarjetas = await page.locator(".card").count();
 if (tarjetas > 0) ok(`el listado muestra ${tarjetas} productos`);
 else no("el listado queda vacío sin JavaScript");
 
+// Se compara el **total** que anuncia el encabezado, no las tarjetas
+// visibles: el listado se pagina de doce en doce, así que con el catálogo
+// completo la primera página trae doce tarjetas esté filtrada o no, y contar
+// tarjetas dejó de probar nada. Además se comprueba que ninguna de las que se
+// ven sea una estancia — un filtro que reduce el número pero cuela un
+// resultado del otro tipo tampoco funciona.
+const totalDe = async () => {
+  const texto = (await page.locator(".results-head h2").innerText()) ?? "";
+  return Number.parseInt(texto.replace(/\D/g, ""), 10);
+};
+const totalSinFiltro = await totalDe();
+
 await page.goto(`${base}/es?kind=tour`, { waitUntil: "domcontentloaded" });
-const soloTours = await page.locator(".card").count();
-if (soloTours > 0 && soloTours < tarjetas) ok("los filtros funcionan: viven en la URL");
-else no(`los filtros no funcionan sin JavaScript (${soloTours} de ${tarjetas})`);
+const totalTours = await totalDe();
+const estancias = await page.locator(".card-kind-badge", { hasText: "Estancias" }).count();
+if (totalTours > 0 && totalTours < totalSinFiltro && estancias === 0) {
+  ok("los filtros funcionan: viven en la URL");
+} else {
+  no(
+    `los filtros no funcionan sin JavaScript (${totalTours} de ${totalSinFiltro}` +
+      `, ${estancias} estancia(s) coladas)`,
+  );
+}
 
 await page.goto(`${base}/es/estancias/casa-akumal?${RANGO}`, { waitUntil: "domcontentloaded" });
 if ((await page.locator(".quote-total").count()) > 0) ok("la cotización se ve");

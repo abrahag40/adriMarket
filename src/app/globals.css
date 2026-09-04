@@ -1986,6 +1986,26 @@ main {
   padding-left: 34px;
 }
 
+/* Paginador del listado: enlaces, no botones, porque cambian de página de
+   verdad — la página vive en la URL y funciona sin JavaScript. */
+.pager {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  margin-top: clamp(28px, 4vw, 48px);
+}
+
+.pager > :last-child {
+  justify-self: end;
+}
+
+.pager-state {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- también te puede interesar ---------- */
 
 /*

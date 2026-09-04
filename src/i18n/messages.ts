@@ -71,6 +71,9 @@ export type Messages = {
   filterApply: string;
   filterClear: string;
   resultsCount: (n: number) => string;
+  pagePrev: string;
+  pageNext: string;
+  pageOf: (current: number, total: number) => string;
   emptyTitle: string;
   emptyBody: string;
   fromPrice: string;
@@ -253,6 +256,9 @@ const es: Messages = {
   filterApply: "Aplicar",
   filterClear: "Quitar filtros",
   resultsCount: (n) => (n === 1 ? "1 resultado" : `${n} resultados`),
+  pagePrev: "Anteriores",
+  pageNext: "Siguientes",
+  pageOf: (current, total) => `Página ${current} de ${total}`,
   emptyTitle: "Nada coincide con esos filtros",
   emptyBody: "Prueba con menos personas o quita el filtro de tipo.",
   fromPrice: "Desde",
@@ -434,6 +440,9 @@ const en: Messages = {
   filterApply: "Apply",
   filterClear: "Clear filters",
   resultsCount: (n) => (n === 1 ? "1 result" : `${n} results`),
+  pagePrev: "Previous",
+  pageNext: "Next",
+  pageOf: (current, total) => `Page ${current} of ${total}`,
   emptyTitle: "Nothing matches those filters",
   emptyBody: "Try fewer guests, or clear the type filter.",
   fromPrice: "From",

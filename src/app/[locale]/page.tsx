@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -109,8 +110,34 @@ export default async function CatalogPage({
     noFilters ? listCatalog(locale, {}) : Promise.resolve([]),
   ]);
 
-  const featuredTours = allItems.filter((item) => item.kind === "tour" && item.coverUrl !== null);
-  const stays = allItems.filter((item) => item.kind === "stay" && item.coverUrl !== null);
+  /* Las vitrinas del inicio muestran una selección, no el catálogo entero:
+     con veintiséis tours el carrusel mandaba veintiséis tarjetas de HTML que
+     nadie va a recorrer, y el listado de abajo ya está para eso. */
+  const featuredTours = allItems
+    .filter((item) => item.kind === "tour" && item.coverUrl !== null)
+    .slice(0, 8);
+  const stays = allItems
+    .filter((item) => item.kind === "stay" && item.coverUrl !== null)
+    .slice(0, 6);
+
+  /* Doce por página: cuatro filas de tres en escritorio. */
+  const POR_PAGINA = 12;
+  const sp = await searchParams;
+  const pedida = Number.parseInt(String(Array.isArray(sp.page) ? sp.page[0] : sp.page ?? "1"), 10);
+  const totalPaginas = Math.max(1, Math.ceil(items.length / POR_PAGINA));
+  const paginaActual = Number.isInteger(pedida) ? Math.min(Math.max(pedida, 1), totalPaginas) : 1;
+  const pagina = items.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+
+  /** Conserva los filtros al cambiar de página: solo cambia `page`. */
+  function hrefPagina(n: number): string {
+    const next = new URLSearchParams();
+    if (filters.kind) next.set("kind", filters.kind);
+    if (filters.locationSlug) next.set("location", filters.locationSlug);
+    if (filters.guests) next.set("guests", String(filters.guests));
+    if (n > 1) next.set("page", String(n));
+    const query = next.toString();
+    return query ? `/${locale}?${query}` : `/${locale}`;
+  }
 
   /* La foto del hero sale del catálogo real, no de un banco de imágenes: es el
      primer producto publicado que ya tiene fotos. Sin fotos todavía, el hero
@@ -242,11 +269,41 @@ export default async function CatalogPage({
           <p className="muted">{t.emptyBody}</p>
         </div>
       ) : (
-        <ul className="grid">
-          {items.map((item) => (
-            <ProductCard key={item.id} item={item} locale={locale} />
-          ))}
-        </ul>
+        <>
+          <ul className="grid">
+            {pagina.map((item) => (
+              <ProductCard key={item.id} item={item} locale={locale} />
+            ))}
+          </ul>
+
+          {/* Paginación con enlaces, no con un botón de "cargar más": la
+              página que se está viendo queda en la URL, se puede compartir y
+              funciona sin JavaScript. Y es lo que mantiene la página dentro
+              del presupuesto de bytes — con el catálogo completo el listado
+              mandaba 28 tarjetas de HTML y se pasaba de los 200 kB que mide
+              `npm run audit`. */}
+          {totalPaginas > 1 ? (
+            <nav className="pager" aria-label={t.resultsCount(items.length)}>
+              {paginaActual > 1 ? (
+                <Link className="btn btn-secondary" href={hrefPagina(paginaActual - 1)} rel="prev">
+                  ← {t.pagePrev}
+                </Link>
+              ) : (
+                <span />
+              )}
+              <p className="pager-state" aria-current="page">
+                {t.pageOf(paginaActual, totalPaginas)}
+              </p>
+              {paginaActual < totalPaginas ? (
+                <Link className="btn btn-secondary" href={hrefPagina(paginaActual + 1)} rel="next">
+                  {t.pageNext} →
+                </Link>
+              ) : (
+                <span />
+              )}
+            </nav>
+          ) : null}
+        </>
       )}
 
       <PromoBanner locale={locale} />
