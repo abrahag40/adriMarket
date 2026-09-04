@@ -14,6 +14,11 @@
 #   ./scripts/demo-content.sh archivo.env  # usa ese archivo
 #   ./scripts/demo-content.sh --from-env   # usa la DATABASE_URL ya exportada
 #
+# La protección —enseñar el destino antes de escribir— vale para cualquier
+# guion de `db/seed/`, no solo para este. `SEED_FILE` elige cuál se aplica:
+#
+#   SEED_FILE=db/seed/catalogo_caribe.sql ./scripts/demo-content.sh --from-env
+#
 # **Para producción no sirve `vercel env pull`.** DATABASE_URL está marcada
 # como sensible en el proyecto de Vercel, y las sensibles son de solo
 # escritura: el archivo baja con `DATABASE_URL=""`. La cadena se saca de la
@@ -27,6 +32,7 @@
 set -euo pipefail
 
 origen="${1:-}"
+seed_file="${SEED_FILE:-db/seed/demo_content.sql}"
 
 if [[ "$origen" == "--from-env" ]]; then
   # La cadena viene del entorno y **no se pisa con .env**, que es el error
@@ -98,6 +104,12 @@ fi
 # antes de escribir, si vamos a la base que creemos.
 destino="$(printf '%s' "$DATABASE_URL" | sed -E 's#://[^@/]*@#://***@#')"
 echo "→ destino:  $destino"
+echo "→ guion:    $seed_file"
 echo
 
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -q -f db/seed/demo_content.sql
+if [[ ! -f "$seed_file" ]]; then
+  echo "No existe $seed_file (se eligió con SEED_FILE)." >&2
+  exit 1
+fi
+
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --no-psqlrc -q -f "$seed_file"

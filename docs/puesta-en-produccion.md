@@ -83,6 +83,23 @@ quedan descartados en cualquier caso.
       Ojo con `./scripts/db.sh`: hace `source .env` y eso **pisa** cualquier
       `DATABASE_URL` que le pases por la línea de comandos. Por eso el
       relleno tiene su propio guion y recibe el archivo por argumento.
+- [ ] Opcional, y **tampoco es el seed**: `db/seed/catalogo_caribe.sql` carga un
+      catálogo completo del Caribe mexicano —ocho destinos, veinticuatro tours
+      con texto en español e inglés, itinerario, precios por tipo de pasajero,
+      salidas de los próximos cuatro meses y cinco fotos de relleno cada uno—
+      para que la vitrina se pueda juzgar antes de que el cliente termine de
+      cargar su inventario. Solo inserta, nunca pisa lo que ya existe, y correrlo
+      dos veces no duplica nada. Va por el mismo envoltorio:
+
+      ```bash
+      SEED_FILE=db/seed/catalogo_caribe.sql ./scripts/demo-content.sh --from-env
+      ```
+
+      **No toca `tax_rates`**: la base gravable sigue siendo una decisión abierta
+      del cliente, así que los destinos nuevos exhiben precio sin impuesto hasta
+      que se cargue la tasa que les toca. El informe final dice cuántos tours
+      quedaron sin salidas o sin precio de adulto —ambos deben ser cero— y se
+      niega a terminar si alguno de los suyos quedó sin poder venderse.
 - [ ] Copias de seguridad automáticas activadas y **una restauración probada**.
       Una copia que nunca se restauró no es una copia.
 
