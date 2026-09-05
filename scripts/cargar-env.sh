@@ -17,7 +17,7 @@
 # tal cual.
 #
 #   source scripts/cargar-env.sh
-#   cargar_env .env.production.local
+#   cargar_env .env.neon
 
 cargar_env() {
   local archivo="$1"

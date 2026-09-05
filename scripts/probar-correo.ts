@@ -9,8 +9,8 @@
  * es la última pulgada: que Resend acepte el mensaje y que llegue a una bandeja
  * de verdad.
  *
- *   RESEND_API_KEY=re_… MAIL_FROM=reservas@… \
- *     npm run probar:correo -- destinatario@ejemplo.com [CÓDIGO]
+ *   MAIL_FROM=… RESEND_API_KEY=re_…                  npm run probar:correo -- alguien@…
+ *   MAIL_FROM=… SMTP_HOST=… SMTP_USER=… SMTP_PASSWORD=… npm run probar:correo -- alguien@…
  *
  * Sin código de reserva toma la última confirmada. **No toca la bandeja de
  * salida ni escribe nada**: es una sonda, no un despacho. Y arma el correo con
@@ -18,9 +18,8 @@
  * `transport()`— porque un probador que arma el mensaje por su cuenta deja de
  * parecerse al real en cuanto alguien toca uno de los dos.
  *
- * Se niega a correr sin llaves de Resend a propósito: con el transporte local
- * esto "pasaría" siempre, y una comprobación que no puede fallar no comprueba
- * nada.
+ * Se niega a correr con el transporte local a propósito: así esto "pasaría"
+ * siempre, y una comprobación que no puede fallar no comprueba nada.
  */
 
 import { sql } from "drizzle-orm";
@@ -38,20 +37,18 @@ if (!destino || !destino.includes("@")) {
   process.exit(1);
 }
 
-if (!process.env.RESEND_API_KEY || !process.env.MAIL_FROM) {
-  console.error(
-    "Faltan RESEND_API_KEY y MAIL_FROM.\n\n" +
-      "Sin ellas se usaría el transporte local, que guarda el correo en lugar de\n" +
-      "mandarlo: la prueba pasaría sin haber entregado nada. Se sacan de\n" +
-      "resend.com → API keys, y MAIL_FROM tiene que estar en un dominio\n" +
-      "verificado ahí (ver docs/puesta-en-produccion.md §6).",
-  );
-  process.exit(1);
-}
-
+// La única condición es que el transporte elegido **mande de verdad**. No se
+// exige uno en concreto: sirve Resend con dominio verificado y sirve SMTP de la
+// propia cuenta de correo, que es el camino mientras no haya dominio.
 const mail = transport();
-if (mail.name !== "resend") {
-  console.error(`El transporte elegido es "${mail.name}" y no Resend. Revisa la configuración.`);
+if (mail.name === "local") {
+  console.error(
+    "El transporte elegido es el local, que guarda el correo en lugar de\n" +
+      "mandarlo: esta prueba pasaría sin haber entregado nada.\n\n" +
+      "Configura uno de los dos (ver docs/puesta-en-produccion.md §6):\n" +
+      "  · MAIL_FROM + RESEND_API_KEY        — exige dominio verificado en Resend\n" +
+      "  · MAIL_FROM + SMTP_HOST/USER/PASSWORD — la propia cuenta de correo",
+  );
   process.exit(1);
 }
 
@@ -86,6 +83,7 @@ if (!mensaje) {
 }
 
 console.log(`→ reserva:   ${reserva.code} (${locale})`);
+console.log(`→ transporte: ${mail.name}`);
 console.log(`→ de:        ${process.env.MAIL_FROM}`);
 console.log(`→ para:      ${destino}`);
 console.log(`→ asunto:    ${mensaje.subject}`);
@@ -104,12 +102,12 @@ try {
       },
     ],
   });
-  console.log(`✔ Resend lo aceptó. id: ${resultado.providerRef}`);
+  console.log(`✔ ${mail.name} lo aceptó. id: ${resultado.providerRef}`);
   console.log("  Falta lo que ningún programa puede afirmar: que llegó a la bandeja");
   console.log("  de entrada y no a no deseado. Revísalo en Gmail, Outlook e iCloud.");
 } catch (error) {
   const detalle = error instanceof Error ? error.message : String(error);
-  console.error(`✘ Resend lo rechazó:\n  ${detalle}`);
+  console.error(`✘ ${mail.name} lo rechazó:\n  ${detalle}`);
   if (detalle.includes("403") || detalle.includes("testing emails")) {
     console.error(
       "\n  Es la restricción de la caja de arena: sin dominio verificado, Resend\n" +

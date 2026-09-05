@@ -94,7 +94,7 @@ de algo que le importaba** — su reserva, su recordatorio, su cancelación.
 **Qué hacer.**
 
 1. Ver qué pasó. Contra producción, sin pegar ninguna cadena —la toma de
-   `.env.production.local`, verifica que sea el servidor anclado y solo lee,
+   `.env.neon`, verifica que sea el servidor anclado y solo lee,
    con el destinatario tapado—:
    ```bash
    npm run prod:sql -- db/consultas/avisos-atorados.sql

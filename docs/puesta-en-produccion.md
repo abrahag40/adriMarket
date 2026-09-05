@@ -52,7 +52,7 @@ quedan descartados en cualquier caso.
       el límite real es *(instancias × este valor)* y las instancias suben solas.
 - [ ] Migrar **sin teclear la cadena**, que es de donde salió el peor error
       de este proyecto. Dos caminos, los dos con la cadena guardada una sola
-      vez: `npm run prod:migrate` (la lee de `.env.production.local` y
+      vez: `npm run prod:migrate` (la lee de `.env.neon` y
       verifica que sea el servidor anclado) o la pestaña **Actions** de
       GitHub → *Migrar producción* (la lee del secreto del repositorio).
       `npm run db:migrate` a pelo sigue existiendo para desarrollo.
@@ -125,7 +125,9 @@ quedan descartados en cualquier caso.
 | `DATABASE_URL` | base | no arranca |
 | `NEXT_PUBLIC_SITE_URL` | canonical, hreflang y retorno de la pasarela | el huésped vuelve de pagar a una dirección equivocada |
 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` | cobro real | se usa la pasarela local: **no cobra** |
-| `RESEND_API_KEY` + `MAIL_FROM` | correo real | el aviso se guarda pero no se manda |
+| `MAIL_FROM` | remitente; hace falta para cualquier envío | el aviso se guarda pero no se manda |
+| `RESEND_API_KEY` | correo por Resend (**exige dominio verificado**) | se intenta SMTP |
+| `SMTP_HOST` + `SMTP_USER` + `SMTP_PASSWORD` | correo por la propia cuenta, sin dominio | el aviso se guarda pero no se manda |
 | `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` | WhatsApp real | no se manda |
 | `JOBS_SECRET` | protege el latido | el worker queda abierto |
 | `BLOB_READ_WRITE_TOKEN` | dónde viven las fotos | usa disco local (`var/media`); en Vercel eso es efímero |
@@ -180,25 +182,58 @@ tampoco. Nada da error; simplemente deja de pasar.
 
 ## 6. Correo
 
-El camino está completo y probado —el aviso se encola en la misma transacción
-que confirma la reserva, el latido lo despacha, se reintenta con espera
-creciente y se guarda el texto exacto que recibió el huésped— pero contra el
-transporte local. **Lo único que nunca se ha ejercitado es la última pulgada:
-que Resend acepte el mensaje y llegue a una bandeja.**
+El camino está completo y **ejercitado contra el servicio real**: el aviso se
+encola en la misma transacción que confirma la reserva, el latido lo despacha,
+se reintenta con espera creciente y se guarda el texto exacto que recibió el
+huésped. El 2026-09-04 se mandó el primer correo de verdad —el enlace de acceso
+al panel— y Resend lo reportó *Delivered*.
 
-Estado revisado el 2026-09-04, en la cuenta de Resend del cliente:
+Estado a esa fecha:
 
 | Qué | Cómo está |
 |---|---|
-| Llaves de API | dos, una con acceso total y otra de envío |
-| Dominios verificados | **ninguno** |
-| `RESEND_API_KEY` y `MAIL_FROM` en Vercel | **no están** — producción usa el transporte local |
+| `MAIL_FROM` y `RESEND_API_KEY` en Vercel | cargadas; el transporte elegido es Resend |
+| Dominios verificados en Resend | **ninguno** |
+| A quién se le puede escribir | **solo a la dirección dueña de la cuenta.** A cualquier otra, Resend responde `403` |
+
+O sea: el mecanismo funciona y el equipo recibe sus correos, pero **un huésped
+real todavía no.** Y ahora falla ruidosamente —seis intentos, `dead`, salud
+degradada— en vez de guardarse en silencio, que es mejor pero sigue sin llegar.
+
+### Mientras no haya dominio
+
+El dominio no llegó por falta de capital, y esperar significaba que **ningún
+huésped recibiera su confirmación**. El rodeo es mandar por el SMTP de la
+propia cuenta de correo, que sí puede escribirle a cualquiera:
+
+```bash
+vercel env rm  RESEND_API_KEY production     # decir explícitamente "hoy no es Resend"
+vercel env add MAIL_FROM      production     # la MISMA dirección que autentica
+vercel env add SMTP_HOST      production     # smtp.gmail.com
+vercel env add SMTP_USER      production     # esa misma dirección
+vercel env add SMTP_PASSWORD  production     # contraseña de aplicación de Google
+vercel --prod                                # las variables se toman al desplegar
+```
+
+La contraseña de aplicación se genera en la cuenta de Google (Seguridad →
+Contraseñas de aplicaciones) y **exige verificación en dos pasos activada**. No
+es la contraseña del correo.
+
+Lo que se acepta: el huésped recibe su confirmación de una dirección personal,
+no de `reservas@`; y Gmail limita a unos 500 correos al día, que para el
+volumen de hoy sobra. Lo que **no** se acepta —y por eso no se eligió un ESP
+con "remitente verificado"— es que la firma no alinee con el remitente: eso
+manda el correo a no deseado. Ver `src/modules/notifications/send.ts`.
+
+### Cuando llegue el dominio
 
 - [ ] **Dominio propio.** Es el mismo bloqueante que deja al sitio en
       `adrimarket.vercel.app` (decisión 0005): sin dominio no hay dónde poner
       SPF, DKIM y DMARC, y Resend no tiene qué verificar.
 - [ ] Dominio verificado en Resend con esos tres registros.
-- [ ] `MAIL_FROM` en ese dominio, y `RESEND_API_KEY` cargadas en Vercel.
+- [ ] `MAIL_FROM` en ese dominio, y `RESEND_API_KEY` cargada en Vercel. **No
+      hace falta quitar las variables de SMTP**: Resend gana en cuanto su llave
+      está presente, justamente para que nadie tenga que acordarse.
 - [ ] Prueba de entrega real a **Gmail, Outlook e iCloud**, revisando que no
       caiga en no deseado. Son los tres que usa el 95% de los huéspedes.
 
@@ -207,8 +242,11 @@ comprobante QR adjunto, armada con las mismas funciones que usa el worker, y
 sin tocar la bandeja de salida:
 
 ```bash
-RESEND_API_KEY=re_… MAIL_FROM=reservas@… npm run probar:correo -- destinatario@ejemplo.com
+MAIL_FROM=… RESEND_API_KEY=re_… npm run probar:correo -- destinatario@ejemplo.com
 ```
+
+Sirve igual con SMTP: la sonda solo exige que el transporte elegido **mande de
+verdad**, y se niega si es el local.
 
 > **Cargar `RESEND_API_KEY` sin dominio verificado es peor que no cargarla.**
 > Resend solo entrega desde `onboarding@resend.dev` a la dirección dueña de la

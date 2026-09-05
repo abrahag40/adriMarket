@@ -5,7 +5,7 @@
 #   ./scripts/produccion.sh sql archivo.sql    corre un archivo SQL
 #   ./scripts/produccion.sh psql               abre una sesión interactiva
 #
-# La cadena vive en `.env.production.local`, que git ignora. Se escribe **una
+# La cadena vive en `.env.neon`, que git ignora. Se escribe **una
 # vez** y nunca más: el error del 2026-09-04 —migrar la base de otro proyecto
 # de Neon— fue de teclado, y un teclado que no se usa no se equivoca.
 #
@@ -27,7 +27,22 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-ARCHIVO=".env.production.local"
+ARCHIVO=".env.neon"
+
+# El archivo NO se llama `.env.production.local`, y no es capricho.
+#
+# Next carga solo `.env`, `.env.local`, `.env.<NODE_ENV>` y
+# `.env.<NODE_ENV>.local`, **y los de NODE_ENV ganan**. Con la cadena de
+# producción en `.env.production.local`, un `next build` local la tomaba en
+# lugar de la de `.env`: el servidor de verificación quedaba hablando con
+# producción sin que nada lo dijera, y `smoke.sh` reportó 50 fallos que no eran
+# del código. `.env.neon` no coincide con ningún patrón de Next.
+if [[ -f .env.production.local ]]; then
+  echo "Existe .env.production.local, y Next lo carga en cualquier build de" >&2
+  echo "producción: un 'next build' local acabaría apuntando a producción." >&2
+  echo "Renómbralo a .env.neon (es el que lee este guion)." >&2
+  exit 1
+fi
 
 if [[ ! -f "$ARCHIVO" ]]; then
   cat >&2 <<AYUDA

@@ -133,8 +133,8 @@ traduce a `InventoryUnavailableError`.
 
 ### Proveedores intercambiables
 
-`src/modules/payments` y `src/modules/notifications` hablan con Stripe, Resend y
-la Cloud API de Meta detrás de una interfaz. Sin llaves configuradas se usan
+`src/modules/payments` y `src/modules/notifications` hablan con Stripe, Resend,
+SMTP y la Cloud API de Meta detrás de una interfaz. Sin llaves configuradas se usan
 proveedores locales que **no son dobles de prueba**: firman y verifican con el
 mismo mecanismo que los reales, y guardan el aviso renderizado en lugar de
 enviarlo. El camino que se ejercita —firma, idempotencia, confirmación
@@ -238,7 +238,7 @@ Están aquí porque cada una se pagó una vez.
 
   Pero la guarda no es la lección: **la cadena que no se teclea no se
   equivoca.** Contra producción se usa `npm run prod:migrate` y
-  `npm run prod:sql -- <archivo>`, que la leen de `.env.production.local` y
+  `npm run prod:sql -- <archivo>`, que la leen de `.env.neon` y
   verifican contra el servidor anclado ahí; o la pestaña Actions de GitHub →
   *Migrar producción*, que la lee de un secreto del repositorio. Ninguna
   automatización puede estrenar un esquema en una base remota: eso exige
@@ -252,6 +252,15 @@ Están aquí porque cada una se pagó una vez.
   desarrollo**: una garantía que depende del seed comprueba el seed. Ahora la 21
   corre también sin el ajuste, `booking_confirm` no encola lo que no puede
   entregar y `/api/health` reporta la configuración faltante por su nombre.
+- **Un archivo de entorno llamado `.env.production.local` secuestra el build.**
+  Next carga `.env`, `.env.local`, `.env.<NODE_ENV>` y `.env.<NODE_ENV>.local`,
+  y **los de `NODE_ENV` ganan**. La cadena de producción se guardó ahí y a
+  partir de entonces `npm run build` local la tomó en lugar de la de `.env`: el
+  servidor de verificación quedó hablando con **producción** y `smoke.sh`
+  reportó 50 fallos que no eran del código. El archivo se llama `.env.neon`,
+  que no coincide con ningún patrón de Next, y `produccion.sh` se niega a
+  correr si encuentra el viejo. La pista que lo delata: el build imprime
+  `- Environments: …` con los archivos que cargó.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 
@@ -347,12 +356,17 @@ Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
   precio de adulto, o una unidad de estancia con al menos una tarifa cargada.
 - **No hay colchón de rotación entre estancias** (se bloquea el día a mano).
 - **El cobro parcial del saldo se rechaza a propósito**: no hay regla de negocio.
-- **Stripe, correo y WhatsApp no se han ejecutado contra el servicio real.**
-  Para el correo hay sonda: `npm run probar:correo -- alguien@ejemplo.com`
-  manda una confirmación de verdad por Resend, con las mismas funciones que
-  usa el worker, y se niega a correr sin llaves —con el transporte local
-  pasaría siempre. Falta el dominio propio: sin él Resend solo entrega a la
-  dirección dueña de la cuenta.
+- **Stripe y WhatsApp no se han ejecutado contra el servicio real.** El correo
+  sí: el 2026-09-04 se mandó el primero de verdad y llegó. La sonda es
+  `npm run probar:correo -- alguien@ejemplo.com`, que arma el mensaje con las
+  mismas funciones del worker y **se niega a correr con el transporte local**,
+  porque así pasaría siempre.
+- **Sin dominio propio, Resend solo entrega a la dirección dueña de la cuenta.**
+  Por eso existe `SmtpTransport`: mandando por el SMTP de la propia cuenta de
+  correo, SPF y DKIM alinean con el remitente y se le puede escribir a
+  cualquiera. Es un rodeo económico, no técnico. **Resend gana cuando su llave
+  está presente**, para que el día del dominio tome el relevo sin que nadie
+  tenga que acordarse de quitar lo anterior.
 
 ## Decisiones del cliente que siguen abiertas
 

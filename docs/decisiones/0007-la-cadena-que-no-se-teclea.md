@@ -41,7 +41,7 @@ una prueba de atención, y las pruebas de atención se fallan.
 **D y E, y C como red para lo que quede fuera de las dos.**
 
 - `npm run prod:migrate` y `npm run prod:sql -- <archivo>` leen la cadena de
-  `.env.production.local` y la verifican contra `PRODUCTION_DB_HOST`, anclado en
+  `.env.neon` y la verifican contra `PRODUCTION_DB_HOST`, anclado en
   el mismo archivo. Si no coinciden, se cancela antes de tocar nada.
 - El workflow **Migrar producción** (`workflow_dispatch`) la lee de
   `secrets.DATABASE_URL`. Es un botón; no hay nada que teclear.
@@ -64,8 +64,15 @@ Y un respaldo que no depende de que nadie acierte:
   anclado o cambie el secreto: dos actos deliberados, no un pegado distraído.
 - La cadena sigue viviendo en dos lugares (una máquina y un secreto de GitHub).
   Rotarla obliga a actualizar los dos. Es el costo aceptado.
-- `.env.production.local` está en `.gitignore` por el patrón `.env.*`, que ya
-  existía desde que `vercel env pull` estuvo a punto de versionar la cadena.
+- `.env.neon` está en `.gitignore` por el patrón `.env.*`, que ya existía
+  desde que `vercel env pull` estuvo a punto de versionar la cadena.
+- **El archivo se llamó primero `.env.production.local`, y fue un error.** Next
+  carga `.env`, `.env.local`, `.env.<NODE_ENV>` y `.env.<NODE_ENV>.local`, y
+  los de `NODE_ENV` **ganan**: un `next build` local empezó a tomar la cadena
+  de producción en lugar de la de `.env`, así que el servidor de verificación
+  quedó hablando con producción y `smoke.sh` reportó 50 fallos que no eran del
+  código. El nombre `.env.neon` no coincide con ningún patrón de Next, y
+  `produccion.sh` se niega a correr si encuentra el archivo viejo.
 
 ## Lo que se descartó y por qué importa
 

@@ -173,6 +173,67 @@ class ResendTransport implements Transport {
 }
 
 /**
+ * SMTP · el camino para cuando no hay dominio propio.
+ *
+ * Resend —y cualquier ESP serio— exige un dominio verificado antes de dejarte
+ * escribirle a un desconocido. Sin dominio solo entrega a la dirección dueña de
+ * la cuenta, así que el huésped no recibe nada. Este transporte existe para ese
+ * hueco, que es económico y no técnico: comprar un dominio cuesta dinero que el
+ * proyecto todavía no tiene.
+ *
+ * **Por qué SMTP de la propia cuenta de correo y no otro ESP con "remitente
+ * verificado".** Varios (Brevo, SendGrid) dejan verificar una dirección suelta
+ * sin dominio, pero entonces firman con SU dominio y la firma no alinea con el
+ * `de:` que ve el huésped: DMARC falla y el correo se va a no deseado con más
+ * frecuencia. Mandando por el SMTP del propio proveedor de la dirección, SPF y
+ * DKIM corresponden al dominio del remitente y las tres verificaciones pasan.
+ * Es la única opción sin dominio en la que el correo está bien firmado.
+ *
+ * Lo que se acepta a cambio: el huésped recibe su confirmación de una dirección
+ * personal, no de `reservas@`. Se cambia el día que haya dominio sin tocar una
+ * línea de lógica — solo variables de entorno.
+ *
+ * `MAIL_FROM` tiene que ser **la misma dirección** que autentica, porque Gmail
+ * (y la mayoría) reescriben el `de:` al usuario autenticado. Poner otra no da
+ * error: llega con un remitente que nadie eligió.
+ */
+class SmtpTransport implements Transport {
+  readonly name = "smtp";
+
+  constructor(
+    private readonly server: { host: string; port: number; user: string; pass: string },
+    private readonly from: string,
+  ) {}
+
+  async send(message: { to: string; subject: string; text: string; attachments?: Attachment[] }) {
+    // Importación diferida: nodemailer no se carga si no se usa este
+    // transporte, que es el caso en desarrollo y en el pipeline.
+    const { createTransport } = await import("nodemailer");
+
+    const transporter = createTransport({
+      host: this.server.host,
+      port: this.server.port,
+      // 465 es TLS implícito; 587 empieza en claro y sube con STARTTLS.
+      secure: this.server.port === 465,
+      auth: { user: this.server.user, pass: this.server.pass },
+    });
+
+    const info = await transporter.sendMail({
+      from: this.from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      attachments: message.attachments?.map((attachment) => ({
+        filename: attachment.filename,
+        content: attachment.content,
+      })),
+    });
+
+    return { providerRef: info.messageId ?? "" };
+  }
+}
+
+/**
  * Transporte local: guarda el mensaje renderizado en la propia fila de la
  * bandeja en lugar de mandarlo.
  *
@@ -189,10 +250,34 @@ class LocalTransport implements Transport {
   }
 }
 
+/**
+ * Elige el transporte de correo según la configuración, nunca por una bandera
+ * de "modo desarrollo": sin credenciales no hay nada que mandar, y con ellas
+ * siempre se usa el real.
+ *
+ * **Resend gana cuando está configurado**, aunque también haya SMTP. Es el
+ * orden que se quiere el día que exista el dominio: se carga la llave y toma
+ * el relevo sola, sin que nadie tenga que acordarse de quitar lo de antes.
+ * Para usar SMTP mientras tanto hay que **quitar `RESEND_API_KEY`**, que es la
+ * forma explícita de decir "hoy no estamos usando Resend".
+ */
 export function transport(): Transport {
-  const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.MAIL_FROM;
-  if (apiKey && from) return new ResendTransport(apiKey, from);
+  if (!from) return new LocalTransport();
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) return new ResendTransport(apiKey, from);
+
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD;
+  if (host && user && pass) {
+    return new SmtpTransport(
+      { host, port: Number(process.env.SMTP_PORT ?? 465), user, pass },
+      from,
+    );
+  }
+
   return new LocalTransport();
 }
 
