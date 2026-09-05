@@ -19,6 +19,12 @@
  *   NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
  *   npx next start -p 3100 &
  *   BASE_URL=http://127.0.0.1:3100 node scripts/audit.mjs
+ *
+ * **Es una compuerta local, no una sonda de producción.** Las comprobaciones
+ * sin JavaScript piden productos del seed de desarrollo por su slug
+ * (`casa-akumal`, `snorkel-cenotes-tulum`), que en producción no existen:
+ * apuntarle a `adrimarket.vercel.app` da fallos que no son fallos. Para medir
+ * producción, lo que vale de aquí es el bloque de peso.
  */
 
 import { execFileSync } from "node:child_process";
@@ -65,7 +71,11 @@ function query(sql) {
  * Así que cada página tiene el suyo, medido y con margen — no un número
  * global aflojado hasta que todo pase:
  *
- *   · inicio: 400, con 369 medidos. Lleva portada, dos carruseles, dos
+ *   · inicio: 450, con **369 medidos en local y 420 en producción**. La
+ *     diferencia entre los dos no es contenido de más: es qué fotos caen en
+ *     los carruseles, que cambia con el orden del catálogo. Un tope que falla
+ *     según qué foto tocó no mide nada, así que cubre la más pesada de las
+ *     dos. Lleva portada, dos carruseles, dos
  *     cuadrículas y el listado; el navegador descarga **doce fotos** antes de
  *     que nadie desplace nada, a unos 16 kB cada una. 189 kB de imágenes para
  *     doce fotos no es un problema de compresión, es la cuenta de una portada
@@ -85,7 +95,7 @@ const PRESUPUESTO = { total: 210, js: 140 };
 
 /** Presupuesto por página. La clave es el prefijo de la ruta. */
 const PRESUPUESTO_POR_RUTA = [
-  [/^\/(es|en)$/, { total: 400, js: 140 }],
+  [/^\/(es|en)$/, { total: 450, js: 140 }],
   [/^\/(es|en)\/(tours|estancias)\//, { total: 260, js: 140 }],
 ];
 
