@@ -3668,14 +3668,25 @@ fieldset.field legend {
   text-wrap: balance;
 }
 
-/* Los párrafos quedaban con un último renglón de dos palabras y las tres
-   columnas terminaban a alturas distintas, que es lo que se ve desparejo.
-   `pretty` equilibra los últimos renglones sin tocar el resto.
+/* Párrafos justificados, decisión del cliente tomada con el costo sobre la
+   mesa: en columnas angostas forzar los dos márgenes abre huecos desiguales
+   entre palabras. `hyphens: auto` es lo que hace la diferencia entre que se
+   lea bien o no —parte palabras al final del renglón y reparte el sobrante en
+   más huecos pequeños en vez de pocos grandes—, y necesita que el documento
+   declare su idioma, que lo hace `<html lang>` desde el layout.
 
-   **No se usa `text-align: justify`.** En columnas de ~40 caracteres, forzar
-   los dos márgenes abre ríos de blanco entre palabras y separa las letras: se
-   ve ordenado de lejos y se lee peor de cerca. Si se quiere el bloque
-   perfectamente rectangular, se cambia aquí y se acepta ese costo. */
+   `pretty` se queda: sigue evitando el último renglón de una sola palabra,
+   que justificado es lo que peor se ve. */
 .value-props .muted {
+  text-align: justify;
+  hyphens: auto;
   text-wrap: pretty;
+}
+
+/* El panel lateral de la ficha no: ahí la columna es de ~30 caracteres y ni
+   con guiones alcanza a repartir el sobrante. Se queda alineado a la
+   izquierda. */
+.detail-aside-confidence .value-props .muted {
+  text-align: start;
+  hyphens: manual;
 }
