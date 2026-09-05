@@ -215,9 +215,14 @@ vercel env add SMTP_PASSWORD  production     # contraseña de aplicación de Goo
 vercel --prod                                # las variables se toman al desplegar
 ```
 
-La contraseña de aplicación se genera en la cuenta de Google (Seguridad →
-Contraseñas de aplicaciones) y **exige verificación en dos pasos activada**. No
-es la contraseña del correo.
+La contraseña de aplicación se genera en
+[myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+y **exige verificación en dos pasos activada**. No es la contraseña del correo.
+
+> **Los 16 caracteres van sin espacios.** Google los enseña en cuatro bloques
+> para que se lean; con los espacios, la autenticación responde
+> `535-5.7.8 Username and Password not accepted`, que parece una contraseña
+> equivocada y no lo es. Costó un intento fallido.
 
 Lo que se acepta: el huésped recibe su confirmación de una dirección personal,
 no de `reservas@`; y Gmail limita a unos 500 correos al día, que para el

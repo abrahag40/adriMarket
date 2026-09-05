@@ -119,6 +119,13 @@ try {
 } catch (error) {
   const detalle = error instanceof Error ? error.message : String(error);
   console.error(`✘ ${mail.name} lo rechazó:\n  ${detalle}`);
+  if (detalle.includes("535") && /\s/.test(process.env.SMTP_PASSWORD ?? "")) {
+    console.error(
+      "\n  La contraseña que se usó trae espacios. Google enseña la de\n" +
+        "  aplicación en cuatro bloques para que se lea, pero la autenticación\n" +
+        "  quiere los 16 caracteres seguidos. Quítalos y vuelve a intentar.",
+    );
+  }
   if (detalle.includes("403") || detalle.includes("testing emails")) {
     console.error(
       "\n  Es la restricción de la caja de arena: sin dominio verificado, Resend\n" +
