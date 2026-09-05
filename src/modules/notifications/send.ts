@@ -11,6 +11,7 @@ import {
   reminderNotice,
   type BookingNotification,
 } from "./templates";
+import { renderHtml } from "./html";
 import { bookingVoucherQr } from "./voucher";
 import { buildWhatsApp } from "./whatsapp";
 
@@ -41,6 +42,8 @@ export type Transport = {
     to: string;
     subject: string;
     text: string;
+    /** Mitad HTML del multiparte. Opcional: sin ella el correo sale igual. */
+    html?: string;
     attachments?: Attachment[];
   }): Promise<{ providerRef: string }>;
 };
@@ -143,7 +146,13 @@ class ResendTransport implements Transport {
     private readonly from: string,
   ) {}
 
-  async send(message: { to: string; subject: string; text: string; attachments?: Attachment[] }) {
+  async send(message: {
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+    attachments?: Attachment[];
+  }) {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -154,7 +163,10 @@ class ResendTransport implements Transport {
         from: this.from,
         to: [message.to],
         subject: message.subject,
+        // Los dos: el cliente de correo elige cuál pinta. Mandar solo HTML
+        // empeora la entrega y deja fuera a quien lee en texto.
         text: message.text,
+        html: message.html,
         // Resend pide el contenido del adjunto en base64, como cualquier API de
         // correo: el binario del PNG no cabe en JSON tal cual.
         attachments: message.attachments?.map((attachment) => ({
@@ -205,7 +217,13 @@ class SmtpTransport implements Transport {
     private readonly from: string,
   ) {}
 
-  async send(message: { to: string; subject: string; text: string; attachments?: Attachment[] }) {
+  async send(message: {
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+    attachments?: Attachment[];
+  }) {
     // Importación diferida: nodemailer no se carga si no se usa este
     // transporte, que es el caso en desarrollo y en el pipeline.
     const { createTransport } = await import("nodemailer");
@@ -223,6 +241,7 @@ class SmtpTransport implements Transport {
       to: message.to,
       subject: message.subject,
       text: message.text,
+      html: message.html,
       attachments: message.attachments?.map((attachment) => ({
         filename: attachment.filename,
         content: attachment.content,
@@ -245,7 +264,7 @@ class SmtpTransport implements Transport {
 class LocalTransport implements Transport {
   readonly name = "local";
 
-  async send(message: { to: string; subject: string; text: string }) {
+  async send(message: { to: string; subject: string; text: string; html?: string }) {
     return { providerRef: `local:${message.to}` };
   }
 }
@@ -287,7 +306,7 @@ export function transport(): Transport {
 
 type QuoteLineWithLabel = { label?: string; concept: string; cents: number };
 
-async function notificationData(bookingId: string): Promise<BookingNotification | null> {
+export async function notificationData(bookingId: string): Promise<BookingNotification | null> {
   const rows = await db.execute<{
     code: string;
     locale: string;
@@ -538,10 +557,13 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
               ]
             : undefined;
 
+        const html = (await renderHtml(row.template, data)) ?? undefined;
+
         const result = await mail.send({
           to: row.to_address,
           subject: message.subject,
           text: message.text,
+          html,
           attachments,
         });
         providerRef = result.providerRef;

@@ -46,7 +46,7 @@ export type BookingNotification = {
 /** Hora de presentación: 15 minutos antes de la salida (regla del SME). */
 const REPORT_MINUTES_EARLY = 15;
 
-function formatDateTime(
+export function formatDateTime(
   instant: string,
   timezone: string,
   locale: Locale,
@@ -58,14 +58,14 @@ function formatDateTime(
   }).format(new Date(instant));
 }
 
-function formatDate(date: string, locale: Locale): string {
+export function formatDate(date: string, locale: Locale): string {
   return new Intl.DateTimeFormat(LOCALE_TAG[locale], {
     dateStyle: "full",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
 }
 
-function reportTime(
+export function reportTime(
   startsAt: string,
   timezone: string,
   locale: Locale,

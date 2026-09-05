@@ -26,7 +26,8 @@
     "audit:spacing": "node scripts/spacing-audit.mjs",
     "probar:correo": "tsx --env-file-if-exists=.env scripts/probar-correo.ts",
     "prod:migrate": "./scripts/produccion.sh migrate",
-    "prod:sql": "./scripts/produccion.sh sql"
+    "prod:sql": "./scripts/produccion.sh sql",
+    "correo:vista": "tsx --env-file-if-exists=.env scripts/vista-correo.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
@@ -43,6 +44,8 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.0",
     "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.44.2",
     "next": "^15.5.23",
