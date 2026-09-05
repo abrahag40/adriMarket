@@ -45,7 +45,11 @@ export function DestinationCard({
       <span className="destination-card-count">{t.resultsCount(count)}</span>
       <span className="destination-card-body">
         <span className="destination-card-name">{name}</span>
-        <span className="destination-card-more">{t.destinationViewMore}</span>
+        <span className="destination-card-more">
+          {t.destinationViewMore}
+          {/* La flecha es decorativa: el texto ya dice a dónde va. */}
+          <span aria-hidden="true">→</span>
+        </span>
       </span>
     </Link>
   );

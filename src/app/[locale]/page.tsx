@@ -6,6 +6,7 @@ import { CatalogFilters } from "@/components/catalog-filters";
 import { Carousel } from "@/components/marketing/carousel";
 import { DestinationCard } from "@/components/marketing/destination-card";
 import { FeaturedCard } from "@/components/marketing/featured-card";
+import { HomeSection } from "@/components/marketing/home-section";
 import { PromoBanner } from "@/components/marketing/promo-banner";
 import { RoomCard } from "@/components/marketing/room-card";
 import { ValueProps } from "@/components/marketing/value-props";
@@ -120,11 +121,11 @@ export default async function CatalogPage({
     .filter((item) => item.kind === "stay" && item.coverUrl !== null)
     .slice(0, 6);
 
-  /* Nueve por página: tres filas de tres en escritorio. Eran doce, y en el
-     inicio —que además lleva arriba el hero, el buscador, los destinos y los
-     tours destacados— cuatro filas se leen como un catálogo entero pegado
-     debajo de la portada. */
-  const POR_PAGINA = 9;
+  /* Seis por página: dos filas de tres en escritorio. El inicio lleva arriba
+     el hero, el buscador, los destinos y los tours destacados; debajo de todo
+     eso, dos filas se leen como una muestra y no como el catálogo entero
+     pegado a la portada. Quien quiere ver todo pagina o filtra. */
+  const POR_PAGINA = 6;
   const sp = await searchParams;
   const pedida = Number.parseInt(String(Array.isArray(sp.page) ? sp.page[0] : sp.page ?? "1"), 10);
   const totalPaginas = Math.max(1, Math.ceil(items.length / POR_PAGINA));
@@ -175,6 +176,11 @@ export default async function CatalogPage({
 
   return (
     <div className="stack">
+      {/* El hero es la portada del inicio, no de un resultado de búsqueda.
+          Con un filtro aplicado, quien busca ya sabe a qué vino: media
+          pantalla de portada antes de los resultados solo lo aleja de ellos.
+          Es lo que hace la plantilla de referencia en su página de rejilla. */}
+      {noFilters ? (
       <section className={heroItem ? "hero" : "hero hero-no-media"}>
         <div className="hero-copy">
           <span className="hero-eyebrow">{t.heroEyebrow}</span>
@@ -197,8 +203,9 @@ export default async function CatalogPage({
           </div>
         ) : null}
       </section>
+      ) : null}
 
-      <div className={heroItem ? "search-card search-card-overlap" : "search-card"}>
+      <div className={noFilters && heroItem ? "search-card search-card-overlap" : "search-card"}>
         <CatalogFilters locale={locale} locations={locations} selected={selected} />
       </div>
 
@@ -209,13 +216,11 @@ export default async function CatalogPage({
           vacío al filtrar; destinos se calcula sobre `items` y por eso seguía
           apareciendo. */}
       {noFilters && destinations.length > 0 ? (
-        <section className="home-section" aria-labelledby="destinations-heading">
-          <div className="section-head">
-            <h2 id="destinations-heading" className="section-title">
-              {t.destinationsHeading}
-            </h2>
-            <p className="muted">{t.destinationsSubtitle}</p>
-          </div>
+        <HomeSection
+          id="destinations-heading"
+          title={t.destinationsHeading}
+          subtitle={t.destinationsSubtitle}
+        >
           {/* Carrusel y no cuadrícula: con seis destinos una rejilla de tres
               obliga a dos filas y empuja los tours media pantalla hacia
               abajo. El carrusel los deja recorrer en su propia línea, igual
@@ -240,17 +245,15 @@ export default async function CatalogPage({
               />
             ))}
           </Carousel>
-        </section>
+        </HomeSection>
       ) : null}
 
       {featuredTours.length > 0 ? (
-        <section className="home-section" aria-labelledby="featured-tours-heading">
-          <div className="section-head">
-            <h2 id="featured-tours-heading" className="section-title">
-              {t.featuredToursHeading}
-            </h2>
-            <p className="muted">{t.featuredToursSubtitle}</p>
-          </div>
+        <HomeSection
+          id="featured-tours-heading"
+          title={t.featuredToursHeading}
+          subtitle={t.featuredToursSubtitle}
+        >
           <Carousel
             label={t.featuredToursHeading}
             prevLabel={t.carouselPrev}
@@ -260,17 +263,11 @@ export default async function CatalogPage({
               <FeaturedCard key={item.id} item={item} locale={locale} />
             ))}
           </Carousel>
-        </section>
+        </HomeSection>
       ) : null}
 
       {stays.length > 0 ? (
-        <section className="home-section" aria-labelledby="stays-heading">
-          <div className="section-head">
-            <h2 id="stays-heading" className="section-title">
-              {t.staysHeading}
-            </h2>
-            <p className="muted">{t.staysSubtitle}</p>
-          </div>
+        <HomeSection id="stays-heading" title={t.staysHeading} subtitle={t.staysSubtitle}>
           <ul className="rooms-grid">
             {stays.map((item) => (
               <li key={item.id}>
@@ -278,7 +275,7 @@ export default async function CatalogPage({
               </li>
             ))}
           </ul>
-        </section>
+        </HomeSection>
       ) : null}
 
       <div className="results-head" id="resultados">

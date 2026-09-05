@@ -2025,8 +2025,22 @@ main {
   margin-top: clamp(28px, 4vw, 48px);
 }
 
+/* Sin esto, cada enlace ocupa toda su columna de `1fr` y se estira hasta
+   medir media pantalla: un botón de ese ancho no se lee como un control, se
+   lee como una barra. */
+.pager > :first-child {
+  justify-self: start;
+}
+
 .pager > :last-child {
   justify-self: end;
+}
+
+/* Compactos y con la flecha separada del texto, que es lo que los hace
+   leerse como "anterior/siguiente" y no como dos botones cualesquiera. */
+.pager .btn {
+  gap: 8px;
+  padding-inline: 20px;
 }
 
 .pager-state {
@@ -3161,11 +3175,38 @@ fieldset.field legend {
   transform: scale(1.05);
 }
 
+/* Dos velos, no uno. El de abajo sostiene el nombre; el de arriba sostiene
+   la insignia, que sobre un cielo claro se perdía. Entre los dos, la foto
+   queda enmarcada en lugar de flotar. */
 .destination-card::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgb(0 0 0 / 65%), transparent 55%);
+  background:
+    linear-gradient(to top, rgb(0 0 0 / 78%) 0%, rgb(0 0 0 / 30%) 38%, transparent 62%),
+    linear-gradient(to bottom, rgb(0 0 0 / 35%) 0%, transparent 26%);
+}
+
+/* Filo interior: separa la tarjeta del fondo blanco sin dibujar un borde
+   duro, que sobre una foto se ve pegado. */
+.destination-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 22%);
+  pointer-events: none;
+}
+
+.destination-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.destination-card:hover,
+.destination-card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 38px rgb(0 0 0 / 22%);
 }
 
 .destination-card-count {
@@ -3193,27 +3234,35 @@ fieldset.field legend {
   color: #ffffff;
 }
 
+/* En la serif del sitio y más grande: es el nombre de un lugar, no una
+   etiqueta. La sombra lo sostiene sobre cualquier foto. */
 .destination-card-name {
-  font-size: var(--step-1);
-  font-weight: 650;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-2);
+  line-height: 1.15;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 45%);
 }
 
-/* El "ver más" existe siempre en el DOM — lo anuncia un lector de pantalla
-   igual que el resto de la tarjeta, que ya es un enlace completo — pero solo
-   se revela visualmente al pasar el mouse o al enfocar con teclado. */
+/* El "ver más" **se ve siempre**. Estaba oculto hasta pasar el mouse, y eso
+   era justo lo que dejaba la mitad de abajo de la foto vacía —y en un
+   teléfono, donde no hay mouse, no aparecía nunca—. Ahora acompaña al nombre
+   y solo se desplaza un poco al apuntar. */
 .destination-card-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--step--1);
-  opacity: 0;
-  max-height: 0;
-  transform: translateY(4px);
-  transition: opacity 0.2s ease, transform 0.2s ease, max-height 0.2s ease;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .destination-card:hover .destination-card-more,
 .destination-card:focus-visible .destination-card-more {
-  opacity: 0.9;
-  max-height: 1.5em;
-  transform: translateY(0);
+  opacity: 1;
+  transform: translateX(4px);
 }
 
 /* Franja de cierre: el mensaje que sostiene todo el modelo de cobro —

@@ -22,12 +22,19 @@ export function SiteHeader({
 }) {
   const t = getMessages(locale);
   const other = otherLocale(locale);
-  // `aria-current="page"` marca el enlace activo en oscuro con su punto
-  // permanente — lo mismo que la referencia resuelve con JavaScript según la
-  // ruta. La comparación es exacta a propósito: "Inicio", "Tours" y
-  // "Estancias" comparten el mismo `pathname` y solo se distinguen por
-  // `?kind=`, así que un `startsWith` marcaría los tres a la vez.
-  const isActive = (href: string) => href === currentPath;
+  /* `aria-current="page"` marca el enlace activo en oscuro con su punto.
+     "Inicio", "Tours" y "Estancias" comparten `pathname` y solo se
+     distinguen por `?kind=`, así que se compara **ese parámetro**, no la
+     cadena entera.
+     Comparar cadenas fallaba con la URL que produce el buscador: un
+     formulario GET manda todos sus campos, incluidos los vacíos, así que
+     "Estancias" llegaba como `?kind=stay&location=&guests=` y no coincidía
+     con `?kind=stay`. Resultado: ningún enlace marcado, y el punto parecía
+     quedarse donde estaba. */
+  const [rutaActual, busqueda = ""] = currentPath.split("?");
+  const kindActual = new URLSearchParams(busqueda).get("kind") ?? "";
+  const enCatalogo = rutaActual === `/${locale}`;
+  const isActive = (kind: string) => enCatalogo && kindActual === kind;
 
   return (
     <header className="site-header">
@@ -47,18 +54,18 @@ export function SiteHeader({
         </Link>
 
         <nav className="site-nav" aria-label={t.navTours}>
-          <Link href={`/${locale}`} aria-current={isActive(`/${locale}`) ? "page" : undefined}>
+          <Link href={`/${locale}`} aria-current={isActive("") ? "page" : undefined}>
             {t.navHome}
           </Link>
           <Link
             href={`/${locale}?kind=tour`}
-            aria-current={isActive(`/${locale}?kind=tour`) ? "page" : undefined}
+            aria-current={isActive("tour") ? "page" : undefined}
           >
             {t.navTours}
           </Link>
           <Link
             href={`/${locale}?kind=stay`}
-            aria-current={isActive(`/${locale}?kind=stay`) ? "page" : undefined}
+            aria-current={isActive("stay") ? "page" : undefined}
           >
             {t.navStays}
           </Link>
