@@ -26,7 +26,8 @@ import { sql } from "drizzle-orm";
 
 import { db, sqlClient } from "@/db/index";
 import { isLocale, type Locale } from "@/i18n/config";
-import { renderNotification, transport } from "@/modules/notifications/send";
+import { renderHtml } from "@/modules/notifications/html";
+import { notificationData, renderNotification, transport } from "@/modules/notifications/send";
 import { bookingVoucherQr } from "@/modules/notifications/voucher";
 
 const destino = process.argv[2];
@@ -93,12 +94,20 @@ if (!mensaje) {
   process.exit(1);
 }
 
+// La mitad HTML, con la misma función que usa el despacho. Sin esto la sonda
+// mandaría un correo que ya no se parece al que recibe el huésped, que es justo
+// lo que no debe pasar: una comprobación que prueba otra cosa es peor que
+// ninguna, porque da confianza.
+const datos = await notificationData(reserva.id);
+const html = datos ? ((await renderHtml("booking_confirmed_guest", datos)) ?? undefined) : undefined;
+
 console.log(`→ reserva:   ${reserva.code} (${locale})`);
 console.log(`→ transporte: ${mail.name}`);
 console.log(`→ de:        ${process.env.MAIL_FROM}`);
 console.log(`→ para:      ${destino}`);
 console.log(`→ asunto:    ${mensaje.subject}`);
 console.log(`→ adjunto:   comprobante-${reserva.code}.png`);
+console.log(`→ formato:   texto${html ? " + HTML" : " (sin HTML: el renderizado falló)"}`);
 console.log();
 
 try {
@@ -106,6 +115,7 @@ try {
     to: destino,
     subject: mensaje.subject,
     text: mensaje.text,
+    html,
     attachments: [
       {
         filename: `comprobante-${reserva.code}.png`,
