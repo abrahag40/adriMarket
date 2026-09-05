@@ -54,7 +54,7 @@ export default async function EstiloPage() {
         <h2 className="section-title">FeaturedCard + Carousel</h2>
         <p className="muted">Datos reales del catálogo publicado — foto vertical con texto superpuesto.</p>
         {featured.length > 0 ? (
-          <Carousel prevLabel="Anterior" nextLabel="Siguiente">
+          <Carousel label="Ejemplo" prevLabel="Anterior" nextLabel="Siguiente">
             {featured.map((item) => (
               <FeaturedCard key={item.id} item={item} locale="es" />
             ))}
@@ -70,7 +70,7 @@ export default async function EstiloPage() {
           Contenido de ejemplo — no existe un módulo de reseñas todavía. El componente recibe el
           texto por props; no trae ninguno escrito adentro.
         </p>
-        <Carousel prevLabel="Anterior" nextLabel="Siguiente">
+        <Carousel label="Ejemplo" prevLabel="Anterior" nextLabel="Siguiente">
           {SAMPLE_TESTIMONIALS.map((testimonial) => (
             <TestimonialCard key={testimonial.name} testimonial={testimonial} />
           ))}

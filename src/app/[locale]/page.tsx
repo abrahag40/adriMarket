@@ -120,8 +120,11 @@ export default async function CatalogPage({
     .filter((item) => item.kind === "stay" && item.coverUrl !== null)
     .slice(0, 6);
 
-  /* Doce por página: cuatro filas de tres en escritorio. */
-  const POR_PAGINA = 12;
+  /* Nueve por página: tres filas de tres en escritorio. Eran doce, y en el
+     inicio —que además lleva arriba el hero, el buscador, los destinos y los
+     tours destacados— cuatro filas se leen como un catálogo entero pegado
+     debajo de la portada. */
+  const POR_PAGINA = 9;
   const sp = await searchParams;
   const pedida = Number.parseInt(String(Array.isArray(sp.page) ? sp.page[0] : sp.page ?? "1"), 10);
   const totalPaginas = Math.max(1, Math.ceil(items.length / POR_PAGINA));
@@ -136,7 +139,10 @@ export default async function CatalogPage({
     if (filters.guests) next.set("guests", String(filters.guests));
     if (n > 1) next.set("page", String(n));
     const query = next.toString();
-    return query ? `/${locale}?${query}` : `/${locale}`;
+    /* El ancla no es decorativa: sin ella, cambiar de página recarga el inicio
+       arriba del todo —hero, buscador, destinos— y el huésped ve exactamente
+       lo mismo que antes de pulsar. La paginación funcionaba y parecía rota. */
+    return `/${locale}${query ? `?${query}` : ""}#resultados`;
   }
 
   /* La foto del hero sale del catálogo real, no de un banco de imágenes: es el
@@ -196,7 +202,13 @@ export default async function CatalogPage({
         <CatalogFilters locale={locale} locations={locations} selected={selected} />
       </div>
 
-      {destinations.length > 0 ? (
+      {/* Solo en el inicio sin filtrar. Al entrar a un destino —que es un
+          filtro `?location=`— volver a enseñar "Destinos populares" contradice
+          lo que el huésped acaba de pedir y le ofrece salirse de donde entró.
+          Tours y estancias ya se ocultaban por venir de `allItems`, que queda
+          vacío al filtrar; destinos se calcula sobre `items` y por eso seguía
+          apareciendo. */}
+      {noFilters && destinations.length > 0 ? (
         <section className="home-section" aria-labelledby="destinations-heading">
           <div className="section-head">
             <h2 id="destinations-heading" className="section-title">
@@ -209,7 +221,11 @@ export default async function CatalogPage({
               abajo. El carrusel los deja recorrer en su propia línea, igual
               que los tours de abajo, y usa el scroll-snap del navegador —sin
               librería— así que en el teléfono se arrastra con el dedo. */}
-          <Carousel prevLabel={t.carouselPrev} nextLabel={t.carouselNext}>
+          <Carousel
+            label={t.destinationsHeading}
+            prevLabel={t.carouselPrev}
+            nextLabel={t.carouselNext}
+          >
             {destinations.map((item) => (
               <DestinationCard
                 key={item.locationSlug}
@@ -235,7 +251,11 @@ export default async function CatalogPage({
             </h2>
             <p className="muted">{t.featuredToursSubtitle}</p>
           </div>
-          <Carousel prevLabel={t.carouselPrev} nextLabel={t.carouselNext}>
+          <Carousel
+            label={t.featuredToursHeading}
+            prevLabel={t.carouselPrev}
+            nextLabel={t.carouselNext}
+          >
             {featuredTours.map((item) => (
               <FeaturedCard key={item.id} item={item} locale={locale} />
             ))}
@@ -261,7 +281,7 @@ export default async function CatalogPage({
         </section>
       ) : null}
 
-      <div className="results-head">
+      <div className="results-head" id="resultados">
         <h2 className="section-title">{t.resultsCount(items.length)}</h2>
       </div>
 

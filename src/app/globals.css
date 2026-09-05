@@ -1668,12 +1668,19 @@ main {
    perdido entre el título y la descripción. 22px de relleno vertical, medido
    directo sobre su HTML (`padding-top/bottom: 22px` en cada enlace), no un
    valor a ojo — el doble de lo que tenía antes. */
+/* Sube a ras de la cabecera. Es la primera cosa del documento y flotaba a
+   48px —el `padding-block` de `main`— con un borde arriba: leído desde
+   arriba, ese hueco entre el menú y una barra con línea propia parece un
+   error de maquetación, no un respiro. Como navegación secundaria que es, va
+   pegada a la principal, y por eso pierde el borde superior: la cabecera ya
+   separa. El margen negativo replica el mismo `clamp` de `main`, así que
+   sigue el hueco a cualquier ancho en vez de fijar un número. */
 .detail-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 32px;
-  padding-block: 22px;
-  border-top: 1px solid var(--line-soft);
+  margin-top: calc(-1 * clamp(24px, 5vw, 48px));
+  padding-block: 18px 20px;
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -1719,7 +1726,25 @@ main {
 
 .detail-aside-confidence .value-props {
   grid-template-columns: 1fr;
-  gap: 16px;
+  gap: 20px;
+}
+
+/* El ícono a la izquierda y el texto a su derecha.
+   La regla de arriba de 760px apila el ícono sobre el texto, y estaba
+   pensada solo para las tres columnas anchas de la vitrina — el comentario
+   de allá dice "en el panel lateral de la ficha sigue en línea", pero la
+   media query no estaba acotada y también apilaba aquí. Esto lo devuelve a
+   su intención. */
+.detail-aside-confidence .value-props li {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+/* Que el ícono no se encoja cuando el texto es largo. */
+.detail-aside-confidence .value-props .spec-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
 }
 
 .detail-aside-confidence .value-props .spec-icon {
@@ -3063,15 +3088,17 @@ fieldset.field legend {
  * de la pila, y por eso "se veía todo junto y apretado". El `clamp` mantiene
  * el mismo diseño en un teléfono sin desperdiciar media pantalla en aire.
  */
+/* 60px arriba y 60 abajo dejaban 120px entre dos secciones, que en pantalla
+   grande se lee como un corte y no como una separación. */
 .home-section {
-  padding-block: clamp(32px, 5vw, 60px);
+  padding-block: clamp(24px, 3vw, 40px);
 }
 
 .section-head {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: clamp(24px, 4vw, 55px);
+  margin-bottom: clamp(16px, 2.5vw, 28px);
 }
 
 .home-section .section-title {
@@ -3425,10 +3452,11 @@ fieldset.field legend {
 
 /* Scroll-snap nativo: las flechas solo mueven el scroll que el navegador ya
    sabe hacer. Sin librería — ninguna está instalada en el proyecto. */
+/* Las flechas van a los lados y no debajo: debajo obligan a bajar la vista,
+   perder de vista el carrusel y volver. A los lados están donde ya está el
+   ojo. Se superponen al riel, así que el riel no pierde ancho. */
 .carousel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  position: relative;
 }
 
 .carousel-track {
@@ -3449,13 +3477,11 @@ fieldset.field legend {
   scroll-snap-align: start;
 }
 
-.carousel-controls {
-  display: flex;
-  gap: 8px;
-  align-self: flex-end;
-}
-
 .carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3463,15 +3489,41 @@ fieldset.field legend {
   height: var(--tap);
   border: 1px solid var(--line);
   border-radius: 50%;
+  /* Opaco a propósito: se monta encima de las fotos y con fondo translúcido
+     la flecha se pierde sobre un cielo claro o un arrecife oscuro. */
   background: var(--bg);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 14%);
   color: var(--text);
   font-size: var(--step-1);
+  line-height: 1;
   cursor: pointer;
+}
+
+.carousel-btn-prev {
+  left: 0;
+  /* Medio botón fuera del riel: la tarjeta del borde se sigue viendo entera
+     y la flecha no tapa su contenido. */
+  transform: translate(-50%, -50%);
+}
+
+.carousel-btn-next {
+  right: 0;
+  transform: translate(50%, -50%);
 }
 
 .carousel-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* En pantallas angostas no hay margen fuera del riel donde ponerlas sin
+   tapar una tarjeta, y ahí el dedo arrastra: el `scroll-snap` ya hace el
+   trabajo. Se ocultan, y el riel queda alcanzable por teclado —ver el
+   `tabindex` del componente— para quien no usa ratón ni dedo. */
+@media (max-width: 759px) {
+  .carousel-btn {
+    display: none;
+  }
 }
 
 /* ---------- boletín ---------- */
@@ -3611,4 +3663,19 @@ fieldset.field legend {
   font-weight: 400;
   font-size: var(--step-1);
   margin-bottom: 4px;
+  /* Reparte el título entre sus renglones en vez de dejar una palabra sola
+     abajo. */
+  text-wrap: balance;
+}
+
+/* Los párrafos quedaban con un último renglón de dos palabras y las tres
+   columnas terminaban a alturas distintas, que es lo que se ve desparejo.
+   `pretty` equilibra los últimos renglones sin tocar el resto.
+
+   **No se usa `text-align: justify`.** En columnas de ~40 caracteres, forzar
+   los dos márgenes abre ríos de blanco entre palabras y separa las letras: se
+   ve ordenado de lejos y se lee peor de cerca. Si se quiere el bloque
+   perfectamente rectangular, se cambia aquí y se acepta ese costo. */
+.value-props .muted {
+  text-wrap: pretty;
 }
