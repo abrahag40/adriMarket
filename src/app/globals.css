@@ -3676,17 +3676,13 @@ fieldset.field legend {
    declare su idioma, que lo hace `<html lang>` desde el layout.
 
    `pretty` se queda: sigue evitando el último renglón de una sola palabra,
-   que justificado es lo que peor se ve. */
+   que justificado es lo que peor se ve.
+
+   Aplica también al panel lateral de la ficha, donde la columna es de unos 30
+   caracteres — se probó la excepción y el cliente prefirió la consistencia. */
 .value-props .muted {
   text-align: justify;
   hyphens: auto;
   text-wrap: pretty;
 }
 
-/* El panel lateral de la ficha no: ahí la columna es de ~30 caracteres y ni
-   con guiones alcanza a repartir el sobrante. Se queda alineado a la
-   izquierda. */
-.detail-aside-confidence .value-props .muted {
-  text-align: start;
-  hyphens: manual;
-}
