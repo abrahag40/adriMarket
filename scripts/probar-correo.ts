@@ -40,6 +40,17 @@ if (!destino || !destino.includes("@")) {
 // La única condición es que el transporte elegido **mande de verdad**. No se
 // exige uno en concreto: sirve Resend con dominio verificado y sirve SMTP de la
 // propia cuenta de correo, que es el camino mientras no haya dominio.
+// A qué base se conectó, con la contraseña tapada.
+//
+// Faltaba, y costó una confusión: `--env-file` de Node **no pisa** una variable
+// ya exportada, así que una terminal donde alguien hizo `export DATABASE_URL`
+// para migrar producción sigue apuntando ahí. La sonda decía "no hay ninguna
+// reserva confirmada en esta base" sin decir cuál era esa base — que es la
+// mitad del mensaje que hacía falta. Los demás guiones ya enseñaban su destino;
+// este no.
+const servidor = (process.env.DATABASE_URL ?? "").replace(/^[^@]*@/, "").replace(/[:/?].*$/, "");
+console.log(`→ base:      ${servidor}`);
+
 const mail = transport();
 if (mail.name === "local") {
   console.error(
