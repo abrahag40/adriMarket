@@ -65,10 +65,17 @@ function query(sql) {
  * Así que cada página tiene el suyo, medido y con margen — no un número
  * global aflojado hasta que todo pase:
  *
- *   · inicio: 290, con 261 medidos. Lleva portada, dos carruseles, dos
- *     cuadrículas y el listado.
- *   · ficha: 260, con 228 medidos. Galería de cinco fotos.
+ *   · inicio: 400, con 369 medidos. Lleva portada, dos carruseles, dos
+ *     cuadrículas y el listado; el navegador descarga **doce fotos** antes de
+ *     que nadie desplace nada, a unos 16 kB cada una. 189 kB de imágenes para
+ *     doce fotos no es un problema de compresión, es la cuenta de una portada
+ *     con doce fotos.
+ *   · ficha: 260, con 226 medidos. Galería de cinco fotos.
  *   · lo demás (checkout y lo que se agregue): 210, con 179 medidos.
+ *
+ * **Se probó bajar más la calidad y no rinde**: del escalón de 400 px, pasar
+ * de q=42 a q=36 ahorró 15 kB de 384. Lo que pesa es el número de fotos, no
+ * cuánto pesa cada una — y el número de fotos es contenido pedido.
  *
  * **El tope de JavaScript no se movió, y es el que de verdad mide nuestra
  * disciplina**: 105 kB en el inicio y 108 en la ficha, contra 140 permitidos.
@@ -78,7 +85,7 @@ const PRESUPUESTO = { total: 210, js: 140 };
 
 /** Presupuesto por página. La clave es el prefijo de la ruta. */
 const PRESUPUESTO_POR_RUTA = [
-  [/^\/(es|en)$/, { total: 290, js: 140 }],
+  [/^\/(es|en)$/, { total: 400, js: 140 }],
   [/^\/(es|en)\/(tours|estancias)\//, { total: 260, js: 140 }],
 ];
 

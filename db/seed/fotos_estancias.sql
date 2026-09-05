@@ -101,7 +101,7 @@ update product_media m
            -- alcanza**. Se probó 300/600/900 y el navegador saltó al de 600
            -- para llenar 390 — la página pasó de 280 kB a 325. Los anchos
            -- tienen que caer justo encima de los que se usan, no debajo.
-           '400',  s.base || '?w=400&fit=crop&fm=avif&q=42',
+           '400',  s.base || '?w=400&fit=crop&fm=avif&q=36',
            '800',  s.base || '?w=800&fit=crop&fm=avif&q=45',
            '1200', s.base || '?w=1200&fit=crop&fm=avif&q=50'),
          'webp', jsonb_build_object(

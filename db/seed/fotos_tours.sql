@@ -27,8 +27,18 @@
 
 begin;
 
-update product_media m set url = v.url
-  from (values
+-- Se empareja por **orden**, no por el número de `position`.
+--
+-- El primer intento hizo `m.position = v.position` con posiciones 1..5 y
+-- reemplazó 107 de 131 fotos. Las 24 que quedaron eran todas la posición 0:
+-- las fotos de los tours se numeran **desde cero**, así que la 1..4 coincidía
+-- por casualidad y la 0 —que es la portada, la que se ve en el listado— no
+-- coincidía nunca. El fallo era invisible en la ficha (cuatro de cinco fotos
+-- cambiaron) y visible justo donde más importa.
+--
+-- `row_number()` lo vuelve independiente de cómo esté numerado: cuenta las
+-- fotos del producto en su orden y empareja la enésima con la enésima.
+with nuevas (slug, n, url) as (values
     ('buceo-en-el-arrecife-de-cozumel', 1, 'https://images.unsplash.com/photo-1708649290066-5f617003b93f'),
     ('buceo-en-el-arrecife-de-cozumel', 2, 'https://images.unsplash.com/photo-1544551763-46a013bb70d5'),
     ('buceo-en-el-arrecife-de-cozumel', 3, 'https://images.unsplash.com/photo-1682687981630-cefe9cd73072'),
@@ -175,12 +185,21 @@ update product_media m set url = v.url
     ('sian-kaan-canal-maya-de-muyil', 3, 'https://images.unsplash.com/photo-1783503812345-a4ba70d76564'),
     ('sian-kaan-canal-maya-de-muyil', 4, 'https://images.unsplash.com/photo-1591057153717-8ef861f42032'),
     ('sian-kaan-canal-maya-de-muyil', 5, 'https://images.unsplash.com/photo-1759496959924-b2d79dcdda18')
-  ) as v(slug, position, url)
-  join products p on p.slug = v.slug
- where m.product_id = p.id
-   and m.position = v.position
+  ),
+  actuales as (
+    select m.id, p.slug, m.url,
+           row_number() over (partition by m.product_id order by m.position, m.id) as n
+      from product_media m
+      join products p on p.id = m.product_id
+     where p.kind = 'tour'
+  )
+update product_media m
+   set url = nu.url
+  from actuales a
+  join nuevas nu on nu.slug = a.slug and nu.n = a.n
+ where m.id = a.id
    -- Solo el relleno: una foto que ya subió el cliente no se toca.
-   and m.url like 'https://picsum.photos/%';
+   and a.url like 'https://picsum.photos/%';
 
 -- Las variantes, que es lo que mantiene la página dentro del presupuesto: el
 -- JPEG de 1200 px pesa 214 kB y el AVIF de 400 —el tamaño real de una
@@ -190,7 +209,7 @@ update product_media m
    set url = s.base || '?w=800&fit=crop&fm=jpg&q=65',
        variants = jsonb_build_object(
          'avif', jsonb_build_object(
-           '400',  s.base || '?w=400&fit=crop&fm=avif&q=42',
+           '400',  s.base || '?w=400&fit=crop&fm=avif&q=36',
            '800',  s.base || '?w=800&fit=crop&fm=avif&q=45',
            '1200', s.base || '?w=1200&fit=crop&fm=avif&q=50'),
          'webp', jsonb_build_object(
