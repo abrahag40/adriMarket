@@ -124,6 +124,13 @@ export default async function CatalogPage({
     .filter((item) => item.kind === "vehicle" && item.coverUrl !== null)
     .slice(0, 6);
 
+  /* El número que va en la salida de cada vitrina sale del catálogo entero,
+     no de la muestra: "Ver los 27 tours" cuando arriba se ven ocho es
+     justamente lo que hace que valga la pena pulsarlo. */
+  const totalTours = allItems.filter((item) => item.kind === "tour").length;
+  const totalEstancias = allItems.filter((item) => item.kind === "stay").length;
+  const totalVehiculos = allItems.filter((item) => item.kind === "vehicle").length;
+
   /* Seis por página: dos filas de tres en escritorio. El inicio lleva arriba
      el hero, el buscador, los destinos y los tours destacados; debajo de todo
      eso, dos filas se leen como una muestra y no como el catálogo entero
@@ -212,6 +219,23 @@ export default async function CatalogPage({
         <CatalogFilters locale={locale} locations={locations} selected={selected} />
       </div>
 
+      {/* Los tres hechos que distinguen cómo cobra este negocio, donde se
+          toma la decisión. Estaban al final: **arrancaban en el píxel 7,686
+          de una página de 8,692** en un teléfono —el 88%—, así que
+          prácticamente nadie los leía. Un argumento de venta al 88% de la
+          página no es un argumento, es una nota al pie. El detalle sigue
+          donde ya estaba, en la ficha junto al botón de reservar. */}
+      {noFilters ? (
+        <ValueProps
+          compact
+          items={[
+            { icon: "wallet", heading: t.valuePropDepositHeading, body: t.valuePropDepositBody },
+            { icon: "bolt", heading: t.valuePropInstantHeading, body: t.valuePropInstantBody },
+            { icon: "shield", heading: t.valuePropCancelHeading, body: t.valuePropCancelBody },
+          ]}
+        />
+      ) : null}
+
       {/* Solo en el inicio sin filtrar. Al entrar a un destino —que es un
           filtro `?location=`— volver a enseñar "Destinos populares" contradice
           lo que el huésped acaba de pedir y le ofrece salirse de donde entró.
@@ -256,6 +280,7 @@ export default async function CatalogPage({
           id="featured-tours-heading"
           title={t.featuredToursHeading}
           subtitle={t.featuredToursSubtitle}
+          action={{ href: `/${locale}?kind=tour`, label: t.viewAllTours(totalTours) }}
         >
           <Carousel
             label={t.featuredToursHeading}
@@ -270,14 +295,21 @@ export default async function CatalogPage({
       ) : null}
 
       {stays.length > 0 ? (
-        <HomeSection id="stays-heading" title={t.staysHeading} subtitle={t.staysSubtitle}>
-          <ul className="rooms-grid">
+        <HomeSection
+          id="stays-heading"
+          title={t.staysHeading}
+          subtitle={t.staysSubtitle}
+          action={{ href: `/${locale}?kind=stay`, label: t.viewAllStays(totalEstancias) }}
+        >
+          <Carousel
+            label={t.staysHeading}
+            prevLabel={t.carouselPrev}
+            nextLabel={t.carouselNext}
+          >
             {stays.map((item) => (
-              <li key={item.id}>
-                <RoomCard item={item} locale={locale} />
-              </li>
+              <RoomCard key={item.id} item={item} locale={locale} />
             ))}
-          </ul>
+          </Carousel>
         </HomeSection>
       ) : null}
 
@@ -288,14 +320,17 @@ export default async function CatalogPage({
           id="vehicles-heading"
           title={t.vehiclesHeading}
           subtitle={t.vehiclesSubtitle}
+          action={{ href: `/${locale}?kind=vehicle`, label: t.viewAllVehicles(totalVehiculos) }}
         >
-          <ul className="rooms-grid">
+          <Carousel
+            label={t.vehiclesHeading}
+            prevLabel={t.carouselPrev}
+            nextLabel={t.carouselNext}
+          >
             {vehicles.map((item) => (
-              <li key={item.id}>
-                <RoomCard item={item} locale={locale} />
-              </li>
+              <RoomCard key={item.id} item={item} locale={locale} />
             ))}
-          </ul>
+          </Carousel>
         </HomeSection>
       ) : null}
 
@@ -360,13 +395,6 @@ export default async function CatalogPage({
 
       <PromoBanner locale={locale} />
 
-      <ValueProps
-        items={[
-          { icon: "wallet", heading: t.valuePropDepositHeading, body: t.valuePropDepositBody },
-          { icon: "bolt", heading: t.valuePropInstantHeading, body: t.valuePropInstantBody },
-          { icon: "shield", heading: t.valuePropCancelHeading, body: t.valuePropCancelBody },
-        ]}
-      />
     </div>
   );
 }

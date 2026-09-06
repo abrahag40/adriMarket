@@ -261,6 +261,18 @@ Están aquí porque cada una se pagó una vez.
   que no coincide con ningún patrón de Next, y `produccion.sh` se niega a
   correr si encuentra el viejo. La pista que lo delata: el build imprime
   `- Environments: …` con los archivos que cargó.
+- **Una captura de página completa de la portada sale con los rieles vacíos, y
+  la portada está bien.** Los carruseles usan `content-visibility: auto` para
+  que la carga diferida funcione dentro de un riel —sin eso el teléfono se
+  traía las veintiuna fotos de golpe, 475 kB contra 194—. Chromium compone
+  `fullPage: true` fuera de la ventana sin volver a decidir qué es relevante,
+  así que lo aplazado no se pinta. En una ventana de verdad las tarjetas están
+  ahí: se comprobó con `getBoundingClientRect`, con las fotos cargadas y con
+  axe en los dos temas. Para una captura que sirva de evidencia hay que forzar
+  `content-visibility: visible` antes de disparar; al imprimir ya lo hace una
+  regla `@media print`. Ninguna prueba de la barra captura una página con
+  rieles —`p5-en-el-sitio.png` es la búsqueda, que no los tiene—, así que esto
+  solo muerde a quien tome una captura a mano y crea que rompió el sitio.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 

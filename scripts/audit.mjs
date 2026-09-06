@@ -71,15 +71,25 @@ function query(sql) {
  * Así que cada página tiene el suyo, medido y con margen — no un número
  * global aflojado hasta que todo pase:
  *
- *   · inicio: 450, con **369 medidos en local y 420 en producción**. La
- *     diferencia entre los dos no es contenido de más: es qué fotos caen en
- *     los carruseles, que cambia con el orden del catálogo. Un tope que falla
- *     según qué foto tocó no mide nada, así que cubre la más pesada de las
- *     dos. Lleva portada, dos carruseles, dos
- *     cuadrículas y el listado; el navegador descarga **doce fotos** antes de
- *     que nadie desplace nada, a unos 16 kB cada una. 189 kB de imágenes para
- *     doce fotos no es un problema de compresión, es la cuenta de una portada
- *     con doce fotos.
+ *   · inicio: 260, con **194 medidos**. Fue 450 mientras la portada cargaba
+ *     doce fotos de golpe; hoy carga **tres**, y el resto llegan cuando el
+ *     dedo arrastra el riel donde viven. El tope bajó con ellas: uno de 450
+ *     sobre una página de 194 no avisa de nada, que es la otra forma de que
+ *     un presupuesto deje de servir.
+ *
+ *     Lo que lo hizo bajar fue arreglar un defecto, no quitar contenido — la
+ *     portada enseña **más** que antes: cuatro rieles, treinta y ocho fotos
+ *     disponibles. El día que las dos cuadrículas pasaron a rieles, la carga
+ *     diferida dejó de funcionar sin decirlo: una tarjeta fuera de pantalla
+ *     en una cuadrícula está lejos hacia abajo y el navegador la ignora; en
+ *     un riel está lejos **hacia el lado**, dentro del margen con el que
+ *     Chrome adelanta descargas. La página adelgazó a la mitad de alto y
+ *     engordó a 475 kB. Lo cerró `content-visibility: auto` en
+ *     `.carousel-item` — está explicado ahí, en `globals.css`.
+ *
+ *     El margen de 66 kB cubre la variación entre local y producción: cuáles
+ *     tres fotos toquen depende del orden del catálogo, y una portada pesada
+ *     no puede hacer fallar la barra sin que nadie haya tocado el código.
  *   · ficha: 260, con 226 medidos. Galería de cinco fotos.
  *   · lo demás (checkout y lo que se agregue): 210, con 179 medidos.
  *
@@ -95,7 +105,7 @@ const PRESUPUESTO = { total: 210, js: 140 };
 
 /** Presupuesto por página. La clave es el prefijo de la ruta. */
 const PRESUPUESTO_POR_RUTA = [
-  [/^\/(es|en)$/, { total: 450, js: 140 }],
+  [/^\/(es|en)$/, { total: 260, js: 140 }],
   [/^\/(es|en)\/(tours|estancias)\//, { total: 260, js: 140 }],
 ];
 
@@ -121,8 +131,8 @@ const browser = await chromium.launch(
 
 const RANGO = "from=2026-09-17&to=2026-09-20&guests=5";
 const publicas = [
-  ["/es", "listado"],
-  ["/en", "listado en inglés"],
+  ["/es", "portada"],
+  ["/en", "portada en inglés"],
   [`/es/estancias/casa-akumal?${RANGO}`, "ficha de estancia"],
   ["/es/tours/snorkel-cenotes-tulum", "ficha de tour"],
   [`/es/checkout?kind=stay&slug=casa-akumal&${RANGO}`, "checkout"],

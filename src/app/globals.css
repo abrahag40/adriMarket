@@ -3128,11 +3128,52 @@ fieldset.field legend {
   padding-block: 0;
 }
 
+/* Título y bajada a la izquierda, la salida al catálogo a la derecha y
+   alineada con el título. En pantalla angosta la salida baja debajo, donde
+   sigue estando antes de las tarjetas: una salida después del carrusel no
+   tendría dónde ponerse, porque una fila que se arrastra no tiene final
+   visible. */
 .section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+  margin-bottom: clamp(16px, 2.5vw, 28px);
+}
+
+.section-head-text {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: clamp(16px, 2.5vw, 28px);
+  min-width: 0;
+}
+
+.section-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  font-size: var(--step-0);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  padding-block: 6px;
+}
+
+.section-action:hover span,
+.section-action:focus-visible span {
+  transform: translateX(4px);
+}
+
+.section-action span {
+  transition: transform 0.2s ease;
+}
+
+.section-action:hover,
+.section-action:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .home-section .section-title {
@@ -3438,6 +3479,16 @@ fieldset.field legend {
   box-shadow: var(--shadow);
 }
 
+/* Dentro de un carrusel necesita ancho propio: `.carousel-item` es un
+   contenedor flex sin ancho, así que un `width: 100%` se resolvería contra
+   nada y la tarjeta colapsaría al ancho de su contenido. Es la misma razón
+   por la que `.featured-card` y `.destination-card` fijan el suyo. */
+.carousel-item > .room-card {
+  width: 300px;
+  max-width: 78vw;
+  margin-inline: 0;
+}
+
 .room-card-media {
   position: relative;
   display: block;
@@ -3541,9 +3592,68 @@ fieldset.field legend {
   display: none;
 }
 
+/* `content-visibility: auto` no es un adorno de rendimiento: es lo que hace
+   que la carga diferida **funcione** dentro de un riel.
+
+   Una tarjeta fuera de pantalla en una cuadrícula está lejos hacia abajo, y el
+   navegador no descarga su foto. En un carrusel está lejos hacia el lado, a
+   trescientos o mil doscientos píxeles — dentro del margen con el que Chrome
+   decide qué vale la pena adelantar. Resultado: `loading="lazy"` puesto en
+   todas las tarjetas y aun así el teléfono se traía las veintiuna fotos antes
+   de que nadie arrastrara nada. El día que las dos cuadrículas de la portada
+   pasaron a rieles, la página adelgazó a la mitad de alto y **engordó
+   veinticinco kilobytes**: menos contenido y más bytes, que es la dirección
+   equivocada.
+
+   Con esto el navegador se salta el renderizado de lo que no se ve, y una
+   imagen diferida dentro de un subárbol saltado no se pide. `auto` —no
+   `hidden`— mantiene el contenido en el árbol de accesibilidad, enfocable y
+   encontrable con buscar-en-página: lo que se aplaza es pintar, no existir.
+
+   `contain-intrinsic-size` es obligatorio aquí y no una afinación: sin un
+   tamaño supuesto, lo saltado mide cero y el riel se queda sin ancho para
+   desplazar —el carrusel deja de tener a dónde ir—. El `auto` delante de cada
+   medida le dice al navegador que recuerde la real en cuanto pinte la tarjeta
+   una vez.
+
+   Y la medida es **por tipo de tarjeta**, no una sola para los cuatro rieles.
+   Con un número único —el de la tarjeta más alta— las tarjetas todavía sin
+   pintar reservaban 460 px donde median 225, y la portada creció 498 px sin
+   que cambiara nada de su contenido: el hueco no se ve en una captura, porque
+   está dentro de un riel que ya se pintó bien. Se miden las tres y se declara
+   la de cada una.
+
+   El valor de `.carousel-item` es el respaldo: si mañana entra al riel una
+   tarjeta de un tipo nuevo sin su regla —o si el navegador no entiende
+   `:has()`— reserva de más, que deja el riel desplazable. Reservar de menos lo
+   dejaría sin recorrido. */
 .carousel-item {
   flex: 0 0 auto;
   scroll-snap-align: start;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px auto 370px;
+}
+
+.carousel-item:has(> .destination-card) {
+  contain-intrinsic-size: auto 300px auto 225px;
+}
+
+.carousel-item:has(> .featured-card) {
+  contain-intrinsic-size: auto 260px auto 347px;
+}
+
+/* Al imprimir no hay ventana que recorrer: lo aplazado nunca llegaría a
+   pintarse y los cuatro rieles saldrían en blanco. El huésped que guarda la
+   portada en PDF —o la recepción que la imprime— tiene que ver las tarjetas.
+
+   La misma ceguera afecta a una captura de página completa: Chromium compone
+   fuera de la ventana sin volver a decidir qué es relevante, así que
+   `fullPage: true` devuelve los rieles vacíos aunque en pantalla se vean.
+   No es un defecto de la página; está anotado en CLAUDE.md porque parece uno. */
+@media print {
+  .carousel-item {
+    content-visibility: visible;
+  }
 }
 
 .carousel-btn {
@@ -3696,6 +3806,59 @@ fieldset.field legend {
   gap: 32px;
   list-style: none;
   padding: 0;
+}
+
+/* Versión de una línea, para cuando va arriba junto al buscador.
+   
+   Arriba compite por el espacio con lo que la gente vino a hacer, así que
+   pesa menos: ícono más chico, título en la misma línea que el texto y el
+   cuerpo en un tamaño de apoyo. Los tres hechos son los mismos —es el mismo
+   componente— y el desarrollo largo sigue en la ficha, junto al botón de
+   reservar, que es donde hay tiempo de leerlo. */
+.value-props-compact {
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+.value-props-compact li {
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.value-props-compact .spec-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.value-props-compact .value-prop-heading {
+  font-family: inherit;
+  font-size: var(--step-0);
+  font-weight: 650;
+  margin-bottom: 1px;
+}
+
+.value-props-compact .muted {
+  font-size: var(--step--1);
+  text-align: start;
+  hyphens: manual;
+}
+
+@media (min-width: 760px) {
+  .value-props-compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px;
+    padding: 22px 26px;
+  }
+
+  /* En la compacta el ícono se queda en línea: apilarlo duplicaría la
+     altura, que es justo lo que aquí no sobra. */
+  .value-props-compact li {
+    flex-direction: row;
+  }
 }
 
 @media (min-width: 760px) {

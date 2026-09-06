@@ -32,6 +32,9 @@ export type Messages = {
   staysHeading: string;
   vehiclesHeading: string;
   vehiclesSubtitle: string;
+  viewAllTours: (n: number) => string;
+  viewAllStays: (n: number) => string;
+  viewAllVehicles: (n: number) => string;
   staysSubtitle: string;
   relatedHeading: string;
   detailNavOverview: string;
@@ -228,6 +231,9 @@ const es: Messages = {
   staysHeading: "Estancias",
   vehiclesHeading: "Vehículos",
   vehiclesSubtitle: "Scooters, autos y camionetas para moverte a tu ritmo.",
+  viewAllTours: (n) => `Ver los ${n} tours`,
+  viewAllStays: (n) => (n === 1 ? "Ver la estancia" : `Ver las ${n} estancias`),
+  viewAllVehicles: (n) => `Ver los ${n} vehículos`,
   staysSubtitle: "Casas y departamentos listos para tu próxima escapada.",
   relatedHeading: "También te puede interesar",
   detailNavOverview: "Descripción",
@@ -428,6 +434,9 @@ const en: Messages = {
   staysHeading: "Stays",
   vehiclesHeading: "Vehicles",
   vehiclesSubtitle: "Scooters, cars and vans to move at your own pace.",
+  viewAllTours: (n) => `See all ${n} tours`,
+  viewAllStays: (n) => (n === 1 ? "See the stay" : `See all ${n} stays`),
+  viewAllVehicles: (n) => `See all ${n} vehicles`,
   staysSubtitle: "Homes and apartments ready for your next getaway.",
   relatedHeading: "You might also like",
   detailNavOverview: "Overview",
