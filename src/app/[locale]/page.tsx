@@ -178,7 +178,7 @@ export default async function CatalogPage({
      escribiendo la URL a mano. El carrusel absorbe los que haya. */
 
   return (
-    <div className="stack">
+    <div className="stack home-stack">
       {/* El hero es la portada del inicio, no de un resultado de búsqueda.
           Con un filtro aplicado, quien busca ya sabe a qué vino: media
           pantalla de portada antes de los resultados solo lo aleja de ellos.
@@ -299,50 +299,62 @@ export default async function CatalogPage({
         </HomeSection>
       ) : null}
 
-      <div className="results-head" id="resultados">
-        <h2 className="section-title">{t.resultsCount(items.length)}</h2>
-      </div>
-
-      {items.length === 0 ? (
-        <div className="empty">
-          <h3 className="section-title">{t.emptyTitle}</h3>
-          <p className="muted">{t.emptyBody}</p>
-        </div>
-      ) : (
+      {/* El listado completo **solo aparece cuando alguien busca**.
+          
+          En el inicio ocupaba 3,198px de los 12,099 que medía la página en un
+          teléfono —una cuarta parte— para enseñar un catálogo que ya está
+          resumido arriba en cuatro vitrinas. Amazon y Mercado Libre tampoco
+          listan su catálogo en la portada: la portada dice qué se vende y
+          encamina; el listado es la respuesta a una pregunta. */}
+      {noFilters ? null : (
         <>
-          <ul className="grid">
-            {pagina.map((item) => (
-              <ProductCard key={item.id} item={item} locale={locale} />
-            ))}
-          </ul>
+          <div className="results-head" id="resultados">
+            <h2 className="section-title">{t.resultsCount(items.length)}</h2>
+          </div>
 
-          {/* Paginación con enlaces, no con un botón de "cargar más": la
-              página que se está viendo queda en la URL, se puede compartir y
-              funciona sin JavaScript. Y es lo que mantiene la página dentro
-              del presupuesto de bytes — con el catálogo completo el listado
-              mandaba 28 tarjetas de HTML y se pasaba de los 200 kB que mide
-              `npm run audit`. */}
-          {totalPaginas > 1 ? (
-            <nav className="pager" aria-label={t.resultsCount(items.length)}>
-              {paginaActual > 1 ? (
-                <Link className="btn btn-secondary" href={hrefPagina(paginaActual - 1)} rel="prev">
-                  ← {t.pagePrev}
-                </Link>
-              ) : (
-                <span />
-              )}
-              <p className="pager-state" aria-current="page">
-                {t.pageOf(paginaActual, totalPaginas)}
-              </p>
-              {paginaActual < totalPaginas ? (
-                <Link className="btn btn-secondary" href={hrefPagina(paginaActual + 1)} rel="next">
-                  {t.pageNext} →
-                </Link>
-              ) : (
-                <span />
-              )}
-            </nav>
-          ) : null}
+          {items.length === 0 ? (
+            <div className="empty">
+              <h3 className="section-title">{t.emptyTitle}</h3>
+              <p className="muted">{t.emptyBody}</p>
+            </div>
+          ) : (
+            <>
+              <ul className="grid">
+                {pagina.map((item) => (
+                  <ProductCard key={item.id} item={item} locale={locale} />
+                ))}
+              </ul>
+
+              {/* Paginación con enlaces, no con un botón de "cargar más": la
+                  página que se está viendo queda en la URL, se puede compartir y
+                  funciona sin JavaScript. Y es lo que mantiene la página dentro
+                  del presupuesto de bytes — con el catálogo completo el listado
+                  mandaba 28 tarjetas de HTML y se pasaba de los 200 kB que mide
+                  `npm run audit`. */}
+              {totalPaginas > 1 ? (
+                <nav className="pager" aria-label={t.resultsCount(items.length)}>
+                  {paginaActual > 1 ? (
+                    <Link className="btn btn-secondary" href={hrefPagina(paginaActual - 1)} rel="prev">
+                      ← {t.pagePrev}
+                    </Link>
+                  ) : (
+                    <span />
+                  )}
+                  <p className="pager-state" aria-current="page">
+                    {t.pageOf(paginaActual, totalPaginas)}
+                  </p>
+                  {paginaActual < totalPaginas ? (
+                    <Link className="btn btn-secondary" href={hrefPagina(paginaActual + 1)} rel="next">
+                      {t.pageNext} →
+                    </Link>
+                  ) : (
+                    <span />
+                  )}
+                </nav>
+              ) : null}
+            </>
+          )}
+
         </>
       )}
 

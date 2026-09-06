@@ -250,32 +250,39 @@ const sinJs = await browser.newContext({
 });
 const page = await sinJs.newPage();
 
-await page.goto(`${base}/es`, { waitUntil: "domcontentloaded" });
+/* El listado vive en la **búsqueda**, no en el inicio: la portada enseña
+   vitrinas y el listado es la respuesta a una pregunta. Estas comprobaciones
+   apuntaban a `/es` y se quedaron sin nada que contar el día que el catálogo
+   salió de la portada. */
+await page.goto(`${base}/es?kind=tour`, { waitUntil: "domcontentloaded" });
 const tarjetas = await page.locator(".card").count();
-if (tarjetas > 0) ok(`el listado muestra ${tarjetas} productos`);
-else no("el listado queda vacío sin JavaScript");
+if (tarjetas > 0) ok(`la búsqueda muestra ${tarjetas} productos`);
+else no("la búsqueda queda vacía sin JavaScript");
 
-// Se compara el **total** que anuncia el encabezado, no las tarjetas
-// visibles: el listado se pagina de doce en doce, así que con el catálogo
-// completo la primera página trae doce tarjetas esté filtrada o no, y contar
-// tarjetas dejó de probar nada. Además se comprueba que ninguna de las que se
-// ven sea una estancia — un filtro que reduce el número pero cuela un
-// resultado del otro tipo tampoco funciona.
+/* Se comprueba el **total** que anuncia el encabezado, no las tarjetas
+   visibles: el listado se pagina, así que con el catálogo completo la primera
+   página trae seis tarjetas esté filtrada o no, y contarlas no prueba nada.
+   Y se comprueba que ningún resultado sea del otro tipo — un filtro que
+   reduce el número pero cuela un resultado ajeno tampoco funciona. */
 const totalDe = async () => {
   const texto = (await page.locator(".results-head h2").innerText()) ?? "";
   return Number.parseInt(texto.replace(/\D/g, ""), 10);
 };
-const totalSinFiltro = await totalDe();
-
-await page.goto(`${base}/es?kind=tour`, { waitUntil: "domcontentloaded" });
 const totalTours = await totalDe();
-const estancias = await page.locator(".card-kind-badge", { hasText: "Estancias" }).count();
-if (totalTours > 0 && totalTours < totalSinFiltro && estancias === 0) {
+const estanciasColadas = await page
+  .locator(".card-kind-badge", { hasText: "Estancias" })
+  .count();
+
+await page.goto(`${base}/es?kind=stay`, { waitUntil: "domcontentloaded" });
+const totalEstancias = await totalDe();
+const toursColados = await page.locator(".card-kind-badge", { hasText: "Tours" }).count();
+
+if (totalTours > 0 && totalEstancias > 0 && estanciasColadas === 0 && toursColados === 0) {
   ok("los filtros funcionan: viven en la URL");
 } else {
   no(
-    `los filtros no funcionan sin JavaScript (${totalTours} de ${totalSinFiltro}` +
-      `, ${estancias} estancia(s) coladas)`,
+    `los filtros no funcionan sin JavaScript (${totalTours} tours, ` +
+      `${totalEstancias} estancias, ${estanciasColadas + toursColados} coladas)`,
   );
 }
 
