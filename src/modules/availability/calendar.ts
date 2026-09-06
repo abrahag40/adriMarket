@@ -27,7 +27,7 @@ export type StayNight = {
  * `[entrada, salida)` del esquema, y es lo que hace que la salida de un huésped
  * y la llegada del siguiente el mismo día no se estorben.
  */
-export async function stayAvailability(
+export async function rentalAvailability(
   unitId: string,
   from: string,
   to: string,

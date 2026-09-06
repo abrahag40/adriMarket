@@ -19,7 +19,7 @@ import {
   Text,
 } from "@react-email/components";
 
-import { formatMoney } from "@/i18n/config";
+import { formatMoney, isRental } from "@/i18n/config";
 
 import {
   formatDate,
@@ -223,7 +223,7 @@ export function BookingConfirmedEmail({ data }: { data: BookingNotification }) {
               </>
             )}
 
-            {data.kind === "stay" && data.checkIn && data.checkOut && (
+            {isRental(data.kind) && data.checkIn && data.checkOut && (
               <>
                 <Dato
                   etiqueta={t.llegada}

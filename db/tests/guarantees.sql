@@ -76,7 +76,7 @@ begin
   values ('Huésped de prueba', 'prueba+' || gen_random_uuid() || '@example.com')
   returning id into v_customer;
 
-  if p_kind = 'stay' then
+  if p_kind in ('stay', 'vehicle') then
     select product_id into v_product from rental_units where id = p_unit_id;
   else
     select o.product_id into v_product
@@ -97,7 +97,7 @@ begin
   insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range, guests,
                              tour_departure_id, seats, subtotal_cents, quote)
   values (v_booking, p_kind, v_product, p_unit_id, p_range,
-          case when p_kind = 'stay' then 2 end,
+          case when p_kind in ('stay', 'vehicle') then 2 end,
           p_departure_id, p_seats, p_total_cents, '{}'::jsonb)
   returning id into v_item;
 
@@ -1037,6 +1037,61 @@ begin
     'FALLO: el intento fallido no debía tocar el contador';
 
   raise notice '✔ 23. cupón agotado rechazado por coupon_redeem (AM004)';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 24. Un vehículo se agota con la misma restricción que una casa
+-- ---------------------------------------------------------------------------
+
+-- Es la garantía que sostiene la decisión de no duplicar el inventario. Si
+-- algún día alguien crea `vehicle_blocks` "porque las de estancias son de
+-- casas", esta prueba seguirá pasando sobre la tabla vieja y no avisará de
+-- nada — por eso además comprueba que el bloqueo del vehículo **vive en la
+-- misma tabla** que el de la casa, que es lo que de verdad se quiere afirmar.
+
+do $$
+declare
+  v_producto uuid;
+  v_unidad   uuid;
+  v_item     uuid;
+  v_caught   boolean := false;
+  v_tabla    integer;
+begin
+  -- Un vehículo de mentira, con su unidad. Sin tarifas: lo que se prueba es la
+  -- ocupación, no el precio.
+  insert into products (kind, slug, status, currency)
+  values ('vehicle', 'test-vehiculo-' || left(gen_random_uuid()::text, 8), 'published', 'MXN')
+  returning id into v_producto;
+
+  insert into rental_units (product_id, code, max_guests, base_guests, min_nights,
+                            checkin_time, checkout_time, transmission, luggage, doors)
+  values (v_producto, 'TEST-VEH', 5, 5, 1, time '09:00', time '18:00', 'automatica', 2, 4)
+  returning id into v_unidad;
+
+  v_item := test_make_item('vehicle', v_unidad, daterange('2027-02-10', '2027-02-14'));
+  perform rental_hold_create(v_unidad, daterange('2027-02-10', '2027-02-14'), v_item);
+
+  -- Otro que pide el día 13, dentro del rango ya apartado.
+  begin
+    v_item := test_make_item('vehicle', v_unidad, daterange('2027-02-13', '2027-02-16'));
+    perform rental_hold_create(v_unidad, daterange('2027-02-13', '2027-02-16'), v_item);
+  exception when sqlstate 'AM002' then
+    v_caught := true;
+  end;
+
+  assert v_caught,
+    'FALLO: se rentó el mismo vehículo dos veces en fechas traslapadas';
+
+  -- Y que sea la MISMA tabla, no una paralela con el mismo comportamiento.
+  select count(*) into v_tabla
+    from rental_blocks b
+    join booking_items i on i.id = b.booking_item_id
+   where b.unit_id = v_unidad and i.kind = 'vehicle';
+  assert v_tabla = 1,
+    format('FALLO: el bloqueo del vehículo no está en rental_blocks (%s filas)', v_tabla);
+
+  raise notice '✔ 24. un vehículo se agota con la misma restricción que una casa';
 end;
 $$;
 

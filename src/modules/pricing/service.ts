@@ -1,3 +1,4 @@
+import type { ProductKind } from "@/i18n/config";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
@@ -105,7 +106,7 @@ type CouponLookup =
  */
 async function resolveCoupon(
   rawCode: string | undefined,
-  context: { productId: string; kind: "tour" | "stay"; currency: string },
+  context: { productId: string; kind: ProductKind; currency: string },
   now: Date,
 ): Promise<CouponLookup | null> {
   const code = rawCode?.trim().toUpperCase();
@@ -244,7 +245,7 @@ export type StayQuoteResult = {
  * `couponCode` va al final, después de `now`, para no romper ningún llamador
  * existente que ya pasaba `now` por posición — en su mayoría, pruebas.
  */
-export async function quoteStay(
+export async function quoteRental(
   productId: string,
   range: DateRange,
   guests: number,

@@ -44,6 +44,12 @@ export function MobileNav({
         >
           {t.navStays}
         </Link>
+        <Link
+          href={`/${locale}?kind=vehicle`}
+          aria-current={isActive(`/${locale}?kind=vehicle`) ? "page" : undefined}
+        >
+          {t.navVehicles}
+        </Link>
 
 
         <Link href={alternate} hrefLang={other} lang={other}>

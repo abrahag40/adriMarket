@@ -33,7 +33,7 @@ export default async function ReservasPage({
     status: ["hold", "confirmed", "cancelled", "expired", "completed"].includes(status)
       ? status
       : undefined,
-    kind: kind === "tour" || kind === "stay" ? kind : undefined,
+    kind: kind === "tour" || kind === "stay" || kind === "vehicle" ? kind : undefined,
   });
 
   return (

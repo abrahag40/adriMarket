@@ -18,8 +18,12 @@ import { ResponsiveImage } from "./responsive-image";
 export function ProductCard({ item, locale }: { item: CatalogCard; locale: Locale }) {
   const t = getMessages(locale);
   const href = productPath(locale, item.kind, item.slug);
-  const kindLabel = item.kind === "tour" ? t.filterKindTour : t.filterKindStay;
-  const unit = item.kind === "stay" ? t.perNight : t.perPerson;
+  /* Una tabla y no una cadena de ternarios: el día que entre un cuarto
+     inventario, se agrega un renglón aquí y la tarjeta ya sabe qué decir. */
+  const kindLabel = { tour: t.filterKindTour, stay: t.filterKindStay, vehicle: t.filterKindVehicle }[
+    item.kind
+  ];
+  const unit = { tour: t.perPerson, stay: t.perNight, vehicle: t.perDay }[item.kind];
 
   return (
     <li className="card">

@@ -19,6 +19,7 @@ export type Messages = {
   navHome: string;
   navTours: string;
   navStays: string;
+  navVehicles: string;
   navDestinations: string;
   navPanel: string;
   navMenuOpen: string;
@@ -29,6 +30,8 @@ export type Messages = {
   featuredToursHeading: string;
   featuredToursSubtitle: string;
   staysHeading: string;
+  vehiclesHeading: string;
+  vehiclesSubtitle: string;
   staysSubtitle: string;
   relatedHeading: string;
   detailNavOverview: string;
@@ -64,6 +67,7 @@ export type Messages = {
   filterKindAll: string;
   filterKindTour: string;
   filterKindStay: string;
+  filterKindVehicle: string;
   filterLocation: string;
   filterLocationAll: string;
   filterGuests: string;
@@ -78,6 +82,7 @@ export type Messages = {
   emptyBody: string;
   fromPrice: string;
   perNight: string;
+  perDay: string;
   perPerson: string;
   viewDetail: string;
   upToGuests: (n: number) => string;
@@ -93,6 +98,13 @@ export type Messages = {
   bathroomsCount: (n: number) => string;
   minNights: (n: number) => string;
   checkInOut: string;
+  pickupReturn: string;
+  minDays: (n: number) => string;
+  passengersCount: (n: number) => string;
+  luggageCount: (n: number) => string;
+  doorsCount: (n: number) => string;
+  transmissionManual: string;
+  transmissionAuto: string;
   /** Solo para lectores de pantalla — el ícono ya lo dice visualmente. */
   meetingPoint: string;
   prices: string;
@@ -107,6 +119,9 @@ export type Messages = {
   checkIn: string;
   checkOut: string;
   guestsLabel: string;
+  pickupDate: string;
+  returnDate: string;
+  passengersLabel: string;
   quoteHeading: string;
   quoteTotal: string;
   quoteDepositNow: (pct: number) => string;
@@ -200,6 +215,7 @@ const es: Messages = {
   navHome: "Inicio",
   navTours: "Tours",
   navStays: "Estancias",
+  navVehicles: "Vehículos",
   navDestinations: "Destinos",
   navPanel: "Panel",
   navMenuOpen: "Abrir menú",
@@ -210,6 +226,8 @@ const es: Messages = {
   featuredToursHeading: "Tours destacados",
   featuredToursSubtitle: "Los favoritos de nuestros huéspedes.",
   staysHeading: "Estancias",
+  vehiclesHeading: "Vehículos",
+  vehiclesSubtitle: "Scooters, autos y camionetas para moverte a tu ritmo.",
   staysSubtitle: "Casas y departamentos listos para tu próxima escapada.",
   relatedHeading: "También te puede interesar",
   detailNavOverview: "Descripción",
@@ -249,6 +267,7 @@ const es: Messages = {
   filterKindAll: "Todo",
   filterKindTour: "Tours",
   filterKindStay: "Estancias",
+  filterKindVehicle: "Vehículos",
   filterLocation: "Ubicación",
   filterLocationAll: "Todas",
   filterGuests: "Personas",
@@ -263,6 +282,7 @@ const es: Messages = {
   emptyBody: "Prueba con menos personas o quita el filtro de tipo.",
   fromPrice: "Desde",
   perNight: "por noche",
+  perDay: "por día",
   perPerson: "por persona",
   viewDetail: "Ver detalle",
   upToGuests: (n) => `Hasta ${n} personas`,
@@ -278,6 +298,13 @@ const es: Messages = {
   bathroomsCount: (n) => (n === 1 ? "1 baño" : `${n} baños`),
   minNights: (n) => (n === 1 ? "1 noche mínimo" : `${n} noches mínimo`),
   checkInOut: "Llegada y salida",
+  pickupReturn: "Entrega y devolución",
+  minDays: (n) => (n === 1 ? "1 día mínimo" : `${n} días mínimo`),
+  passengersCount: (n) => (n === 1 ? "1 pasajero" : `${n} pasajeros`),
+  luggageCount: (n) => (n === 1 ? "1 maleta" : `${n} maletas`),
+  doorsCount: (n) => (n === 1 ? "1 puerta" : `${n} puertas`),
+  transmissionManual: "Manual",
+  transmissionAuto: "Automática",
   meetingPoint: "Punto de encuentro",
   prices: "Precios",
   paxAdult: "Adulto",
@@ -291,6 +318,9 @@ const es: Messages = {
   checkIn: "Llegada",
   checkOut: "Salida",
   guestsLabel: "Personas",
+  pickupDate: "Entrega",
+  returnDate: "Devolución",
+  passengersLabel: "Pasajeros",
   quoteHeading: "Tu cotización",
   quoteTotal: "Total",
   quoteDepositNow: (pct) => `Anticipo hoy (${pct}%)`,
@@ -385,6 +415,7 @@ const en: Messages = {
   navHome: "Home",
   navTours: "Tours",
   navStays: "Stays",
+  navVehicles: "Vehicles",
   navDestinations: "Destinations",
   navPanel: "Staff",
   navMenuOpen: "Open menu",
@@ -395,6 +426,8 @@ const en: Messages = {
   featuredToursHeading: "Featured tours",
   featuredToursSubtitle: "Our guests' favorites.",
   staysHeading: "Stays",
+  vehiclesHeading: "Vehicles",
+  vehiclesSubtitle: "Scooters, cars and vans to move at your own pace.",
   staysSubtitle: "Homes and apartments ready for your next getaway.",
   relatedHeading: "You might also like",
   detailNavOverview: "Overview",
@@ -433,6 +466,7 @@ const en: Messages = {
   filterKindAll: "All",
   filterKindTour: "Tours",
   filterKindStay: "Stays",
+  filterKindVehicle: "Vehicles",
   filterLocation: "Location",
   filterLocationAll: "All",
   filterGuests: "Guests",
@@ -447,6 +481,7 @@ const en: Messages = {
   emptyBody: "Try fewer guests, or clear the type filter.",
   fromPrice: "From",
   perNight: "per night",
+  perDay: "per day",
   perPerson: "per person",
   viewDetail: "View details",
   upToGuests: (n) => `Up to ${n} guests`,
@@ -462,6 +497,13 @@ const en: Messages = {
   bathroomsCount: (n) => (n === 1 ? "1 bathroom" : `${n} bathrooms`),
   minNights: (n) => (n === 1 ? "1 night minimum" : `${n} nights minimum`),
   checkInOut: "Check-in and check-out",
+  pickupReturn: "Pick-up and return",
+  minDays: (n) => (n === 1 ? "1 day minimum" : `${n} days minimum`),
+  passengersCount: (n) => (n === 1 ? "1 passenger" : `${n} passengers`),
+  luggageCount: (n) => (n === 1 ? "1 bag" : `${n} bags`),
+  doorsCount: (n) => (n === 1 ? "1 door" : `${n} doors`),
+  transmissionManual: "Manual",
+  transmissionAuto: "Automatic",
   meetingPoint: "Meeting point",
   prices: "Prices",
   paxAdult: "Adult",
@@ -475,6 +517,9 @@ const en: Messages = {
   checkIn: "Check-in",
   checkOut: "Check-out",
   guestsLabel: "Guests",
+  pickupDate: "Pick-up",
+  returnDate: "Return",
+  passengersLabel: "Passengers",
   quoteHeading: "Your quote",
   quoteTotal: "Total",
   quoteDepositNow: (pct) => `Deposit today (${pct}%)`,

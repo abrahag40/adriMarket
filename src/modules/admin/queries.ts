@@ -1,3 +1,4 @@
+import type { ProductKind } from "@/i18n/config";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
@@ -17,7 +18,7 @@ import { db } from "@/db/index";
 export type BookingRow = {
   code: string;
   status: string;
-  kind: "tour" | "stay";
+  kind: ProductKind;
   productName: string;
   holderName: string;
   holderPhone: string | null;
@@ -48,7 +49,7 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
   const rows = await db.execute<{
     code: string;
     status: string;
-    kind: "tour" | "stay";
+    kind: ProductKind;
     product_name: string;
     holder_name: string;
     holder_phone: string | null;
@@ -190,7 +191,7 @@ export async function bookingDetail(code: string): Promise<BookingDetail | null>
     id: row.id ?? "",
     code: row.code ?? "",
     status: row.status ?? "",
-    kind: (row.kind as "tour" | "stay") ?? "stay",
+    kind: (row.kind as ProductKind) ?? "stay",
     productName: row.product_name ?? "",
     holderName: row.holder_name ?? "",
     holderEmail: row.holder_email ?? null,

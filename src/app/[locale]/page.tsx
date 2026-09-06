@@ -48,7 +48,7 @@ function parseFilters(searchParams: Record<string, string | string[] | undefined
 } {
   const rawKind = single(searchParams.kind);
   const kind: ProductKind | undefined =
-    rawKind === "tour" || rawKind === "stay" ? rawKind : undefined;
+    rawKind === "tour" || rawKind === "stay" || rawKind === "vehicle" ? rawKind : undefined;
 
   const rawLocation = single(searchParams.location);
   const locationSlug = /^[a-z0-9-]{1,64}$/.test(rawLocation) ? rawLocation : undefined;
@@ -119,6 +119,9 @@ export default async function CatalogPage({
     .slice(0, 8);
   const stays = allItems
     .filter((item) => item.kind === "stay" && item.coverUrl !== null)
+    .slice(0, 6);
+  const vehicles = allItems
+    .filter((item) => item.kind === "vehicle" && item.coverUrl !== null)
     .slice(0, 6);
 
   /* Seis por página: dos filas de tres en escritorio. El inicio lleva arriba
@@ -270,6 +273,24 @@ export default async function CatalogPage({
         <HomeSection id="stays-heading" title={t.staysHeading} subtitle={t.staysSubtitle}>
           <ul className="rooms-grid">
             {stays.map((item) => (
+              <li key={item.id}>
+                <RoomCard item={item} locale={locale} />
+              </li>
+            ))}
+          </ul>
+        </HomeSection>
+      ) : null}
+
+      {/* Misma cuadrícula y misma tarjeta que las estancias: los dos son
+          unidades que se rentan por fechas, y lo que cambia es el texto. */}
+      {vehicles.length > 0 ? (
+        <HomeSection
+          id="vehicles-heading"
+          title={t.vehiclesHeading}
+          subtitle={t.vehiclesSubtitle}
+        >
+          <ul className="rooms-grid">
+            {vehicles.map((item) => (
               <li key={item.id}>
                 <RoomCard item={item} locale={locale} />
               </li>

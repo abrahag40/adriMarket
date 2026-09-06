@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown";
-import { formatMoney, isLocale, productPath, type ProductKind } from "@/i18n/config";
+import { formatMoney, isLocale, productPath, type ProductKind, isRental } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 import { getProductDetail } from "@/modules/catalog/queries";
-import { quoteStay, quoteTour } from "@/modules/pricing/service";
+import { quoteRental, quoteTour } from "@/modules/pricing/service";
 import { QuoteError } from "@/modules/pricing/types";
 
 import { CheckoutForm } from "./checkout-form";
@@ -43,7 +43,12 @@ export default async function CheckoutPage({
   const t = getMessages(locale);
   const sp = await searchParams;
 
-  const kind = (single(sp.kind) === "tour" ? "tour" : "stay") as ProductKind;
+  /* El tipo viene de la URL, o sea de un desconocido: se valida contra la
+     lista real en vez de asumir "si no es tour, es estancia" —que era lo que
+     hacía antes y habría mandado un vehículo por el camino de las casas—. */
+  const kindRaw = single(sp.kind);
+  const kind: ProductKind =
+    kindRaw === "tour" || kindRaw === "stay" || kindRaw === "vehicle" ? kindRaw : "stay";
   const slug = single(sp.slug);
   const product = await getProductDetail(locale, kind, slug);
   if (!product) notFound();
@@ -57,11 +62,11 @@ export default async function CheckoutPage({
   let formNode: React.ReactNode = null;
 
   try {
-    if (kind === "stay") {
+    if (isRental(kind)) {
       const from = single(sp.from);
       const to = single(sp.to);
       const guests = Math.max(1, Number.parseInt(single(sp.guests), 10) || 2);
-      const result = await quoteStay(product.id, { from, to }, guests, new Date(), coupon);
+      const result = await quoteRental(product.id, { from, to }, guests, new Date(), coupon);
 
       if (!result.available) throw new QuoteError("invalid_range");
 

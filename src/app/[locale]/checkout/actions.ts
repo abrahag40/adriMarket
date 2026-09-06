@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { isLocale, productPath, type Locale, type ProductKind } from "@/i18n/config";
+import { isLocale, productPath, type Locale, type ProductKind, isRental } from "@/i18n/config";
 import { InventoryUnavailableError } from "@/modules/availability/holds";
 import { createBookingWithHold, type BookingInput, type PaxInput } from "@/modules/booking/create";
 import { paymentProvider } from "@/modules/payments";
@@ -59,7 +59,7 @@ export async function startCheckout(
   const couponCode = text(form, "coupon") || undefined;
 
   let input: BookingInput;
-  if (kind === "stay") {
+  if (isRental(kind)) {
     const from = text(form, "from");
     const to = text(form, "to");
     if (!ISO_DATE.test(from) || !ISO_DATE.test(to)) return { error: "missing" };

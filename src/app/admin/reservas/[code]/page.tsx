@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { formatMoney } from "@/i18n/config";
+import { formatMoney, isRental } from "@/i18n/config";
 import { bookingDetail, listDepartures } from "@/modules/admin/queries";
 import { refundQuote } from "@/modules/booking/cancel";
 import { hasRole } from "@/modules/identity/auth";
@@ -88,7 +88,7 @@ export default async function ReservaPage({ params }: { params: Promise<{ code: 
 
       <section className="admin-panel">
         <h2 className="section-title">Servicio</h2>
-        {booking.kind === "stay" && booking.checkIn && booking.checkOut ? (
+        {isRental(booking.kind) && booking.checkIn && booking.checkOut ? (
           <p>
             {nightLabel(booking.checkIn)} → {nightLabel(booking.checkOut)}
           </p>

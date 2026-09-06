@@ -1,3 +1,4 @@
+import type { ProductKind } from "@/i18n/config";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
@@ -22,7 +23,7 @@ import { db } from "@/db/index";
 
 export type ProductRow = {
   id: string;
-  kind: "tour" | "stay";
+  kind: ProductKind;
   slug: string;
   status: string;
   name: string;
@@ -36,7 +37,7 @@ export type ProductRow = {
 export async function listProducts(): Promise<ProductRow[]> {
   const rows = await db.execute<{
     id: string;
-    kind: "tour" | "stay";
+    kind: ProductKind;
     slug: string;
     status: string;
     name: string;
@@ -103,7 +104,7 @@ export type ProductDetail = ProductRow & {
 export async function productDetail(id: string): Promise<ProductDetail | null> {
   const rows = await db.execute<{
     id: string;
-    kind: "tour" | "stay";
+    kind: ProductKind;
     slug: string;
     status: string;
     location_id: string | null;

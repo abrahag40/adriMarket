@@ -5,6 +5,7 @@ import {
   alternatePath,
   formatMoney,
   isLocale,
+  isRental,
   kindFromSegment,
   productPath,
   type Locale,
@@ -18,7 +19,7 @@ import { Gallery } from "@/components/gallery";
 import { Itinerary } from "@/components/itinerary";
 import { ProductCard } from "@/components/product-card";
 import { SpecIcon } from "@/components/spec-icon";
-import { StayBooking } from "@/components/stay-booking";
+import { RentalBooking } from "@/components/rental-booking";
 import { TourBooking } from "@/components/tour-booking";
 import { ValueProps } from "@/components/marketing/value-props";
 
@@ -122,26 +123,61 @@ function CrossMark() {
  * fila corta (política de entrada/salida, punto de encuentro, precios).
  */
 function QuickFacts({ product, kind, t }: { product: ProductDetail; kind: ProductKind; t: Messages }) {
-  if (kind === "stay") {
-    const stay = product.stay;
-    if (!stay) return null;
+  /* Casas y vehículos comparten la unidad —`product.rental`— y se diferencian
+     en qué campos de esa unidad vienen llenos: una casa trae recámaras, un
+     auto trae transmisión. La rama es de presentación, no de mecanismo. */
+  if (isRental(kind)) {
+    const rental = product.rental;
+    if (!rental) return null;
+
+    if (kind === "vehicle") {
+      return (
+        <ul className="spec-list">
+          <li>
+            <SpecIcon name="users" />
+            <span className="spec-value">{t.passengersCount(rental.maxGuests)}</span>
+          </li>
+          {rental.transmission ? (
+            <li>
+              <SpecIcon name="bolt" />
+              <span className="spec-value">
+                {rental.transmission === "manual" ? t.transmissionManual : t.transmissionAuto}
+              </span>
+            </li>
+          ) : null}
+          {rental.luggage !== null ? (
+            <li>
+              <SpecIcon name="bed" />
+              <span className="spec-value">{t.luggageCount(rental.luggage)}</span>
+            </li>
+          ) : null}
+          {rental.doors !== null ? (
+            <li>
+              <SpecIcon name="door" />
+              <span className="spec-value">{t.doorsCount(rental.doors)}</span>
+            </li>
+          ) : null}
+        </ul>
+      );
+    }
+
     return (
       <ul className="spec-list">
         <li>
           <SpecIcon name="users" />
-          <span className="spec-value">{t.guestsCount(stay.maxGuests)}</span>
+          <span className="spec-value">{t.guestsCount(rental.maxGuests)}</span>
         </li>
         <li>
           <SpecIcon name="door" />
-          <span className="spec-value">{t.bedroomsCount(stay.bedrooms)}</span>
+          <span className="spec-value">{t.bedroomsCount(rental.bedrooms)}</span>
         </li>
         <li>
           <SpecIcon name="bed" />
-          <span className="spec-value">{t.bedsCount(stay.beds)}</span>
+          <span className="spec-value">{t.bedsCount(rental.beds)}</span>
         </li>
         <li>
           <SpecIcon name="bath" />
-          <span className="spec-value">{t.bathroomsCount(stay.bathrooms)}</span>
+          <span className="spec-value">{t.bathroomsCount(rental.bathrooms)}</span>
         </li>
       </ul>
     );
@@ -165,14 +201,29 @@ function QuickFacts({ product, kind, t }: { product: ProductDetail; kind: Produc
   );
 }
 
-function StaySpecs({ product, t }: { product: ProductDetail; t: Messages }) {
-  const stay = product.stay;
-  if (!stay) return null;
+function RentalSpecs({
+  product,
+  kind,
+  t,
+}: {
+  product: ProductDetail;
+  kind: ProductKind;
+  t: Messages;
+}) {
+  const rental = product.rental;
+  if (!rental) return null;
+
+  /* Un scooter no se renta "3 noches" ni tiene "llegada y salida". La columna
+     se llama `min_nights` y así se queda —para renta, una noche y un día de
+     uso son la misma unidad de cuenta— pero al huésped se le habla en su
+     idioma, no en el de la base. */
+  const esVehiculo = kind === "vehicle";
 
   return (
     <p className="muted">
-      {t.minNights(stay.minNights)} · {t.checkInOut}: {stay.checkinTime.slice(0, 5)} /{" "}
-      {stay.checkoutTime.slice(0, 5)}
+      {esVehiculo ? t.minDays(rental.minNights) : t.minNights(rental.minNights)} ·{" "}
+      {esVehiculo ? t.pickupReturn : t.checkInOut}: {rental.checkinTime.slice(0, 5)} /{" "}
+      {rental.checkoutTime.slice(0, 5)}
     </p>
   );
 }
@@ -236,7 +287,9 @@ export default async function ProductPage({
   const sp = await searchParams;
   const basePath = productPath(locale, kind, product.slug);
 
-  const unit = kind === "stay" ? t.perNight : t.perPerson;
+  /* La unidad del precio: por noche una casa, por día un vehículo, por
+     persona un tour. */
+  const unit = kind === "stay" ? t.perNight : kind === "vehicle" ? t.perDay : t.perPerson;
 
   /* "También te puede interesar": tres tarjetas, siempre tres, y distintas en
      cada visita.
@@ -390,8 +443,8 @@ export default async function ProductPage({
 
           <section id="details" className="detail-block detail-block-divided">
             <h2 className="section-title">{t.details}</h2>
-            {kind === "stay" ? (
-              <StaySpecs product={product} t={t} />
+            {isRental(kind) ? (
+              <RentalSpecs product={product} kind={kind} t={t} />
             ) : (
               <TourSpecs product={product} t={t} locale={locale} />
             )}
@@ -424,14 +477,18 @@ export default async function ProductPage({
             </p>
           ) : null}
 
-          {kind === "stay" ? (
-            <StayBooking
+          {/* El mismo selector para casas y vehículos: los dos se apartan
+              eligiendo dos fechas y cuánta gente va. Lo único distinto son las
+              palabras, y de eso se encarga el propio componente con `kind`. */}
+          {isRental(kind) ? (
+            <RentalBooking
               productId={product.id}
               slug={product.slug}
               locale={locale}
               basePath={basePath}
+              kind={kind}
               timezone={product.timezone}
-              maxGuests={product.stay?.maxGuests ?? 2}
+              maxGuests={product.rental?.maxGuests ?? 2}
               params={{
                 from: single(sp.from),
                 to: single(sp.to),

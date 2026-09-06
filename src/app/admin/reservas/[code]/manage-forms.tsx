@@ -1,5 +1,9 @@
 "use client";
 
+import { isRental } from "@/i18n/config";
+
+import type { ProductKind } from "@/i18n/config";
+
 import { useActionState, useState } from "react";
 
 import { cancelBookingAction, rescheduleAction, type ActionState } from "../../actions";
@@ -23,7 +27,7 @@ export function ManageForms({
   departures,
 }: {
   code: string;
-  kind: "stay" | "tour";
+  kind: ProductKind;
   refund: { refundCents: number; refundPct: number; label: string; hoursBefore: number };
   canCancel: boolean;
   departures: { id: string; label: string }[];
@@ -65,7 +69,7 @@ export function ManageForms({
           <input type="hidden" name="code" value={code} />
           <input type="hidden" name="kind" value={kind} />
 
-          {kind === "stay" ? (
+          {isRental(kind) ? (
             <div className="filters-row">
               <div className="field">
                 <label htmlFor="new-from">Nueva llegada</label>

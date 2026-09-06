@@ -1,5 +1,9 @@
 "use server";
 
+import { isRental } from "@/i18n/config";
+
+import type { ProductKind } from "@/i18n/config";
+
 import { revalidatePath } from "next/cache";
 import { sql } from "drizzle-orm";
 
@@ -71,7 +75,9 @@ export async function createProduct(
   const name = text(form, "name");
   const locationId = text(form, "locationId");
 
-  if (kind !== "tour" && kind !== "stay") return { error: "Elige tour o estancia.", ok: null };
+  if (kind !== "tour" && kind !== "stay" && kind !== "vehicle") {
+    return { error: "Elige tour, estancia o vehículo.", ok: null };
+  }
   if (!SLUG.test(slug)) {
     return {
       error: "La dirección solo lleva minúsculas, números y guiones. Ejemplo: catamaran-al-arrecife.",
@@ -181,7 +187,7 @@ export async function setProductStatus(
       return { error: "Sube al menos una foto antes de publicar.", ok: null };
     }
 
-    const kindRows = await db.execute<{ kind: "tour" | "stay" }>(sql`
+    const kindRows = await db.execute<{ kind: ProductKind }>(sql`
       select kind from products where id = ${productId}::uuid
     `);
     if (kindRows[0]?.kind === "tour") {
@@ -201,7 +207,7 @@ export async function setProductStatus(
       }
     }
 
-    if (kindRows[0]?.kind === "stay") {
+    if (kindRows[0] && isRental(kindRows[0].kind)) {
       const rates = await db.execute<{ n: number }>(sql`
         select count(*)::int as n
           from rental_units su

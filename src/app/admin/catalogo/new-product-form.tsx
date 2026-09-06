@@ -60,6 +60,7 @@ export function NewProductForm({ locations }: { locations: LocationOption[] }) {
           <select id="kind" name="kind" defaultValue="tour">
             <option value="tour">Tour</option>
             <option value="stay">Estancia</option>
+            <option value="vehicle">Vehículo</option>
           </select>
         </div>
         <div className="field field-wide">

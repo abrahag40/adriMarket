@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
-import { LOCALES, productPath } from "@/i18n/config";
+import { LOCALES, productPath, type ProductKind } from "@/i18n/config";
 import { SITE_URL } from "@/site";
 
 /**
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const rows = await db.execute<{
     slug: string;
-    kind: "tour" | "stay";
+    kind: ProductKind;
     locale: string;
     updated_at: string;
   }>(sql`

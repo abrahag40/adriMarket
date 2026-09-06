@@ -1,4 +1,4 @@
-import { formatMoney, LOCALE_TAG, type Locale } from "@/i18n/config";
+import { formatMoney, LOCALE_TAG, type Locale, type ProductKind, isRental } from "@/i18n/config";
 
 /**
  * Plantillas de los avisos · S3-4
@@ -21,7 +21,7 @@ export type BookingNotification = {
   code: string;
   locale: Locale;
   productName: string;
-  kind: "tour" | "stay";
+  kind: ProductKind;
   currency: string;
   totalCents: number;
   depositCents: number;
@@ -121,7 +121,7 @@ export function guestConfirmation(data: BookingNotification): {
     }
   }
 
-  if (data.kind === "stay" && data.checkIn && data.checkOut) {
+  if (isRental(data.kind) && data.checkIn && data.checkOut) {
     lines.push("");
     lines.push(
       es
@@ -301,7 +301,7 @@ export function cancellationNotice(data: CancellationNotification): {
         : `Cancelled departure: ${formatDateTime(data.startsAt, data.timezone, data.locale)}`,
     );
   }
-  if (data.kind === "stay" && data.checkIn) {
+  if (isRental(data.kind) && data.checkIn) {
     lines.push(
       es
         ? `Llegada cancelada: ${formatDate(data.checkIn, data.locale)}`
@@ -447,7 +447,7 @@ export function reminderNotice(data: ReminderNotification): {
     }
   }
 
-  if (data.kind === "stay" && data.checkIn) {
+  if (isRental(data.kind) && data.checkIn) {
     lines.push("");
     lines.push(
       es

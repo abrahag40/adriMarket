@@ -1,3 +1,5 @@
+import { isRental } from "@/i18n/config";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -62,7 +64,7 @@ export default async function ProductoPage({ params }: { params: Promise<{ id: s
         globalPct={globalPct}
       />
 
-      {product.kind === "stay" ? (
+      {isRental(product.kind) ? (
         <p className="admin-card-actions">
           <Link className="btn btn-secondary" href={`/admin/catalogo/${product.id}/unidades`}>
             Unidades de estancia

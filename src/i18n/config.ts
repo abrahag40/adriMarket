@@ -33,7 +33,23 @@ export const LOCALE_TAG: Record<Locale, string> = {
   en: "en-US",
 };
 
-export type ProductKind = "tour" | "stay";
+export type ProductKind = "tour" | "stay" | "vehicle";
+
+/**
+ * Los inventarios que se ocupan **por rango de fechas**: casas y vehículos.
+ *
+ * Existe para que nadie vuelva a escribir `kind === "stay"` cuando lo que
+ * quiere decir es "esto se aparta entre dos fechas". Esa pregunta mal hecha es
+ * lo que obliga a tocar veinte archivos cada vez que entra un inventario
+ * nuevo; preguntando por el mecanismo, el cuarto inventario que se ocupe por
+ * fechas se agrega aquí y en ningún otro lado.
+ *
+ * Un tour es lo contrario: vende lugares en una salida con hora, y su cupo se
+ * agota contando asientos, no ocupando un calendario.
+ */
+export function isRental(kind: ProductKind): kind is "stay" | "vehicle" {
+  return kind !== "tour";
+}
 
 /**
  * Segmentos de URL por idioma.
@@ -42,13 +58,13 @@ export type ProductKind = "tour" | "stay";
  * /es/estancias/casa-akumal y /en/stays/casa-akumal.
  */
 const COLLECTIONS: Record<Locale, Record<string, ProductKind>> = {
-  es: { tours: "tour", estancias: "stay" },
-  en: { tours: "tour", stays: "stay" },
+  es: { tours: "tour", estancias: "stay", vehiculos: "vehicle" },
+  en: { tours: "tour", stays: "stay", vehicles: "vehicle" },
 };
 
 const COLLECTION_SEGMENT: Record<Locale, Record<ProductKind, string>> = {
-  es: { tour: "tours", stay: "estancias" },
-  en: { tour: "tours", stay: "stays" },
+  es: { tour: "tours", stay: "estancias", vehicle: "vehiculos" },
+  en: { tour: "tours", stay: "stays", vehicle: "vehicles" },
 };
 
 /** Traduce un segmento de URL al tipo de producto, o null si no existe. */

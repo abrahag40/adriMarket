@@ -5,9 +5,9 @@ import { after, before, describe, it } from "node:test";
 import { sql } from "drizzle-orm";
 
 import { db, sqlClient } from "@/db/index";
-import { stayAvailability, tourDepartures } from "@/modules/availability/calendar";
+import { rentalAvailability, tourDepartures } from "@/modules/availability/calendar";
 
-import { quoteStay, quoteTour, taxFactorFor } from "./service";
+import { quoteRental, quoteTour, taxFactorFor } from "./service";
 import { QuoteError } from "./types";
 
 /**
@@ -68,7 +68,7 @@ after(async () => {
 
 describe("cotización de estancia contra la base", () => {
   it("reproduce el caso de la Casa Akumal con las tarifas configuradas", async () => {
-    const { quote, unitId } = await quoteStay(
+    const { quote, unitId } = await quoteRental(
       CASA,
       { from: "2026-09-17", to: "2026-09-20" },
       5,
@@ -95,19 +95,19 @@ describe("cotización de estancia contra la base", () => {
   });
 
   it("elige la unidad más chica que alcanza", async () => {
-    const pareja = await quoteStay(CASA, { from: "2026-09-17", to: "2026-09-19" }, 2, NOW);
+    const pareja = await quoteRental(CASA, { from: "2026-09-17", to: "2026-09-19" }, 2, NOW);
     assert.notEqual(pareja.unitId, CASA_GRANDE, "una pareja va a la casita");
 
     const nightly = pareja.quote.lines.filter((line) => line.kind === "nightly");
     assert.deepEqual(nightly.map((line) => line.cents), [180_000, 180_000]);
 
-    const familia = await quoteStay(CASA, { from: "2026-09-17", to: "2026-09-19" }, 5, NOW);
+    const familia = await quoteRental(CASA, { from: "2026-09-17", to: "2026-09-19" }, 5, NOW);
     assert.equal(familia.unitId, CASA_GRANDE);
   });
 
   it("aplica el mínimo de noches de la temporada alta", async () => {
     await assert.rejects(
-      () => quoteStay(CASA, { from: "2026-12-24", to: "2026-12-27" }, 5, NOW),
+      () => quoteRental(CASA, { from: "2026-12-24", to: "2026-12-27" }, 5, NOW),
       (error: unknown) => {
         assert.ok(error instanceof QuoteError);
         assert.equal(error.code, "min_nights");
@@ -117,7 +117,7 @@ describe("cotización de estancia contra la base", () => {
     );
 
     // Con cuatro noches sí cotiza, y a tarifa de temporada alta.
-    const { quote } = await quoteStay(CASA, { from: "2026-12-24", to: "2026-12-28" }, 5, NOW);
+    const { quote } = await quoteRental(CASA, { from: "2026-12-24", to: "2026-12-28" }, 5, NOW);
     const nightly = quote.lines.filter((line) => line.kind === "nightly");
     assert.equal(nightly.length, 4);
     assert.ok(
@@ -128,7 +128,7 @@ describe("cotización de estancia contra la base", () => {
 
   it("rechaza más personas que la capacidad de cualquier unidad", async () => {
     await assert.rejects(
-      () => quoteStay(CASA, { from: "2026-09-17", to: "2026-09-19" }, 9, NOW),
+      () => quoteRental(CASA, { from: "2026-09-17", to: "2026-09-19" }, 9, NOW),
       (error: unknown) => {
         assert.ok(error instanceof QuoteError);
         assert.equal(error.code, "over_capacity");
@@ -140,7 +140,7 @@ describe("cotización de estancia contra la base", () => {
 
   it("no cotiza fechas sin tarifa configurada", async () => {
     await assert.rejects(
-      () => quoteStay(CASA, { from: "2029-03-01", to: "2029-03-04" }, 5, NOW),
+      () => quoteRental(CASA, { from: "2029-03-01", to: "2029-03-04" }, 5, NOW),
       (error: unknown) => {
         assert.ok(error instanceof QuoteError);
         assert.equal(error.code, "no_rate");
@@ -160,14 +160,14 @@ describe("cotización de estancia contra la base", () => {
       return rows[0]?.n ?? -1;
     };
 
-    const antes = await quoteStay(CASA, range, 5, NOW);
+    const antes = await quoteRental(CASA, range, 5, NOW);
     assert.equal(antes.available, true);
     // Se compara contra el estado previo, no contra cero: la base puede traer
     // bloqueos legítimos del seed o de otra prueba.
     const bloqueosAntes = await contar(antes.unitId);
 
     // Cotizar dos veces no deja rastro: si apartara, la segunda diría ocupado.
-    const despues = await quoteStay(CASA, range, 5, NOW);
+    const despues = await quoteRental(CASA, range, 5, NOW);
     assert.equal(despues.available, true, "cotizar no debe apartar inventario");
 
     assert.equal(
@@ -184,7 +184,7 @@ describe("cotización de estancia contra la base", () => {
       values (${CASA_GRANDE}::uuid, daterange(${range.from}, ${range.to}), 'maintenance', 'prueba')
     `);
 
-    const { quote, available } = await quoteStay(CASA, range, 5, NOW);
+    const { quote, available } = await quoteRental(CASA, range, 5, NOW);
     assert.equal(available, false, "las fechas están bloqueadas");
     assert.ok(quote.total_cents > 0, "el precio sigue siendo válido: lo que no está libre es la fecha");
   });
@@ -301,7 +301,7 @@ describe("cupones contra la base", () => {
     const coupon = await makeCoupon({ kind: "percent", value: 15 });
     const range = freshRange(3);
 
-    const { quote, couponId } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+    const { quote, couponId } = await quoteRental(CASA, range, 5, NOW, coupon.code);
 
     assert.equal(couponId, coupon.id);
     assert.deepEqual(quote.coupon, { code: coupon.code, applied: true });
@@ -312,7 +312,7 @@ describe("cupones contra la base", () => {
     const coupon = await makeCoupon();
     const range = freshRange(3);
 
-    const { quote } = await quoteStay(CASA, range, 5, NOW, `  ${coupon.code.toLowerCase()}  `);
+    const { quote } = await quoteRental(CASA, range, 5, NOW, `  ${coupon.code.toLowerCase()}  `);
     assert.equal(quote.coupon?.applied, true);
   });
 
@@ -320,13 +320,13 @@ describe("cupones contra la base", () => {
     const coupon = await makeCoupon({ active: false });
     const range = freshRange(3);
 
-    const { quote } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+    const { quote } = await quoteRental(CASA, range, 5, NOW, coupon.code);
     assert.deepEqual(quote.coupon, { code: coupon.code, applied: false, reason: "not_found" });
   });
 
   it("un código que no existe se informa como no encontrado", async () => {
     const range = freshRange(3);
-    const { quote } = await quoteStay(CASA, range, 5, NOW, "NO-EXISTE-ESTE-CODIGO");
+    const { quote } = await quoteRental(CASA, range, 5, NOW, "NO-EXISTE-ESTE-CODIGO");
     assert.deepEqual(quote.coupon, {
       code: "NO-EXISTE-ESTE-CODIGO",
       applied: false,
@@ -338,7 +338,7 @@ describe("cupones contra la base", () => {
     const coupon = await makeCoupon({ appliesTo: { kind: "tour" } });
     const range = freshRange(3);
 
-    const { quote } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+    const { quote } = await quoteRental(CASA, range, 5, NOW, coupon.code);
     assert.deepEqual(quote.coupon, { code: coupon.code, applied: false, reason: "wrong_product" });
   });
 
@@ -346,7 +346,7 @@ describe("cupones contra la base", () => {
     const coupon = await makeCoupon({ kind: "fixed", value: 10_000, currency: "USD" });
     const range = freshRange(3);
 
-    const { quote } = await quoteStay(CASA, range, 5, NOW, coupon.code);
+    const { quote } = await quoteRental(CASA, range, 5, NOW, coupon.code);
     assert.deepEqual(quote.coupon, {
       code: coupon.code,
       applied: false,
@@ -396,7 +396,7 @@ describe("calendario de disponibilidad", () => {
       return date.toISOString().slice(0, 10);
     };
 
-    const nights = await stayAvailability(CASA_GRANDE, dia(-2), dia(5));
+    const nights = await rentalAvailability(CASA_GRANDE, dia(-2), dia(5));
     const byNight = new Map(nights.map((night) => [night.night, night.available]));
 
     assert.equal(byNight.get(dia(-1)), true, "la noche previa sigue libre");
@@ -411,7 +411,7 @@ describe("calendario de disponibilidad", () => {
   });
 
   it("no revela el motivo del bloqueo", async () => {
-    const nights = await stayAvailability(CASA_GRANDE, "2026-10-05", "2026-10-07");
+    const nights = await rentalAvailability(CASA_GRANDE, "2026-10-05", "2026-10-07");
     for (const night of nights) {
       assert.deepEqual(
         Object.keys(night).sort(),

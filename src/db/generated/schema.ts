@@ -416,6 +416,9 @@ export const rentalUnits = pgTable("rental_units", {
 	active: boolean().default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	transmission: text(),
+	luggage: integer(),
+	doors: integer(),
 }, (table) => [
 	foreignKey({
 			columns: [table.productId],
@@ -429,6 +432,9 @@ export const rentalUnits = pgTable("rental_units", {
 	check("rental_units_guests_ok", sql`base_guests <= max_guests`),
 	check("rental_units_max_guests_check", sql`max_guests > 0`),
 	check("rental_units_min_nights_check", sql`min_nights > 0`),
+	check("rental_units_transmission_valid", sql`(transmission IS NULL) OR (transmission = ANY (ARRAY['manual'::text, 'automatica'::text]))`),
+	check("rental_units_luggage_check", sql`(luggage IS NULL) OR (luggage >= 0)`),
+	check("rental_units_doors_check", sql`(doors IS NULL) OR ((doors >= 1) AND (doors <= 8))`),
 ]);
 
 export const rentalRatePlans = pgTable("rental_rate_plans", {
@@ -785,15 +791,15 @@ export const tourItinerarySteps = pgTable("tour_itinerary_steps", {
 		}).onDelete("cascade"),
 ]);
 
+export const benchTarget = pgTable("bench_target", {
+	departureId: uuid("departure_id"),
+	unitId: uuid("unit_id"),
+});
+
 export const benchResult = pgTable("bench_result", {
 	ok: boolean().notNull(),
 	err: text(),
 	at: timestamp({ withTimezone: true, mode: 'string' }).default(sql`clock_timestamp()`).notNull(),
-});
-
-export const benchTarget = pgTable("bench_target", {
-	departureId: uuid("departure_id"),
-	unitId: uuid("unit_id"),
 });
 
 export const productTags = pgTable("product_tags", {

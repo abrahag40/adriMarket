@@ -1,3 +1,4 @@
+import type { ProductKind } from "@/i18n/config";
 import Link from "next/link";
 
 import { listLocations, listProducts } from "@/modules/admin/authoring";
@@ -8,7 +9,11 @@ import { NewProductForm } from "./new-product-form";
 
 export const dynamic = "force-dynamic";
 
-const KIND = { tour: "Tour", stay: "Estancia" };
+const KIND: Record<ProductKind, string> = {
+  tour: "Tour",
+  stay: "Estancia",
+  vehicle: "Vehículo",
+};
 const STATUS: Record<string, { label: string; tone: string }> = {
   draft: { label: "Borrador", tone: "wait" },
   published: { label: "Publicado", tone: "ok" },

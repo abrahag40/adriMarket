@@ -15,7 +15,9 @@ import { ResponsiveImage } from "../responsive-image";
 export function FeaturedCard({ item, locale }: { item: CatalogCard; locale: Locale }) {
   const t = getMessages(locale);
   const href = productPath(locale, item.kind, item.slug);
-  const kindLabel = item.kind === "tour" ? t.filterKindTour : t.filterKindStay;
+  const kindLabel = { tour: t.filterKindTour, stay: t.filterKindStay, vehicle: t.filterKindVehicle }[
+    item.kind
+  ];
 
   return (
     <Link className="featured-card" href={href}>

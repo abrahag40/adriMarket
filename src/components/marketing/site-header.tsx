@@ -69,6 +69,12 @@ export function SiteHeader({
           >
             {t.navStays}
           </Link>
+          <Link
+            href={`/${locale}?kind=vehicle`}
+            aria-current={isActive("vehicle") ? "page" : undefined}
+          >
+            {t.navVehicles}
+          </Link>
 
           {/* Sin "Destinos" en el menú: los seis destinos viven en el inicio,
               con su foto y su conteo, que es donde se eligen mirando. Un

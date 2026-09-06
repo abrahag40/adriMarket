@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
 import type { ImageVariants } from "@/components/responsive-image";
-import type { Locale, ProductKind } from "@/i18n/config";
+import { isRental, type Locale, type ProductKind } from "@/i18n/config";
 import { taxFactorFor } from "@/modules/pricing/service";
 
 /**
@@ -190,8 +190,17 @@ export type MediaItem = {
   variants: ImageVariants | null;
 };
 
-export type StayDetail = {
+/**
+ * La unidad que se renta, sea casa o vehículo.
+ *
+ * Un solo tipo para los dos porque el mecanismo es el mismo: una unidad
+ * concreta ocupada entre dos fechas. Lo que cambia es qué campos vienen
+ * llenos — una casa trae recámaras y un auto trae transmisión— y de eso se
+ * encarga la ficha al pintarlos, no un segundo tipo paralelo.
+ */
+export type RentalDetail = {
   maxGuests: number;
+  /** Casas. Cero en vehículos. */
   bedrooms: number;
   beds: number;
   bathrooms: number;
@@ -199,6 +208,10 @@ export type StayDetail = {
   checkinTime: string;
   checkoutTime: string;
   cleaningFeeCents: number;
+  /** Vehículos. Nulos en casas. */
+  transmission: string | null;
+  luggage: number | null;
+  doors: number | null;
 };
 
 export type TourPrice = { paxType: "adult" | "child" | "infant"; priceCents: number };
@@ -233,7 +246,7 @@ export type ProductDetail = {
   media: MediaItem[];
   fromCents: number | null;
   hasTranslation: boolean;
-  stay: StayDetail | null;
+  rental: RentalDetail | null;
   tour: TourDetail | null;
 };
 
@@ -304,11 +317,11 @@ export async function getProductDetail(
     order by m.position, m.created_at
   `);
 
-  let stay: StayDetail | null = null;
+  let rental: RentalDetail | null = null;
   let tour: TourDetail | null = null;
   let fromCents: number | null = null;
 
-  if (kind === "stay") {
+  if (isRental(kind)) {
     const units = await db.execute<{
       max_guests: number;
       bedrooms: number;
@@ -318,11 +331,15 @@ export async function getProductDetail(
       checkin_time: string;
       checkout_time: string;
       cleaning_fee_cents: string;
+      transmission: string | null;
+      luggage: number | null;
+      doors: number | null;
       from_cents: string | null;
     }>(sql`
       select
         su.max_guests, su.bedrooms, su.beds, su.bathrooms, su.min_nights,
         su.checkin_time, su.checkout_time, su.cleaning_fee_cents,
+        su.transmission, su.luggage, su.doors,
         (select min(sr.nightly_cents)
            from rental_rates sr
            join rental_rate_plans rp on rp.id = sr.rate_plan_id
@@ -335,7 +352,7 @@ export async function getProductDetail(
     `);
     const unit = units[0];
     if (unit) {
-      stay = {
+      rental = {
         maxGuests: Number(unit.max_guests),
         bedrooms: Number(unit.bedrooms),
         beds: Number(unit.beds),
@@ -344,6 +361,9 @@ export async function getProductDetail(
         checkinTime: unit.checkin_time,
         checkoutTime: unit.checkout_time,
         cleaningFeeCents: Number(unit.cleaning_fee_cents),
+        transmission: unit.transmission,
+        luggage: unit.luggage === null ? null : Number(unit.luggage),
+        doors: unit.doors === null ? null : Number(unit.doors),
       };
       fromCents = unit.from_cents === null ? null : Number(unit.from_cents);
     }
@@ -427,7 +447,7 @@ export async function getProductDetail(
     })),
     fromCents: fromCentsWithTax,
     hasTranslation: true,
-    stay,
+    rental,
     tour,
   };
 }

@@ -35,6 +35,7 @@ export function CatalogFilters({
             <option value="">{t.filterKindAll}</option>
             <option value="tour">{t.filterKindTour}</option>
             <option value="stay">{t.filterKindStay}</option>
+            <option value="vehicle">{t.filterKindVehicle}</option>
           </select>
         </div>
 

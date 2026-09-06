@@ -1,12 +1,12 @@
 import Link from "next/link";
 
 import { BookingSelector } from "@/components/booking-selector";
-import { StayCalendar } from "@/components/availability-calendar";
+import { RentalCalendar } from "@/components/availability-calendar";
 import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown";
-import type { Locale } from "@/i18n/config";
+import type { Locale, ProductKind } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
-import { primaryUnitId, stayAvailability } from "@/modules/availability/calendar";
-import { quoteStay } from "@/modules/pricing/service";
+import { primaryUnitId, rentalAvailability } from "@/modules/availability/calendar";
+import { quoteRental } from "@/modules/pricing/service";
 import { QuoteError } from "@/modules/pricing/types";
 import { startOfMonth, startOfNextMonth, todayIn } from "@/time";
 
@@ -23,11 +23,12 @@ function validDate(value: string | undefined): string | null {
   return value !== undefined && ISO_DATE.test(value) ? value : null;
 }
 
-export async function StayBooking({
+export async function RentalBooking({
   productId,
   slug,
   locale,
   basePath,
+  kind,
   timezone,
   maxGuests,
   params,
@@ -36,12 +37,22 @@ export async function StayBooking({
   slug: string;
   locale: Locale;
   basePath: string;
+  /** Casa o vehículo: solo cambia cómo se le habla al huésped. */
+  kind: ProductKind;
   timezone: string;
   maxGuests: number;
   params: { from?: string; to?: string; guests?: string; month?: string };
 }) {
   const t = getMessages(locale);
   const today = todayIn(timezone);
+
+  /* Las dos fechas y la cuenta de gente son lo mismo para una casa y para un
+     auto; lo que no puede ser lo mismo es cómo se llaman. "Llegada / Salida /
+     Personas" en un scooter suena a que se va a dormir dentro. */
+  const esVehiculo = kind === "vehicle";
+  const etiquetaDesde = esVehiculo ? t.pickupDate : t.checkIn;
+  const etiquetaHasta = esVehiculo ? t.returnDate : t.checkOut;
+  const etiquetaGente = esVehiculo ? t.passengersLabel : t.guestsLabel;
 
   const from = validDate(params.from);
   const to = validDate(params.to);
@@ -57,7 +68,7 @@ export async function StayBooking({
   const prevMonth = prevMonthDate.toISOString().slice(0, 10);
 
   const unitId = await primaryUnitId(productId);
-  const nights = unitId ? await stayAvailability(unitId, month, nextMonth) : [];
+  const nights = unitId ? await rentalAvailability(unitId, month, nextMonth) : [];
 
   function hrefWithMonth(target: string): string {
     const next = new URLSearchParams();
@@ -72,9 +83,9 @@ export async function StayBooking({
 
   if (from && to) {
     try {
-      const result = await quoteStay(productId, { from, to }, guests);
+      const result = await quoteRental(productId, { from, to }, guests);
       const checkoutHref =
-        `/${locale}/checkout?kind=stay&slug=${encodeURIComponent(slug)}` +
+        `/${locale}/checkout?kind=${kind}&slug=${encodeURIComponent(slug)}` +
         `&from=${from}&to=${to}&guests=${guests}`;
       quoteNode = (
         <>
@@ -102,7 +113,7 @@ export async function StayBooking({
       <BookingSelector action={basePath}>
         <div className="selector-row">
           <div className="field">
-            <label htmlFor="from">{t.checkIn}</label>
+            <label htmlFor="from">{etiquetaDesde}</label>
             <input
               id="from"
               name="from"
@@ -112,11 +123,11 @@ export async function StayBooking({
             />
           </div>
           <div className="field">
-            <label htmlFor="to">{t.checkOut}</label>
+            <label htmlFor="to">{etiquetaHasta}</label>
             <input id="to" name="to" type="date" defaultValue={to ?? ""} min={today} />
           </div>
           <div className="field">
-            <label htmlFor="guests">{t.guestsLabel}</label>
+            <label htmlFor="guests">{etiquetaGente}</label>
             <select id="guests" name="guests" defaultValue={String(guests)}>
               {Array.from({ length: maxGuests }, (_, index) => index + 1).map((n) => (
                 <option key={n} value={String(n)}>
@@ -135,7 +146,7 @@ export async function StayBooking({
 
       {quoteNode}
 
-      <StayCalendar
+      <RentalCalendar
         nights={nights}
         month={month}
         locale={locale}

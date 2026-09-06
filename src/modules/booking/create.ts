@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, toDateRangeLiteral, type DateRange } from "@/db/index";
 import { rethrowDomainError } from "@/modules/availability/holds";
 import { freezeQuoteLabels } from "@/modules/pricing/labels";
-import { quoteStay, quoteTour } from "@/modules/pricing/service";
+import { quoteRental, quoteTour } from "@/modules/pricing/service";
 import type { PaxCounts, Quote } from "@/modules/pricing/types";
 import type { Locale } from "@/i18n/config";
 
@@ -36,8 +36,9 @@ export type PaxInput = {
   age: number | null;
 };
 
-export type StayBookingInput = {
-  kind: "stay";
+export type RentalBookingInput = {
+  /** Casa o vehículo: los dos se apartan por rango de fechas. */
+  kind: "stay" | "vehicle";
   productId: string;
   range: DateRange;
   guests: number;
@@ -54,7 +55,7 @@ export type TourBookingInput = {
   couponCode?: string;
 };
 
-export type BookingInput = StayBookingInput | TourBookingInput;
+export type BookingInput = RentalBookingInput | TourBookingInput;
 
 export type CreatedBooking = {
   bookingId: string;
@@ -119,8 +120,13 @@ export async function createBookingWithHold(
   let seatsNeeded = 0;
   let couponId: string | null = null;
 
-  if (input.kind === "stay") {
-    const quoted = await quoteStay(
+  /* `input.kind !== "tour"` y no `isRental(input.kind)` a propósito: un
+     predicado de tipo estrecha el *campo*, no el objeto que lo contiene, así
+     que con `isRental` TypeScript no sabría que aquí `input` tiene `range` y
+     `guests`. La comparación con el discriminante sí lo sabe. Dice lo mismo:
+     todo lo que no es un tour se aparta por fechas. */
+  if (input.kind !== "tour") {
+    const quoted = await quoteRental(
       input.productId,
       input.range,
       input.guests,
@@ -197,8 +203,8 @@ export async function createBookingWithHold(
           ${input.kind}::product_kind,
           ${input.productId}::uuid,
           ${unitId}::uuid,
-          ${input.kind === "stay" ? toDateRangeLiteral(input.range) : null}::daterange,
-          ${input.kind === "stay" ? input.guests : null}::int,
+          ${input.kind !== "tour" ? toDateRangeLiteral(input.range) : null}::daterange,
+          ${input.kind !== "tour" ? input.guests : null}::int,
           ${input.kind === "tour" ? input.departureId : null}::uuid,
           ${input.kind === "tour" ? seatsNeeded : null}::int,
           ${input.kind === "tour" ? JSON.stringify(input.pax) : null}::jsonb,
@@ -228,7 +234,12 @@ export async function createBookingWithHold(
 
       // El apartado va en la misma transacción que la reserva. Si revienta por
       // traslape o cupo, no queda nada escrito.
-      if (input.kind === "stay") {
+      /* `input.kind !== "tour"` y no `isRental(input.kind)` a propósito: un
+     predicado de tipo estrecha el *campo*, no el objeto que lo contiene, así
+     que con `isRental` TypeScript no sabría que aquí `input` tiene `range` y
+     `guests`. La comparación con el discriminante sí lo sabe. Dice lo mismo:
+     todo lo que no es un tour se aparta por fechas. */
+  if (input.kind !== "tour") {
         await tx.execute(sql`
           select rental_hold_create(${unitId}::uuid,
                                   ${toDateRangeLiteral(input.range)}::daterange,

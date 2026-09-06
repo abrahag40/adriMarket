@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
-import { type Locale } from "@/i18n/config";
+import { type Locale, type ProductKind, isRental } from "@/i18n/config";
 import { rethrowDomainError } from "@/modules/availability/holds";
 import { freezeQuoteLabels } from "@/modules/pricing/labels";
-import { quoteStay, quoteTour } from "@/modules/pricing/service";
+import { quoteRental, quoteTour } from "@/modules/pricing/service";
 
 /**
  * Cambios de fecha · S5-3
@@ -37,7 +37,7 @@ type BookingContext = {
   guests: number;
   seats: number | null;
   locale: Locale;
-  kind: "stay" | "tour";
+  kind: ProductKind;
 };
 
 async function contextOf(bookingId: string): Promise<BookingContext | null> {
@@ -46,7 +46,7 @@ async function contextOf(bookingId: string): Promise<BookingContext | null> {
     guests: number | null;
     seats: number | null;
     locale: string;
-    kind: "stay" | "tour";
+    kind: ProductKind;
   }>(sql`
     select i.product_id, i.guests, i.seats, b.locale, i.kind
       from booking_items i
@@ -74,9 +74,11 @@ export async function rescheduleStay(
 ): Promise<RescheduleResult> {
   const context = await contextOf(bookingId);
   if (!context) throw new Error(`La reserva ${bookingId} no existe`);
-  if (context.kind !== "stay") throw new Error("Esta reserva no es de estancia");
+  // Casas y vehículos se reprograman igual: se libera el rango viejo y se
+  // aparta el nuevo. Un tour no — ahí se cambia de salida, que es otra cosa.
+  if (!isRental(context.kind)) throw new Error("Esta reserva no se ocupa por fechas");
 
-  const { quote } = await quoteStay(context.productId, range, context.guests);
+  const { quote } = await quoteRental(context.productId, range, context.guests);
   const frozen = freezeQuoteLabels(quote, context.locale);
 
   try {

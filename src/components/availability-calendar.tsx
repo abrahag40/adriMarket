@@ -80,7 +80,7 @@ function Grid({
   );
 }
 
-export function StayCalendar({
+export function RentalCalendar({
   nights,
   month,
   locale,

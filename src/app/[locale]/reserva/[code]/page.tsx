@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
 import { QuoteBreakdown } from "@/components/quote-breakdown";
-import { formatMoney, isLocale, LOCALE_TAG } from "@/i18n/config";
+import { formatMoney, isLocale, LOCALE_TAG, type ProductKind, isRental } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 import { LocalProvider, paymentProvider } from "@/modules/payments";
 
@@ -79,7 +79,7 @@ export default async function BookingPage({
     product_name: string;
     deposit_paid: string;
     quote: unknown;
-    kind: "tour" | "stay";
+    kind: ProductKind;
     check_in: string | null;
     check_out: string | null;
     starts_at: string | null;
@@ -139,7 +139,7 @@ export default async function BookingPage({
       <p className={booking.status === "confirmed" ? "status-ok" : "status-wait"}>{statusLabel}</p>
 
       {/* Lo primero que quiere ver quien aterriza aquí son sus fechas. */}
-      {booking.kind === "stay" && booking.check_in && booking.check_out ? (
+      {isRental(booking.kind) && booking.check_in && booking.check_out ? (
         <p>
           <strong>
             {formatBookingDate(booking.check_in, locale)} → {formatBookingDate(booking.check_out, locale)}

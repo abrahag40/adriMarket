@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
-import { isLocale, type Locale } from "@/i18n/config";
+import { isLocale, isRental, type Locale, type ProductKind } from "@/i18n/config";
 import { formatMoney } from "@/i18n/config";
 
 import {
@@ -317,7 +317,7 @@ export async function notificationData(bookingId: string): Promise<BookingNotifi
     quote: { lines?: QuoteLineWithLabel[] } | null;
     policy: { text_es?: string; text_en?: string } | null;
     holder_name: string;
-    kind: "tour" | "stay";
+    kind: ProductKind;
     product_name: string;
     timezone: string;
     starts_at: string | null;
@@ -399,12 +399,19 @@ export async function notificationData(bookingId: string): Promise<BookingNotifi
     checkoutTime: row.checkout_time,
     // El depósito de garantía no pasa por la pasarela: si no se menciona aquí,
     // el huésped llega sin efectivo (regla del SME).
-    securityDepositNote:
-      row.kind === "stay"
+    // Casas y vehículos lo piden los dos, pero no lo pide la misma persona ni
+    // por lo mismo: un anfitrión responde por la casa, una agencia por el auto.
+    // Decir "el anfitrión" al entregar un scooter suena a que alguien vive
+    // dentro.
+    securityDepositNote: !isRental(row.kind)
+      ? null
+      : row.kind === "vehicle"
         ? locale === "en"
+          ? `On pick-up the agency may hold a refundable damage deposit on a card. It is not part of the ${formatMoney(balanceCents, row.currency, locale)} balance above.`
+          : `Al recoger el vehículo, la agencia puede retener un depósito de garantía reembolsable en una tarjeta. No forma parte del saldo de ${formatMoney(balanceCents, row.currency, locale)}.`
+        : locale === "en"
           ? `On arrival the host may request a refundable cash damage deposit. It is not part of the ${formatMoney(balanceCents, row.currency, locale)} balance above.`
-          : `Al llegar, el anfitrión puede pedir un depósito de garantía reembolsable en efectivo. No forma parte del saldo de ${formatMoney(balanceCents, row.currency, locale)}.`
-        : null,
+          : `Al llegar, el anfitrión puede pedir un depósito de garantía reembolsable en efectivo. No forma parte del saldo de ${formatMoney(balanceCents, row.currency, locale)}.`,
     guests: guests.map((guest) => ({
       fullName: guest.full_name,
       paxType: guest.pax_type,
