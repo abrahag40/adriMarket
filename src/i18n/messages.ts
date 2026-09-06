@@ -35,6 +35,9 @@ export type Messages = {
   viewAllTours: (n: number) => string;
   viewAllStays: (n: number) => string;
   viewAllVehicles: (n: number) => string;
+  viewAllDestinations: (n: number) => string;
+  destinationsPageTitle: string;
+  destinationsPageSubtitle: string;
   staysSubtitle: string;
   relatedHeading: string;
   detailNavOverview: string;
@@ -77,6 +80,17 @@ export type Messages = {
   filterGuestsAny: string;
   filterApply: string;
   filterClear: string;
+  filterPrice: string;
+  filterPriceAny: string;
+  filterPriceUpTo: (max: string) => string;
+  filterPriceOver: (min: string) => string;
+  filterPriceBetween: (min: string, max: string) => string;
+  filterGuestsOption: (n: number) => string;
+  filtersOpen: (n: number) => string;
+  filterRemove: (label: string) => string;
+  filtersActiveHeading: string;
+  filtersTitle: string;
+  listingAllHeading: string;
   resultsCount: (n: number) => string;
   pagePrev: string;
   pageNext: string;
@@ -234,6 +248,10 @@ const es: Messages = {
   viewAllTours: (n) => `Ver los ${n} tours`,
   viewAllStays: (n) => (n === 1 ? "Ver la estancia" : `Ver las ${n} estancias`),
   viewAllVehicles: (n) => `Ver los ${n} vehículos`,
+  viewAllDestinations: (n) => `Ver los ${n} destinos`,
+  destinationsPageTitle: "Todos los destinos",
+  destinationsPageSubtitle:
+    "Cada destino abre el catálogo filtrado por ese lugar: tours, estancias y vehículos.",
   staysSubtitle: "Casas y departamentos listos para tu próxima escapada.",
   relatedHeading: "También te puede interesar",
   detailNavOverview: "Descripción",
@@ -280,6 +298,17 @@ const es: Messages = {
   filterGuestsAny: "Cualquiera",
   filterApply: "Aplicar",
   filterClear: "Quitar filtros",
+  filterPrice: "Precio",
+  filterPriceAny: "Cualquiera",
+  filterPriceUpTo: (max) => `Hasta ${max}`,
+  filterPriceOver: (min) => `Más de ${min}`,
+  filterPriceBetween: (min, max) => `${min} a ${max}`,
+  filterGuestsOption: (n) => (n === 1 ? "1 o más" : `${n} o más`),
+  filtersOpen: (n) => (n === 0 ? "Filtros" : n === 1 ? "Filtros · 1 activo" : `Filtros · ${n} activos`),
+  filterRemove: (label) => `Quitar el filtro ${label}`,
+  filtersActiveHeading: "Filtros activos",
+  filtersTitle: "Filtros",
+  listingAllHeading: "Todo el catálogo",
   resultsCount: (n) => (n === 1 ? "1 resultado" : `${n} resultados`),
   pagePrev: "Anteriores",
   pageNext: "Siguientes",
@@ -437,6 +466,10 @@ const en: Messages = {
   viewAllTours: (n) => `See all ${n} tours`,
   viewAllStays: (n) => (n === 1 ? "See the stay" : `See all ${n} stays`),
   viewAllVehicles: (n) => `See all ${n} vehicles`,
+  viewAllDestinations: (n) => `See all ${n} destinations`,
+  destinationsPageTitle: "All destinations",
+  destinationsPageSubtitle:
+    "Each destination opens the catalog filtered by that place: tours, stays and vehicles.",
   staysSubtitle: "Homes and apartments ready for your next getaway.",
   relatedHeading: "You might also like",
   detailNavOverview: "Overview",
@@ -482,6 +515,17 @@ const en: Messages = {
   filterGuestsAny: "Any",
   filterApply: "Apply",
   filterClear: "Clear filters",
+  filterPrice: "Price",
+  filterPriceAny: "Any",
+  filterPriceUpTo: (max) => `Up to ${max}`,
+  filterPriceOver: (min) => `Over ${min}`,
+  filterPriceBetween: (min, max) => `${min} to ${max}`,
+  filterGuestsOption: (n) => (n === 1 ? "1 or more" : `${n} or more`),
+  filtersOpen: (n) => (n === 0 ? "Filters" : n === 1 ? "Filters · 1 active" : `Filters · ${n} active`),
+  filterRemove: (label) => `Remove the ${label} filter`,
+  filtersActiveHeading: "Active filters",
+  filtersTitle: "Filters",
+  listingAllHeading: "The whole catalog",
   resultsCount: (n) => (n === 1 ? "1 result" : `${n} results`),
   pagePrev: "Previous",
   pageNext: "Next",

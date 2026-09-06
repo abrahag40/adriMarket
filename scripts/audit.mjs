@@ -71,25 +71,50 @@ function query(sql) {
  * Así que cada página tiene el suyo, medido y con margen — no un número
  * global aflojado hasta que todo pase:
  *
- *   · inicio: 260, con **194 medidos**. Fue 450 mientras la portada cargaba
- *     doce fotos de golpe; hoy carga **tres**, y el resto llegan cuando el
- *     dedo arrastra el riel donde viven. El tope bajó con ellas: uno de 450
- *     sobre una página de 194 no avisa de nada, que es la otra forma de que
- *     un presupuesto deje de servir.
+ *   · inicio: 320, con **247 medidos**. Fue 450 mientras la portada cargaba
+ *     doce fotos de golpe, y bajó a 260 el día que las cuatro vitrinas
+ *     pasaron a rieles y la portada cargaba **tres**: un tope de 450 sobre
+ *     una página de 194 no avisa de nada, que es la otra forma de que un
+ *     presupuesto deje de servir.
  *
- *     Lo que lo hizo bajar fue arreglar un defecto, no quitar contenido — la
- *     portada enseña **más** que antes: cuatro rieles, treinta y ocho fotos
- *     disponibles. El día que las dos cuadrículas pasaron a rieles, la carga
- *     diferida dejó de funcionar sin decirlo: una tarjeta fuera de pantalla
- *     en una cuadrícula está lejos hacia abajo y el navegador la ignora; en
- *     un riel está lejos **hacia el lado**, dentro del margen con el que
- *     Chrome adelanta descargas. La página adelgazó a la mitad de alto y
- *     engordó a 475 kB. Lo cerró `content-visibility: auto` en
- *     `.carousel-item` — está explicado ahí, en `globals.css`.
+ *     Volvió a subir cuando destinos y tours destacados pasaron de riel a
+ *     cuadrícula —seis destinos en dos filas y tres tours con foto alta, que
+ *     es lo que el cliente pidió ver—. Ahora la portada pinta **cuatro o
+ *     cinco fotos** de entrada en lugar de la primera de un riel: 58 kB de
+ *     imágenes sobre 190 kB de armazón.
  *
- *     El margen de 66 kB cubre la variación entre local y producción: cuáles
- *     tres fotos toquen depende del orden del catálogo, y una portada pesada
- *     no puede hacer fallar la barra sin que nadie haya tocado el código.
+ *     Los 190 son el suelo y no se mueven: 105 de JavaScript, 53 de dos
+ *     tipografías, 22 del documento y 9 de CSS. Contra un tope de 260 eso
+ *     dejaba 70 kB para fotos —tres— y el mismo argumento que jubiló al tope
+ *     global de 200 aplicaba aquí: un presupuesto que la página no puede
+ *     cumplir enseñando lo que vino a enseñar no se respeta, se ignora. 320
+ *     deja 130 kB, que son seis u ocho fotos, y **73 kB de margen** sobre lo
+ *     medido — el mismo margen que tenía antes, y por la misma razón: cuáles
+ *     fotos toquen depende del orden del catálogo, y una portada pesada no
+ *     puede hacer fallar la barra sin que nadie haya tocado el código.
+ *
+ *     Lo que **no** subió es el tope de JavaScript, que es el que mide la
+ *     disciplina: sigue en 140 y lo medido **bajó** a 104, porque el cambio no
+ *     agregó ningún componente de cliente — quitó los cuatro carruseles.
+ *
+ *     Sigue vigente la trampa que lo hizo engordar a 475 kB en su día: una
+ *     tarjeta fuera de pantalla en una cuadrícula está lejos **hacia abajo**
+ *     y el navegador no pide su foto; en un riel está lejos hacia el lado,
+ *     dentro del margen con el que Chrome adelanta descargas. Por eso los dos
+ *     rieles que quedan —estancias y vehículos— llevan
+ *     `content-visibility: auto` en `.carousel-item`, explicado en
+ *     `globals.css`.
+ *   · listado (/es?kind=tour): comparte el tope del inicio —`presupuestoDe`
+ *     recorta la búsqueda antes de comparar, así que `/es?kind=tour` es `/es`—
+ *     y va sobrado: seis tarjetas paginadas y una barra de facetas que es
+ *     texto. Está en la lista por lo **otro** que mide esto: **axe nunca había
+ *     visto esta vista**, y es la única del sitio con un `<details>` que se
+ *     abre en el teléfono y se queda abierto en escritorio. Eso es
+ *     exactamente el tipo de cosa que se rompe sin que nadie mire.
+ *   · destinos (/es/destinos): 320, con **251 medidos**. Es la misma
+ *     cuadrícula que la portada con los ocho destinos en vez de seis, así que
+ *     comparte tope con ella y por la misma razón: 190 de armazón y el resto
+ *     son fotos que la página existe para enseñar.
  *   · ficha: 260, con 226 medidos. Galería de cinco fotos.
  *   · lo demás (checkout y lo que se agregue): 210, con 179 medidos.
  *
@@ -98,14 +123,15 @@ function query(sql) {
  * cuánto pesa cada una — y el número de fotos es contenido pedido.
  *
  * **El tope de JavaScript no se movió, y es el que de verdad mide nuestra
- * disciplina**: 105 kB en el inicio y 108 en la ficha, contra 140 permitidos.
+ * disciplina**: 104 kB en el inicio y 108 en la ficha, contra 140 permitidos.
  * El día que alguien agregue un componente de cliente pesado, esto avisa.
  */
 const PRESUPUESTO = { total: 210, js: 140 };
 
 /** Presupuesto por página. La clave es el prefijo de la ruta. */
 const PRESUPUESTO_POR_RUTA = [
-  [/^\/(es|en)$/, { total: 260, js: 140 }],
+  [/^\/(es|en)$/, { total: 320, js: 140 }],
+  [/^\/(es|en)\/(destinos|destinations)$/, { total: 320, js: 140 }],
   [/^\/(es|en)\/(tours|estancias)\//, { total: 260, js: 140 }],
 ];
 
@@ -133,6 +159,8 @@ const RANGO = "from=2026-09-17&to=2026-09-20&guests=5";
 const publicas = [
   ["/es", "portada"],
   ["/en", "portada en inglés"],
+  ["/es/destinos", "destinos"],
+  ["/es?kind=tour", "listado con filtro lateral"],
   [`/es/estancias/casa-akumal?${RANGO}`, "ficha de estancia"],
   ["/es/tours/snorkel-cenotes-tulum", "ficha de tour"],
   [`/es/checkout?kind=stay&slug=casa-akumal&${RANGO}`, "checkout"],
@@ -274,8 +302,13 @@ else no("la búsqueda queda vacía sin JavaScript");
    página trae seis tarjetas esté filtrada o no, y contarlas no prueba nada.
    Y se comprueba que ningún resultado sea del otro tipo — un filtro que
    reduce el número pero cuela un resultado ajeno tampoco funciona. */
+/* El total vive en el párrafo del encabezado, no en su título: desde que el
+   listado es una vista de categoría, el `h1` dice "Tours" y el conteo va
+   debajo. Este selector ya se rompió una vez por leer el título — cuando eso
+   pasa, esta comprobación **se cuelga treinta segundos y tumba la auditoría
+   entera**, en vez de fallar diciendo qué no encontró. */
 const totalDe = async () => {
-  const texto = (await page.locator(".results-head h2").innerText()) ?? "";
+  const texto = (await page.locator(".results-head p").innerText()) ?? "";
   return Number.parseInt(texto.replace(/\D/g, ""), 10);
 };
 const totalTours = await totalDe();

@@ -20,9 +20,13 @@ import type { ReactNode } from "react";
  * número dentro ("Ver los 27 tours") porque fija la expectativa antes del
  * clic, que es lo que hace un enlace de categoría en cualquier tienda.
  *
- * Va arriba, junto al título, y no debajo de las tarjetas: en un carrusel la
- * fila no tiene final visible, así que un enlace al final no tiene dónde
- * ponerse.
+ * **Va centrada debajo de las tarjetas**, no arriba junto al título. Estuvo
+ * arriba mientras las cuatro vitrinas eran rieles: una fila que se arrastra
+ * no tiene final visible, así que un enlace al final no tenía dónde ponerse.
+ * Ahora destinos y tours son cuadrículas con un final que se ve, y el mismo
+ * lugar para las cuatro es lo que hace que se lean como el mismo gesto —
+ * terminar de mirar la muestra y pedir el resto. Es también donde la pone la
+ * referencia, y donde ya está el ojo cuando se acaba lo que hay que mirar.
  */
 export function HomeSection({
   id,
@@ -41,20 +45,20 @@ export function HomeSection({
   return (
     <section className="home-section" aria-labelledby={id}>
       <div className="section-head">
-        <div className="section-head-text">
-          <h2 id={id} className="section-title">
-            {title}
-          </h2>
-          <p className="muted">{subtitle}</p>
-        </div>
-        {action ? (
+        <h2 id={id} className="section-title">
+          {title}
+        </h2>
+        <p className="muted">{subtitle}</p>
+      </div>
+      {children}
+      {action ? (
+        <div className="section-outro">
           <Link className="section-action" href={action.href}>
             {action.label}
             <span aria-hidden="true">→</span>
           </Link>
-        ) : null}
-      </div>
-      {children}
+        </div>
+      ) : null}
     </section>
   );
 }

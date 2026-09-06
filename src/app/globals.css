@@ -1003,6 +1003,291 @@ main {
   padding: 3px 10px;
 }
 
+/* ---------- listado con filtro lateral ---------- */
+
+/*
+ * El patrón de Amazon y Mercado Libre: facetas a la izquierda, resultados a la
+ * derecha. Solo aparece cuando hay algo filtrado — el inicio no tiene listado,
+ * y un panel de filtros sobre una portada no filtra nada.
+ *
+ * `align-items: start` es lo que deja la barra más corta que los resultados
+ * sin estirarse: sin él, un `grid` estira las dos columnas al alto de la más
+ * alta y la barra queda con trescientos píxeles de fondo vacío debajo.
+ */
+.listing {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: clamp(20px, 2.5vw, 32px);
+}
+
+@media (min-width: 900px) {
+  .listing {
+    /* `minmax(0, 1fr)` y no `1fr`: el mínimo automático de una pista de grid
+       es el contenido, así que una tarjeta con un nombre largo sin espacios
+       ensancharía la columna y desbordaría la página en vez de recortar. */
+    /* 240 y no 264: con 264 y una separación de 40 la columna de resultados
+       quedaba en 752px y solo caben **dos** tarjetas de catálogo; con 240 y 32
+       quedan 848 y caben tres, que es el ritmo del resto del sitio. Veinticuatro
+       píxeles de barra deciden una columna entera de producto. */
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  /* La barra acompaña el desplazamiento: con dos filas de resultados el
+     huésped filtra desde arriba, y bajar a ver la sexta tarjeta dejaba los
+     filtros fuera de pantalla. `top` la separa de la cabecera pegajosa. */
+  .facets {
+    position: sticky;
+    top: 88px;
+  }
+}
+
+/*
+ * En el teléfono el panel es un `<details>` cerrado —el mismo mecanismo sin
+ * JavaScript de `MobileNav`—; en escritorio el resumen se esconde y el cuerpo
+ * queda abierto siempre.
+ *
+ * `content-visibility: visible` acompaña al `display` a propósito: Chrome dejó
+ * de ocultar el contenido de un `<details>` cerrado con `display: none` y pasó
+ * a `content-visibility: hidden` sobre `::details-content`. Con solo `display`
+ * la barra salía en blanco en escritorio en las versiones nuevas y bien en las
+ * viejas — un fallo que depende del navegador de quien mira.
+ */
+.facets-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.facets-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: 12px 16px;
+  font-weight: 650;
+  cursor: pointer;
+  list-style: none;
+}
+
+.facets-summary::-webkit-details-marker {
+  display: none;
+}
+
+.facets-summary-chevron {
+  transition: transform 0.2s ease;
+}
+
+.facets-panel[open] .facets-summary-chevron {
+  transform: rotate(180deg);
+}
+
+/* `display` **solo** cuando está abierto, o en escritorio. Declararlo en la
+   regla base parece inofensivo y no lo es: la forma en que un navegador
+   esconde el contenido de un `<details>` cerrado es una regla de su hoja de
+   estilos —`display: none` sobre los hijos— y cualquier `display` propio la
+   pisa. El panel salía abierto en el teléfono, con las cuatro facetas encima
+   de los resultados, y el `<summary>` no cerraba nada. */
+.facets-body {
+  flex-direction: column;
+  gap: 24px;
+  padding: 4px 16px 20px;
+}
+
+.facets-panel[open] > .facets-body {
+  display: flex;
+}
+
+@media (min-width: 900px) {
+  .facets-panel {
+    border: 0;
+    background: transparent;
+  }
+
+  .facets-summary {
+    display: none;
+  }
+
+  .facets-panel > .facets-body {
+    display: flex;
+    padding: 0;
+  }
+}
+
+/* La otra mitad de lo mismo, en su propia regla a propósito.
+   
+   Los navegadores que no entienden `::details-content` descartan **el bloque
+   entero** donde aparezca el selector, así que mezclarlo con la regla de
+   arriba dejaría la barra invisible justo en los navegadores viejos, que es a
+   quienes esa regla les sirve. Separadas, cada navegador aplica la que
+   entiende y las dos hacen lo mismo. */
+@media (min-width: 900px) {
+  .facets-panel::details-content {
+    content-visibility: visible;
+    block-size: auto;
+  }
+}
+
+.facets-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* En el teléfono el título del panel sobra: el resumen que hay que pulsar para
+   abrirlo ya dice "Filtros", y repetirlo dentro gasta la primera línea. */
+.facets-title {
+  display: none;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-1);
+}
+
+@media (min-width: 900px) {
+  .facets-title {
+    display: block;
+  }
+}
+
+.facets-clear {
+  font-size: var(--step--1);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.facets-clear:hover {
+  text-decoration: underline;
+}
+
+.facet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.facet:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.facet-heading {
+  font-size: var(--step--1);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.facet-options {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding: 0;
+}
+
+/* Toda la fila es el blanco, no solo las letras: en un teléfono un enlace de
+   texto de catorce píxeles entre otros seis es una lotería para el pulgar. */
+.facet-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 8px;
+  margin-inline: -8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--step-0);
+  color: var(--text-body);
+  text-decoration: none;
+}
+
+.facet-option:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* La opción puesta se marca con `aria-current`, no con una clase: es el mismo
+   dato para quien mira y para quien escucha, y no hay forma de que uno diga
+   una cosa y el otro otra. */
+.facet-option[aria-current="true"] {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.facet-option-count {
+  flex: 0 0 auto;
+  font-size: var(--step--1);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.facet-option[aria-current="true"] .facet-option-count {
+  color: inherit;
+}
+
+/* ---------- fichas de lo filtrado ---------- */
+
+.active-facets-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+
+.active-facet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: var(--step--1);
+  color: var(--text-body);
+  text-decoration: none;
+}
+
+.active-facet:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.active-facets-clear {
+  font-size: var(--step--1);
+  color: var(--accent);
+  text-decoration: none;
+  padding: 6px 4px;
+}
+
+.active-facets-clear:hover {
+  text-decoration: underline;
+}
+
+.listing-results {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2.5vw, 24px);
+  min-width: 0;
+}
+
+/* Dos números, no uno, y el segundo es el que de verdad decidía.
+   
+   El sistema general usa un mínimo de 260px y una separación de hasta 40. En
+   una columna de 787px eso da **dos** columnas, y bajar solo el mínimo a 240
+   seguía dando dos: 3 × 240 + 2 × 38 = 796, seis píxeles de más. La separación
+   es tan responsable del número de columnas como el mínimo, y aquí hay menos
+   ancho que repartir que en una página completa. */
+.listing-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: clamp(16px, 2vw, 24px);
+}
+
 .empty {
   background: var(--surface);
   border: 1px solid var(--line-soft);
@@ -3128,25 +3413,36 @@ fieldset.field legend {
   padding-block: 0;
 }
 
-/* Título y bajada a la izquierda, la salida al catálogo a la derecha y
-   alineada con el título. En pantalla angosta la salida baja debajo, donde
-   sigue estando antes de las tarjetas: una salida después del carrusel no
-   tendría dónde ponerse, porque una fila que se arrastra no tiene final
-   visible. */
+/* Título y bajada centrados, y la salida al catálogo **centrada debajo de
+   las tarjetas**. Estuvo a los lados —título a la izquierda, salida a la
+   derecha— mientras las cuatro vitrinas eran rieles: una fila que se arrastra
+   no tiene final visible, así que la salida no tenía dónde ponerse al final.
+   Con destinos y tours en cuadrícula el final se ve, y el mismo lugar para
+   las cuatro las hace leerse como el mismo gesto: se acaba de mirar la
+   muestra y ahí mismo se pide el resto. */
 .section-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 24px;
-  margin-bottom: clamp(16px, 2.5vw, 28px);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: clamp(20px, 3vw, 36px);
 }
 
-.section-head-text {
+/* La bajada no cruza la página entera: centrada y a todo lo ancho de 1120px
+   obliga al ojo a saltar de un borde al otro para leer una sola línea. */
+.section-head .muted {
+  max-width: 56ch;
+}
+
+/* Separada de las tarjetas lo suficiente para leerse como el cierre de la
+   sección, y menos de lo que separa una sección de la siguiente
+   (`.home-stack` usa hasta 88px): a media distancia entre las dos parecería
+   flotar entre secciones en vez de cerrar la suya. */
+.section-outro {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
+  justify-content: center;
+  margin-top: clamp(24px, 4vw, 48px);
 }
 
 .section-action {
@@ -3158,7 +3454,12 @@ fieldset.field legend {
   font-weight: 600;
   color: var(--accent);
   text-decoration: none;
-  padding-block: 6px;
+  /* Con forma de botón discreto: centrada y suelta bajo una cuadrícula, una
+     línea de texto azul flota sin sostenerse en nada. El borde le da el
+     tamaño de un blanco que se puede pulsar con el pulgar. */
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 10px 26px;
 }
 
 .section-action:hover span,
@@ -3172,8 +3473,8 @@ fieldset.field legend {
 
 .section-action:hover,
 .section-action:focus-visible {
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  border-color: var(--accent);
+  background: var(--surface);
 }
 
 .home-section .section-title {
@@ -3186,30 +3487,63 @@ fieldset.field legend {
    foto sobre un degradado oscuro, no debajo en una caja — así se lee sobre
    cualquier foto sin depender de sus colores. */
 /*
- * Mismo sistema que `.grid` (ver el comentario ahí para el porqué): el
- * mínimo de `minmax()` es lo que decide cuántas columnas caben cuando el
- * máximo es `1fr`, nunca al revés. Una sola regla mobile-first, sin fijar
- * "2 en móvil, 3 en escritorio" a mano — de una columna a varias, según
- * el ancho disponible. El tamaño máximo real de cada tarjeta lo pone
- * `.destination-card`, no el track del grid.
+ * **Columnas contadas, no calculadas.** El resto de cuadrículas del sitio usa
+ * `auto-fill` con un mínimo, que es lo correcto cuando el número de tarjetas
+ * es desconocido. Aquí no lo es: son seis, y la composición que se quiere son
+ * dos filas de tres. Con `auto-fill` sobre 1120px caben cuatro columnas y las
+ * seis salen 4 + 2 —una fila coja, que es justo lo que se ve mal—. Se declara
+ * el número de columnas y las dos filas quedan parejas a cualquier ancho.
  */
 .destinations-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr));
-  justify-content: center;
-  gap: clamp(16px, 3vw, 40px);
+  grid-template-columns: 1fr;
+  gap: clamp(12px, 3vw, 32px);
   list-style: none;
   padding: 0;
 }
 
+/* Dos columnas ya en el teléfono, no una. Apiladas de una en una, seis
+   destinos miden 1,750px —cinco pantallas de teléfono para una sección que
+   antes era una fila que se arrastraba—, y la portada volvía a crecer justo
+   por donde se le acababa de recortar. Un destino es una foto y un nombre:
+   sobrevive a medir 173px de ancho. El corte va en 360px y no más arriba
+   porque un teléfono de hoy mide 390: poner el corte en 420 habría dejado
+   apilada justo a la pantalla que se quería arreglar. Debajo sí van de una en
+   una — a 158px el nombre de un lugar se parte en tres renglones. */
+@media (min-width: 360px) {
+  .destinations-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (min-width: 900px) {
   .destinations-grid {
-    /* A partir de aquí el contenedor ya es lo bastante ancho para que un
-       mínimo de 130px deje caber más de tres columnas (hasta seis, el tope
-       de destinos que se muestran) — este mínimo mayor mantiene el mismo
-       "tres por fila" del diseño en vez de una sola fila apretada de seis. */
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/* A dos columnas la tarjeta mide 173px, y a ese ancho lo que en escritorio
+   son detalles ocupan la tarjeta entera: el nombre en `--step-2` se comía el
+   alto de la foto, y la insignia de conteo medía 107px —el 62% del ancho—,
+   así que el destino competía con su propio contador. Los dos vuelven a su
+   tamaño en cuanto hay ancho. */
+@media (max-width: 899px) {
+  .destinations-grid .destination-card-name {
+    font-size: var(--step-1);
+  }
+
+  .destinations-grid .destination-card-count {
+    top: 8px;
+    right: 8px;
+    font-size: 0.7rem;
+    padding: 3px 9px;
+  }
+}
+
+/* La tarjeta llena su columna: el ancho lo decide la cuadrícula, y un tope
+   propio dejaría huecos desiguales entre columnas de 346px. */
+.destinations-grid > li > .destination-card {
+  max-width: none;
 }
 
 .destination-card {
@@ -3388,20 +3722,71 @@ fieldset.field legend {
 /* Variante de foto vertical con texto superpuesto — estilo "Popular Tours" /
    "Hotel Rooms" de la referencia. Vive aparte de `.card` porque es una
    segunda composición visual, no un ajuste de la primera. */
-/* Ancho fijo, no `width: 100%`: es una tarjeta de carrusel, dentro de un
-   contenedor flex sin ancho propio (`.carousel-item`). Un porcentaje contra un
-   contenedor sin ancho definido se resuelve como `auto`, y con `aspect-ratio`
-   sin ninguna dimensión definida de la que partir la tarjeta colapsa a 0×0 —
-   visible solo al medir el DOM, no en un vistazo rápido a una captura. */
+/* Tres por fila, del ancho de su columna. Fue de 260px fijos mientras vivía
+   en un riel: `.carousel-item` es un contenedor flex sin ancho propio, así
+   que un porcentaje se resolvía como `auto` y con `aspect-ratio` la tarjeta
+   colapsaba a 0×0. En una cuadrícula la columna sí tiene ancho, y el ancho
+   fijo sería el que dejaría huecos.
+
+   `aspect-ratio: 4 / 5` y no `3 / 4`: sobre 346px de columna son 433px de
+   alto contra 461px, y es el alto que pedía la referencia —la foto grande es
+   lo que distingue "Popular Tours" del listado de abajo—. */
+.featured-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(16px, 3vw, 32px);
+  list-style: none;
+  padding: 0;
+}
+
+/* Las tres columnas entran a 700px y no antes: son tres tarjetas fijas, así
+   que a 560px cada una mide 165px de ancho y el nombre del tour en serif se
+   parte en cuatro renglones. Debajo van apiladas —una sola columna, como en
+   la referencia— con un tope de ancho: sin él, en una tableta de 690px una
+   tarjeta 4/5 mide 875px de alto y ocupa más de una pantalla ella sola. */
+.featured-grid > li > .featured-card {
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+@media (min-width: 700px) {
+  .featured-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .featured-grid > li > .featured-card {
+    max-width: none;
+  }
+}
+
 .featured-card {
   position: relative;
   display: block;
-  width: 260px;
-  aspect-ratio: 3 / 4;
+  width: 100%;
+  aspect-ratio: 4 / 5;
   border-radius: calc(var(--radius) * 1.4);
   overflow: hidden;
   text-decoration: none;
   box-shadow: var(--shadow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.featured-card:hover,
+.featured-card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 38px rgb(0 0 0 / 22%);
+}
+
+/* Filo interior, igual que en la tarjeta de destino: separa la foto del
+   fondo blanco sin dibujar un borde duro. */
+.featured-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 22%);
+  pointer-events: none;
 }
 
 .featured-card img {
@@ -3419,7 +3804,9 @@ fieldset.field legend {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgb(0 0 0 / 70%), transparent 60%);
+  background:
+    linear-gradient(to top, rgb(0 0 0 / 78%) 0%, rgb(0 0 0 / 30%) 38%, transparent 62%),
+    linear-gradient(to bottom, rgb(0 0 0 / 30%) 0%, transparent 24%);
 }
 
 .featured-card-kind {
@@ -3452,20 +3839,86 @@ fieldset.field legend {
   font-weight: 650;
 }
 
+/* En la serif del sitio y más grande, igual que el nombre del destino: sobre
+   una foto de 433px de alto, `--step-0` en negrita se leía como un pie de
+   foto. La sombra lo sostiene sobre cualquier cielo. */
+.featured-grid .featured-card-name {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: var(--step-2);
+  line-height: 1.15;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 45%);
+}
+
 .featured-card-price {
   font-size: var(--step--1);
   opacity: 0.9;
 }
 
+.featured-grid .featured-card-price {
+  font-size: var(--step-0);
+  opacity: 0.95;
+}
+
+.featured-grid .featured-card-body {
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+}
+
 /* ---------- cuadrícula de estancias ---------- */
 
+/* Columnas contadas, no calculadas — el mismo criterio que `.destinations-grid`
+   y por el mismo motivo: son seis tarjetas y la composición que se quiere son
+   dos filas de tres. Con `auto-fill` y un mínimo de 260px caben cuatro
+   columnas sobre 1120px y las seis salen 4 + 2, con la última fila coja. */
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-  justify-content: center;
-  gap: clamp(20px, 3vw, 40px);
+  grid-template-columns: 1fr;
+  gap: clamp(14px, 3vw, 32px);
   list-style: none;
   padding: 0;
+}
+
+/* Dos columnas ya en el teléfono. Apiladas de una en una, seis tarjetas de
+   estancia miden 2 200 px por sección —y son dos secciones—: es exactamente
+   la cuenta que la decisión 0008 arregló pasándolas a riel, y volvería
+   entera. A 173px de ancho la tarjeta pierde el resumen (ver más abajo) pero
+   conserva foto, precio, nombre y el enlace, que es con lo que se elige. */
+@media (min-width: 380px) {
+  .rooms-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .rooms-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* La tarjeta llena su columna: su tope propio de 380px dejaría huecos
+   desiguales entre columnas de 346px. */
+.rooms-grid > li > .room-card {
+  max-width: none;
+}
+
+/* Debajo de 700px la tarjeta mide entre 173 y 330px y el resumen —dos o tres
+   renglones de texto gris— es lo primero que sobra: dobla el alto de la
+   tarjeta para decir lo que la foto y el nombre ya dicen. Se va, y con él
+   1 100 px de portada en un teléfono. El dato sigue completo en la ficha. */
+@media (max-width: 699px) {
+  .rooms-grid .room-card-summary {
+    display: none;
+  }
+
+  .rooms-grid .room-card-body {
+    padding: 14px 14px 16px;
+  }
+
+  .rooms-grid .room-card-title {
+    font-size: var(--step-0);
+  }
 }
 
 .room-card {
@@ -3477,16 +3930,6 @@ fieldset.field legend {
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow);
-}
-
-/* Dentro de un carrusel necesita ancho propio: `.carousel-item` es un
-   contenedor flex sin ancho, así que un `width: 100%` se resolvería contra
-   nada y la tarjeta colapsaría al ancho de su contenido. Es la misma razón
-   por la que `.featured-card` y `.destination-card` fijan el suyo. */
-.carousel-item > .room-card {
-  width: 300px;
-  max-width: 78vw;
-  margin-inline: 0;
 }
 
 .room-card-media {
@@ -3616,17 +4059,21 @@ fieldset.field legend {
    medida le dice al navegador que recuerde la real en cuanto pinte la tarjeta
    una vez.
 
-   Y la medida es **por tipo de tarjeta**, no una sola para los cuatro rieles.
-   Con un número único —el de la tarjeta más alta— las tarjetas todavía sin
-   pintar reservaban 460 px donde median 225, y la portada creció 498 px sin
-   que cambiara nada de su contenido: el hueco no se ve en una captura, porque
-   está dentro de un riel que ya se pintó bien. Se miden las tres y se declara
-   la de cada una.
+   La medida hubo que declararla **por tipo de tarjeta** mientras la portada
+   tenía cuatro rieles: con un número único —el de la más alta— las tarjetas
+   todavía sin pintar reservaban 460 px donde median 225, y la portada creció
+   498 px sin que cambiara nada de su contenido.
 
-   El valor de `.carousel-item` es el respaldo: si mañana entra al riel una
-   tarjeta de un tipo nuevo sin su regla —o si el navegador no entiende
-   `:has()`— reserva de más, que deja el riel desplazable. Reservar de menos lo
-   dejaría sin recorrido. */
+   **Hoy la portada no tiene ningún riel**: sus cuatro vitrinas son
+   cuadrículas, y ahí lo que sobra está abajo, donde el navegador sí espera a
+   que el dedo se acerque. El único riel que queda en el sitio es el de
+   testimonios de la guía de estilo (`/admin/estilo`), y el número de abajo
+   reserva de más para él a propósito: reservar de más deja el riel
+   desplazable, reservar de menos lo deja sin recorrido.
+
+   Todo esto se conserva porque la regla no cambió, solo dejó de aplicarse en
+   la portada: el día que una vitrina vuelva a ser un riel, esto es lo que
+   evita que se traiga sus veintiún fotos de golpe. */
 .carousel-item {
   flex: 0 0 auto;
   scroll-snap-align: start;
@@ -3634,22 +4081,11 @@ fieldset.field legend {
   contain-intrinsic-size: auto 300px auto 370px;
 }
 
-.carousel-item:has(> .destination-card) {
-  contain-intrinsic-size: auto 300px auto 225px;
-}
-
-.carousel-item:has(> .featured-card) {
-  contain-intrinsic-size: auto 260px auto 347px;
-}
-
 /* Al imprimir no hay ventana que recorrer: lo aplazado nunca llegaría a
-   pintarse y los cuatro rieles saldrían en blanco. El huésped que guarda la
-   portada en PDF —o la recepción que la imprime— tiene que ver las tarjetas.
-
-   La misma ceguera afecta a una captura de página completa: Chromium compone
-   fuera de la ventana sin volver a decidir qué es relevante, así que
-   `fullPage: true` devuelve los rieles vacíos aunque en pantalla se vean.
-   No es un defecto de la página; está anotado en CLAUDE.md porque parece uno. */
+   pintarse y el riel saldría en blanco. La misma ceguera afecta a una captura
+   de página completa: Chromium compone fuera de la ventana sin volver a
+   decidir qué es relevante, así que `fullPage: true` devuelve los rieles
+   vacíos aunque en pantalla se vean. No es un defecto de la página. */
 @media print {
   .carousel-item {
     content-visibility: visible;
@@ -3755,8 +4191,9 @@ fieldset.field legend {
 
 /* ---------- testimonio ---------- */
 
-/* Mismo motivo que `.featured-card`: ancho fijo porque vive dentro de
-   `.carousel-item`, un contenedor flex sin ancho propio. */
+/* Ancho fijo porque vive dentro de `.carousel-item`, un contenedor flex sin
+   ancho propio: un porcentaje contra un contenedor sin ancho definido se
+   resuelve como `auto` y la tarjeta se encoge al ancho de su texto. */
 .testimonial-card {
   display: flex;
   flex-direction: column;

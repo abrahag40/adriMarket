@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
-import { LOCALES, productPath, type ProductKind } from "@/i18n/config";
+import { LOCALES, destinationsPath, productPath, type ProductKind } from "@/i18n/config";
 import { SITE_URL } from "@/site";
 
 /**
@@ -40,6 +40,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 1,
   }));
 
+  /* La página de destinos es contenido indexable como cualquier otra: un
+     listado por lugar es justo lo que se busca en un buscador ("qué hacer en
+     Bacalar"). Sin `lastModified` a propósito — se arma de lo publicado en
+     cada petición, así que no hay una fecha honesta que declarar. */
+  const destinations: MetadataRoute.Sitemap = LOCALES.map((locale) => ({
+    url: `${SITE_URL}${destinationsPath(locale)}`,
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
   const products: MetadataRoute.Sitemap = rows
     .filter((row) => LOCALES.includes(row.locale as (typeof LOCALES)[number]))
     .map((row) => ({
@@ -49,5 +59,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }));
 
-  return [...home, ...products];
+  return [...home, ...destinations, ...products];
 }

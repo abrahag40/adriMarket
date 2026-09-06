@@ -67,6 +67,29 @@ const COLLECTION_SEGMENT: Record<Locale, Record<ProductKind, string>> = {
   en: { tour: "tours", stay: "stays", vehicle: "vehicles" },
 };
 
+/**
+ * La página que lista todos los destinos.
+ *
+ * Se traduce igual que las colecciones y por la misma razón: el segmento es
+ * contenido indexable. Vive aparte de `COLLECTIONS` porque un destino no es un
+ * tipo de producto —es un filtro sobre los tres—, y meterlo ahí obligaría a
+ * `kindFromSegment` a devolver algo que no existe.
+ */
+const DESTINATIONS_SEGMENT: Record<Locale, string> = {
+  es: "destinos",
+  en: "destinations",
+};
+
+/** Ruta de la página de destinos en un idioma. */
+export function destinationsPath(locale: Locale): string {
+  return `/${locale}/${DESTINATIONS_SEGMENT[locale]}`;
+}
+
+/** Si un segmento de URL es el de la página de destinos en ese idioma. */
+export function isDestinationsSegment(locale: Locale, segment: string): boolean {
+  return DESTINATIONS_SEGMENT[locale] === segment;
+}
+
 /** Traduce un segmento de URL al tipo de producto, o null si no existe. */
 export function kindFromSegment(locale: Locale, segment: string): ProductKind | null {
   return COLLECTIONS[locale][segment] ?? null;
@@ -112,6 +135,12 @@ export function alternateForPathname(locale: Locale, pathname: string): string {
   const kind = kindFromSegment(locale, first);
   if (kind) {
     return `/${[other, segmentForKind(other, kind), ...rest.slice(1)].join("/")}`;
+  }
+  /* Sin esto, cambiar de idioma en /es/destinos mandaba a /en/destinos, que
+     no existe: el selector llevaba a un 404 desde la única página cuyo
+     segmento no es una colección. */
+  if (isDestinationsSegment(locale, first)) {
+    return `/${[other, DESTINATIONS_SEGMENT[other], ...rest.slice(1)].join("/")}`;
   }
   return `/${[other, ...rest].join("/")}`;
 }

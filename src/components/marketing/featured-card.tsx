@@ -8,9 +8,14 @@ import { ResponsiveImage } from "../responsive-image";
 
 /**
  * Variante "moderna" de tarjeta — foto vertical con texto superpuesto, el
- * estilo de "Popular Tours"/"Hotel Rooms" de la referencia — visualmente
- * distinta a `ProductCard`. Mismos datos reales del catálogo, sin precio
- * tachado: ese campo no existe en el modelo de datos.
+ * estilo "Popular Tours" de la referencia — visualmente distinta a
+ * `ProductCard`. Mismos datos reales del catálogo, sin precio tachado: ese
+ * campo no existe en el modelo de datos.
+ *
+ * Vive en la cuadrícula de tres del inicio, así que ocupa el ancho de su
+ * columna y la foto se sirve para un tercio de la pantalla: `sizes` es lo que
+ * decide qué variante baja el navegador, y una medida vieja hace que pida la
+ * grande para pintarla chica.
  */
 export function FeaturedCard({ item, locale }: { item: CatalogCard; locale: Locale }) {
   const t = getMessages(locale);
@@ -28,7 +33,7 @@ export function FeaturedCard({ item, locale }: { item: CatalogCard; locale: Loca
           width={item.coverWidth ?? 800}
           height={item.coverHeight ?? 1000}
           variants={item.coverVariants}
-          sizes="(min-width: 900px) 25vw, (min-width: 600px) 40vw, 80vw"
+          sizes="(min-width: 1184px) 352px, (min-width: 700px) calc(33vw - 32px), (min-width: 452px) 420px, calc(100vw - 32px)"
         />
       ) : null}
       <span className="featured-card-kind">{kindLabel}</span>

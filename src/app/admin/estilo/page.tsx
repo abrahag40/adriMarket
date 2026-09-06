@@ -51,14 +51,21 @@ export default async function EstiloPage() {
       </p>
 
       <section className="stack-sm">
-        <h2 className="section-title">FeaturedCard + Carousel</h2>
-        <p className="muted">Datos reales del catálogo publicado — foto vertical con texto superpuesto.</p>
+        <h2 className="section-title">FeaturedCard</h2>
+        <p className="muted">
+          Datos reales del catálogo publicado — foto vertical con texto superpuesto. Se enseña en
+          la cuadrícula de tres del inicio, que es donde vive: dentro de un carrusel la tarjeta
+          medía 260px y aquí mide el ancho de su columna, así que un ejemplo en riel enseñaba un
+          tamaño que ya no existe en el sitio.
+        </p>
         {featured.length > 0 ? (
-          <Carousel label="Ejemplo" prevLabel="Anterior" nextLabel="Siguiente">
-            {featured.map((item) => (
-              <FeaturedCard key={item.id} item={item} locale="es" />
+          <ul className="featured-grid">
+            {featured.slice(0, 3).map((item) => (
+              <li key={item.id}>
+                <FeaturedCard item={item} locale="es" />
+              </li>
             ))}
-          </Carousel>
+          </ul>
         ) : (
           <p className="muted">No hay productos publicados con foto todavía.</p>
         )}

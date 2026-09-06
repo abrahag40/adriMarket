@@ -27,7 +27,10 @@ export function RoomCard({ item, locale }: { item: CatalogCard; locale: Locale }
             width={item.coverWidth ?? 800}
             height={item.coverHeight ?? 600}
             variants={item.coverVariants}
-            sizes="(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
+            /* Misma cuadrícula que los destinos, misma medida: tres columnas
+               de 352px sobre 1120, dos en el teléfono. Ver el comentario en
+               `destination-card.tsx` para lo que costaba la aproximación. */
+            sizes="(min-width: 1184px) 352px, (min-width: 900px) calc(33vw - 32px), (min-width: 380px) calc(50vw - 22px), calc(100vw - 32px)"
           />
         ) : null}
         {item.fromCents !== null ? (

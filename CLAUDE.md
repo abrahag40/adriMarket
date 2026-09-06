@@ -66,18 +66,18 @@ createdb -h 127.0.0.1 -p 5433 -U postgres adrimarket
 Es lo mismo que corre el pipeline, y **está pensada para correrse entera**:
 
 ```bash
-npm run db:test               # 23 garantías del inventario, en transacción
-npm run test:integration      # 117 casos del dominio
+npm run db:test               # 24 garantías del inventario, en transacción
+npm run test:integration      # 165 casos del dominio
 npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
 npx next start -p 3100 &
-BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 124 criterios
+BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 125 criterios
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e            #  8 · el checkout
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin      # 18 · un día de recepción
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme        # 25 · cierran el puerto
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:publicar   # 29 · publicar un tour
-BASE_URL=http://127.0.0.1:3100 npm run audit               # 25 · accesibilidad y peso
+BASE_URL=http://127.0.0.1:3100 npm run audit               # 31 · accesibilidad y peso
 npm run db:bench              # sobreventa bajo concurrencia real
 ```
 
@@ -273,6 +273,15 @@ Están aquí porque cada una se pagó una vez.
   regla `@media print`. Ninguna prueba de la barra captura una página con
   rieles —`p5-en-el-sitio.png` es la búsqueda, que no los tiene—, así que esto
   solo muerde a quien tome una captura a mano y crea que rompió el sitio.
+- **Un `next start` olvidado en el 3100 hace que la barra mida el build de
+  ayer.** `npx next start -p 3100 &` falla con `EADDRINUSE` si ya hay uno
+  escuchando, pero como va al fondo nadie lee su error: `curl` responde 200,
+  `smoke.sh` y `audit` corren contra el servidor viejo y reportan sobre código
+  que no es el que se acaba de escribir. Costó una investigación de doce
+  fallos de accesibilidad que no existían en el código nuevo —y habría podido
+  costar lo contrario, que es peor: una barra en verde sobre un cambio sin
+  probar. Antes de creerle a la barra: `lsof -nP -iTCP:3100 -sTCP:LISTEN`, o
+  comprobar que el HTML servido tiene lo que se acaba de escribir.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 

@@ -40,7 +40,12 @@ export function DestinationCard({
         width={coverWidth ?? 600}
         height={coverHeight ?? 600}
         variants={coverVariants}
-        sizes="(min-width: 900px) 33vw, (min-width: 600px) 50vw, 100vw"
+        /* La medida real de la columna, no una aproximación: la cuadrícula
+           es de tres sobre 1120px (352px por tarjeta) y de dos en el
+           teléfono. Diciendo `33vw` el navegador calculaba 422px en un
+           escritorio de 1280 y bajaba la variante de 800 para pintarla a
+           331 — cuatro veces los bytes, sin un píxel más de detalle. */
+        sizes="(min-width: 1184px) 352px, (min-width: 900px) calc(33vw - 32px), (min-width: 360px) calc(50vw - 22px), calc(100vw - 32px)"
       />
       <span className="destination-card-count">{t.resultsCount(count)}</span>
       <span className="destination-card-body">
