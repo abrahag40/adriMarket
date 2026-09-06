@@ -81,7 +81,7 @@ export async function rescheduleStay(
 
   try {
     const rows = await db.execute<{ diff: string }>(sql`
-      select booking_reschedule_stay(
+      select booking_reschedule_rental(
         ${bookingId}::uuid,
         daterange(${range.from}, ${range.to}),
         ${quote.total_cents},

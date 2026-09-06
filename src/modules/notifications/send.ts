@@ -340,8 +340,8 @@ export async function notificationData(bookingId: string): Promise<BookingNotifi
       coalesce(l.timezone, 'America/Cancun') as timezone,
       d.starts_at,
       o.meeting_point,
-      lower(i.stay_range)::text as check_in,
-      upper(i.stay_range)::text as check_out,
+      lower(i.rental_range)::text as check_in,
+      upper(i.rental_range)::text as check_out,
       su.checkin_time::text as checkin_time,
       su.checkout_time::text as checkout_time
     from bookings b
@@ -353,7 +353,7 @@ export async function notificationData(bookingId: string): Promise<BookingNotifi
     left join locations l on l.id = p.location_id
     left join tour_departures d on d.id = i.tour_departure_id
     left join tour_options o on o.id = d.tour_option_id
-    left join stay_units su on su.id = i.stay_unit_id
+    left join rental_units su on su.id = i.rental_unit_id
     where b.id = ${bookingId}::uuid
     limit 1
   `);

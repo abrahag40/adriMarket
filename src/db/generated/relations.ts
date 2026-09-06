@@ -1,64 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { stayUnits, stayBlocks, staffUsers, bookingItems, tourOptions, tourDepartures, tourSeatHolds, customers, bookings, cancellationPolicies, coupons, auditLog, locations, taxRates, products, tourPaxPrices, productMedia, stayRatePlans, stayRates, bookingGuests, bookingEvents, payments, paymentEvents, refunds, mediaJobs, outbox, staffLoginTokens, staffSessions, tourItinerarySteps, productTags, tags, productTranslations } from "./schema";
-
-export const stayBlocksRelations = relations(stayBlocks, ({one}) => ({
-	stayUnit: one(stayUnits, {
-		fields: [stayBlocks.unitId],
-		references: [stayUnits.id]
-	}),
-	staffUser: one(staffUsers, {
-		fields: [stayBlocks.createdBy],
-		references: [staffUsers.id]
-	}),
-	bookingItem: one(bookingItems, {
-		fields: [stayBlocks.bookingItemId],
-		references: [bookingItems.id]
-	}),
-}));
-
-export const stayUnitsRelations = relations(stayUnits, ({one, many}) => ({
-	stayBlocks: many(stayBlocks),
-	product: one(products, {
-		fields: [stayUnits.productId],
-		references: [products.id]
-	}),
-	stayRatePlans: many(stayRatePlans),
-	bookingItems: many(bookingItems),
-}));
-
-export const staffUsersRelations = relations(staffUsers, ({many}) => ({
-	stayBlocks: many(stayBlocks),
-	tourDepartures: many(tourDepartures),
-	bookings: many(bookings),
-	auditLogs: many(auditLog),
-	productMedias: many(productMedia),
-	payments: many(payments),
-	refunds: many(refunds),
-	staffLoginTokens: many(staffLoginTokens),
-	staffSessions: many(staffSessions),
-}));
-
-export const bookingItemsRelations = relations(bookingItems, ({one, many}) => ({
-	stayBlocks: many(stayBlocks),
-	tourSeatHolds: many(tourSeatHolds),
-	booking: one(bookings, {
-		fields: [bookingItems.bookingId],
-		references: [bookings.id]
-	}),
-	product: one(products, {
-		fields: [bookingItems.productId],
-		references: [products.id]
-	}),
-	stayUnit: one(stayUnits, {
-		fields: [bookingItems.stayUnitId],
-		references: [stayUnits.id]
-	}),
-	tourDeparture: one(tourDepartures, {
-		fields: [bookingItems.tourDepartureId],
-		references: [tourDepartures.id]
-	}),
-	bookingGuests: many(bookingGuests),
-}));
+import { tourOptions, tourDepartures, staffUsers, tourSeatHolds, bookingItems, customers, bookings, cancellationPolicies, coupons, rentalBlocks, rentalUnits, auditLog, locations, taxRates, products, tourPaxPrices, productMedia, rentalRatePlans, rentalRates, bookingGuests, bookingEvents, payments, paymentEvents, refunds, mediaJobs, outbox, staffLoginTokens, staffSessions, tourItinerarySteps, productTags, tags, productTranslations } from "./schema";
 
 export const tourDeparturesRelations = relations(tourDepartures, ({one, many}) => ({
 	tourOption: one(tourOptions, {
@@ -83,6 +24,18 @@ export const tourOptionsRelations = relations(tourOptions, ({one, many}) => ({
 	tourItinerarySteps: many(tourItinerarySteps),
 }));
 
+export const staffUsersRelations = relations(staffUsers, ({many}) => ({
+	tourDepartures: many(tourDepartures),
+	bookings: many(bookings),
+	rentalBlocks: many(rentalBlocks),
+	auditLogs: many(auditLog),
+	productMedias: many(productMedia),
+	payments: many(payments),
+	refunds: many(refunds),
+	staffLoginTokens: many(staffLoginTokens),
+	staffSessions: many(staffSessions),
+}));
+
 export const tourSeatHoldsRelations = relations(tourSeatHolds, ({one}) => ({
 	tourDeparture: one(tourDepartures, {
 		fields: [tourSeatHolds.departureId],
@@ -92,6 +45,28 @@ export const tourSeatHoldsRelations = relations(tourSeatHolds, ({one}) => ({
 		fields: [tourSeatHolds.bookingItemId],
 		references: [bookingItems.id]
 	}),
+}));
+
+export const bookingItemsRelations = relations(bookingItems, ({one, many}) => ({
+	tourSeatHolds: many(tourSeatHolds),
+	rentalBlocks: many(rentalBlocks),
+	booking: one(bookings, {
+		fields: [bookingItems.bookingId],
+		references: [bookings.id]
+	}),
+	product: one(products, {
+		fields: [bookingItems.productId],
+		references: [products.id]
+	}),
+	rentalUnit: one(rentalUnits, {
+		fields: [bookingItems.rentalUnitId],
+		references: [rentalUnits.id]
+	}),
+	tourDeparture: one(tourDepartures, {
+		fields: [bookingItems.tourDepartureId],
+		references: [tourDepartures.id]
+	}),
+	bookingGuests: many(bookingGuests),
 }));
 
 export const bookingsRelations = relations(bookings, ({one, many}) => ({
@@ -132,6 +107,31 @@ export const couponsRelations = relations(coupons, ({many}) => ({
 	bookings: many(bookings),
 }));
 
+export const rentalBlocksRelations = relations(rentalBlocks, ({one}) => ({
+	bookingItem: one(bookingItems, {
+		fields: [rentalBlocks.bookingItemId],
+		references: [bookingItems.id]
+	}),
+	staffUser: one(staffUsers, {
+		fields: [rentalBlocks.createdBy],
+		references: [staffUsers.id]
+	}),
+	rentalUnit: one(rentalUnits, {
+		fields: [rentalBlocks.unitId],
+		references: [rentalUnits.id]
+	}),
+}));
+
+export const rentalUnitsRelations = relations(rentalUnits, ({one, many}) => ({
+	rentalBlocks: many(rentalBlocks),
+	product: one(products, {
+		fields: [rentalUnits.productId],
+		references: [products.id]
+	}),
+	rentalRatePlans: many(rentalRatePlans),
+	bookingItems: many(bookingItems),
+}));
+
 export const auditLogRelations = relations(auditLog, ({one}) => ({
 	staffUser: one(staffUsers, {
 		fields: [auditLog.actorStaffId],
@@ -162,7 +162,7 @@ export const productsRelations = relations(products, ({one, many}) => ({
 	}),
 	tourOptions: many(tourOptions),
 	productMedias: many(productMedia),
-	stayUnits: many(stayUnits),
+	rentalUnits: many(rentalUnits),
 	bookingItems: many(bookingItems),
 	productTags: many(productTags),
 	productTranslations: many(productTranslations),
@@ -187,18 +187,18 @@ export const productMediaRelations = relations(productMedia, ({one, many}) => ({
 	mediaJobs: many(mediaJobs),
 }));
 
-export const stayRatePlansRelations = relations(stayRatePlans, ({one, many}) => ({
-	stayUnit: one(stayUnits, {
-		fields: [stayRatePlans.unitId],
-		references: [stayUnits.id]
+export const rentalRatePlansRelations = relations(rentalRatePlans, ({one, many}) => ({
+	rentalUnit: one(rentalUnits, {
+		fields: [rentalRatePlans.unitId],
+		references: [rentalUnits.id]
 	}),
-	stayRates: many(stayRates),
+	rentalRates: many(rentalRates),
 }));
 
-export const stayRatesRelations = relations(stayRates, ({one}) => ({
-	stayRatePlan: one(stayRatePlans, {
-		fields: [stayRates.ratePlanId],
-		references: [stayRatePlans.id]
+export const rentalRatesRelations = relations(rentalRates, ({one}) => ({
+	rentalRatePlan: one(rentalRatePlans, {
+		fields: [rentalRates.ratePlanId],
+		references: [rentalRatePlans.id]
 	}),
 }));
 

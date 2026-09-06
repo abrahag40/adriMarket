@@ -190,7 +190,7 @@ export async function createBookingWithHold(
       }
 
       const items = await tx.execute<{ id: string }>(sql`
-        insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range, guests,
+        insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range, guests,
                                    tour_departure_id, seats, pax_breakdown, subtotal_cents, quote)
         values (
           ${booking.id}::uuid,
@@ -230,7 +230,7 @@ export async function createBookingWithHold(
       // traslape o cupo, no queda nada escrito.
       if (input.kind === "stay") {
         await tx.execute(sql`
-          select stay_hold_create(${unitId}::uuid,
+          select rental_hold_create(${unitId}::uuid,
                                   ${toDateRangeLiteral(input.range)}::daterange,
                                   ${itemId}::uuid,
                                   make_interval(mins => ${ttl}))

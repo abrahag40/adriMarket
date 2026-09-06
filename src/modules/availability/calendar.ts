@@ -38,7 +38,7 @@ export async function stayAvailability(
     nightly_cents: string | null;
   }>(sql`
     select night, available, nightly_cents
-      from stay_availability_range(${unitId}::uuid, daterange(${from}, ${to}))
+      from rental_availability_range(${unitId}::uuid, daterange(${from}, ${to}))
      order by night
   `);
 
@@ -53,7 +53,7 @@ export async function stayAvailability(
 export async function primaryUnitId(productId: string): Promise<string | null> {
   const rows = await db.execute<{ id: string }>(sql`
     select su.id
-      from stay_units su
+      from rental_units su
      where su.product_id = ${productId}::uuid and su.active
      order by su.max_guests desc
      limit 1

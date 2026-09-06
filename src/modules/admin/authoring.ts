@@ -210,9 +210,9 @@ export async function listRates(productId: string): Promise<RateRow[]> {
     select r.id, p.id as plan_id, su.code as unit_label, r.name,
            lower(r.season)::text as from, upper(r.season)::text as to,
            r.dows, r.nightly_cents::text, r.min_nights, r.priority
-      from stay_rates r
-      join stay_rate_plans p on p.id = r.rate_plan_id
-      join stay_units su on su.id = p.unit_id
+      from rental_rates r
+      join rental_rate_plans p on p.id = r.rate_plan_id
+      join rental_units su on su.id = p.unit_id
      where su.product_id = ${productId}::uuid
      -- Mayor prioridad primero: es el orden en que gana una sobre otra, así que
      -- es el orden en que hay que leerlas para entender qué se cobra.
@@ -238,8 +238,8 @@ export type RatePlanOption = { id: string; label: string };
 export async function listRatePlans(productId: string): Promise<RatePlanOption[]> {
   const rows = await db.execute<{ id: string; label: string }>(sql`
     select p.id, su.code || ' · ' || p.name as label
-      from stay_rate_plans p
-      join stay_units su on su.id = p.unit_id
+      from rental_rate_plans p
+      join rental_units su on su.id = p.unit_id
      where su.product_id = ${productId}::uuid and p.active
      order by label
   `);
@@ -538,7 +538,7 @@ export async function listProductStayUnits(productId: string): Promise<StayUnitD
     select id, code, max_guests, base_guests, extra_guest_fee_cents::text as extra_guest_fee_cents,
            cleaning_fee_cents::text as cleaning_fee_cents, bedrooms, beds, bathrooms::text as bathrooms,
            min_nights, checkin_time::text as checkin_time, checkout_time::text as checkout_time, active
-      from stay_units
+      from rental_units
      where product_id = ${productId}::uuid
      order by active desc, code
   `);
@@ -551,9 +551,9 @@ export async function listProductStayUnits(productId: string): Promise<StayUnitD
     rate_count: number;
   }>(sql`
     select p.id, p.unit_id, p.name, p.active,
-           (select count(*)::int from stay_rates r where r.rate_plan_id = p.id) as rate_count
-      from stay_rate_plans p
-      join stay_units su on su.id = p.unit_id
+           (select count(*)::int from rental_rates r where r.rate_plan_id = p.id) as rate_count
+      from rental_rate_plans p
+      join rental_units su on su.id = p.unit_id
      where su.product_id = ${productId}::uuid
      order by p.name
   `);

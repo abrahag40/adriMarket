@@ -197,7 +197,7 @@ async function stayContext(productId: string, guests: number): Promise<StayConte
       resolve_deposit_pct(p.id) as deposit_pct,
       su.max_guests, su.base_guests, su.extra_guest_fee_cents,
       su.cleaning_fee_cents, su.min_nights
-    from stay_units su
+    from rental_units su
     join products p on p.id = su.product_id
     left join locations l on l.id = p.location_id
     where su.product_id = ${productId}::uuid
@@ -256,7 +256,7 @@ export async function quoteStay(
     // No hay ninguna unidad de este producto que alcance para tantas personas.
     const capacity = await db.execute<{ max_guests: number | null }>(sql`
       select max(su.max_guests) as max_guests
-        from stay_units su
+        from rental_units su
        where su.product_id = ${productId}::uuid and su.active
     `);
     throw new QuoteError("over_capacity", { max: Number(capacity[0]?.max_guests ?? 0) });
@@ -272,11 +272,11 @@ export async function quoteStay(
       closed_to_departure: boolean;
     }>(sql`
       select night, nightly_cents, rate_id, min_nights, closed_to_arrival, closed_to_departure
-        from stay_nightly_rates(${context.unitId}::uuid, daterange(${range.from}, ${range.to}))
+        from rental_nightly_rates(${context.unitId}::uuid, daterange(${range.from}, ${range.to}))
        order by night
     `),
     db.execute<{ closed_to_departure: boolean }>(sql`
-      select closed_to_departure from stay_rate_at(${context.unitId}::uuid, ${range.to}::date)
+      select closed_to_departure from rental_rate_at(${context.unitId}::uuid, ${range.to}::date)
     `),
     taxesFor(productId),
   ]);
@@ -317,7 +317,7 @@ export async function quoteStay(
   }
 
   const availability = await db.execute<{ available: boolean }>(sql`
-    select stay_is_available(${context.unitId}::uuid, daterange(${range.from}, ${range.to})) as available
+    select rental_is_available(${context.unitId}::uuid, daterange(${range.from}, ${range.to})) as available
   `);
 
   return {

@@ -204,9 +204,9 @@ export async function setProductStatus(
     if (kindRows[0]?.kind === "stay") {
       const rates = await db.execute<{ n: number }>(sql`
         select count(*)::int as n
-          from stay_units su
-          join stay_rate_plans p on p.unit_id = su.id and p.active
-          join stay_rates r on r.rate_plan_id = p.id
+          from rental_units su
+          join rental_rate_plans p on p.unit_id = su.id and p.active
+          join rental_rates r on r.rate_plan_id = p.id
          where su.product_id = ${productId}::uuid and su.active
       `);
       if (rates[0]!.n === 0) {
@@ -333,7 +333,7 @@ export async function saveRate(_previous: ActionState, form: FormData): Promise<
   }
 
   await db.execute(sql`
-    insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights, priority)
+    insert into rental_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights, priority)
     values (${planId}::uuid, ${name}, daterange(${from}, ${to}),
             ${dows.length > 0 ? sql`${dowsLiteral(dows)}::smallint[]` : sql`null`},
             ${nightly},
@@ -358,7 +358,7 @@ export async function deleteRate(_previous: ActionState, form: FormData): Promis
   if (!/^[0-9a-f-]{36}$/i.test(rateId)) return { error: "Tarifa no válida.", ok: null };
 
   const rows = await db.execute<Record<string, unknown>>(sql`
-    delete from stay_rates where id = ${rateId}::uuid
+    delete from rental_rates where id = ${rateId}::uuid
     returning name, season::text as season, nightly_cents::text as nightly_cents, priority
   `);
 
@@ -803,7 +803,7 @@ export async function createStayUnit(
 
   try {
     const rows = await db.execute<{ id: string }>(sql`
-      insert into stay_units
+      insert into rental_units
         (product_id, code, max_guests, base_guests, extra_guest_fee_cents, cleaning_fee_cents,
          bedrooms, beds, bathrooms, min_nights, checkin_time, checkout_time)
       values (${productId}::uuid, ${code}, ${maxGuests}, ${baseGuests}, ${extraGuestFee},
@@ -814,7 +814,7 @@ export async function createStayUnit(
     const unitId = rows[0]!.id;
 
     await db.execute(sql`
-      insert into stay_rate_plans (unit_id, name) values (${unitId}::uuid, ${planName})
+      insert into rental_rate_plans (unit_id, name) values (${unitId}::uuid, ${planName})
     `);
 
     await db.execute(sql`
@@ -844,7 +844,7 @@ export async function addRatePlan(_previous: ActionState, form: FormData): Promi
   if (name.length < 2) return { error: "Escribe el nombre del plan.", ok: null };
 
   await db.execute(sql`
-    insert into stay_rate_plans (unit_id, name) values (${unitId}::uuid, ${name})
+    insert into rental_rate_plans (unit_id, name) values (${unitId}::uuid, ${name})
   `);
 
   await db.execute(sql`
@@ -874,7 +874,7 @@ export async function toggleStayUnit(
   if (!/^[0-9a-f-]{36}$/i.test(unitId)) return { error: "Unidad no válida.", ok: null };
 
   const rows = await db.execute<{ code: string; active: boolean }>(sql`
-    update stay_units set active = not active where id = ${unitId}::uuid
+    update rental_units set active = not active where id = ${unitId}::uuid
     returning code, active
   `);
   const row = rows[0];

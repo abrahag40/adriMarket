@@ -114,12 +114,12 @@ insert into product_translations (product_id, locale, name, summary, description
    'Casa Akumal · house with pool near the bay',
    'Whole two-bedroom house with a private pool, five minutes from Akumal bay.');
 
-insert into stay_units (id, product_id, code, max_guests, base_guests, extra_guest_fee_cents,
+insert into rental_units (id, product_id, code, max_guests, base_guests, extra_guest_fee_cents,
                         cleaning_fee_cents, bedrooms, beds, bathrooms, min_nights) values
   ('66666666-6666-6666-6666-666666666666', '55555555-5555-5555-5555-555555555555',
    'casa-completa', 6, 4, 60000, 80000, 2, 3, 2, 2);
 
-insert into stay_rate_plans (id, unit_id, name) values
+insert into rental_rate_plans (id, unit_id, name) values
   ('77777777-7777-7777-7777-777777777777', '66666666-6666-6666-6666-666666666666', 'Tarifa pública');
 
 -- Temporada baja todo el año, alta en invierno, y fin de semana encima de
@@ -131,7 +131,7 @@ insert into stay_rate_plans (id, unit_id, name) values
 -- unas cuantas corridas agotan las fechas libres y los criterios de aceptación
 -- empiezan a fallar por falta de inventario y no por un defecto. Cada recorrido
 -- trabaja en su propio año.
-insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights, priority) values
+insert into rental_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights, priority) values
   ('77777777-7777-7777-7777-777777777777', 'Base',
    daterange('2026-01-01', '2029-01-01'), null, 320000, 2, 0),
   ('77777777-7777-7777-7777-777777777777', 'Temporada alta',
@@ -143,15 +143,15 @@ insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nig
 -- Hace demostrable la regla de "cotizar la unidad más chica que alcanza":
 -- ofrecer la casa de seis a una pareja desperdicia inventario y encarece la
 -- oferta sin razón.
-insert into stay_units (id, product_id, code, max_guests, base_guests, extra_guest_fee_cents,
+insert into rental_units (id, product_id, code, max_guests, base_guests, extra_guest_fee_cents,
                         cleaning_fee_cents, bedrooms, beds, bathrooms, min_nights) values
   ('66666666-6666-6666-6666-66666666aaaa', '55555555-5555-5555-5555-555555555555',
    'casita', 2, 2, 0, 40000, 1, 1, 1, 1);
 
-insert into stay_rate_plans (id, unit_id, name) values
+insert into rental_rate_plans (id, unit_id, name) values
   ('77777777-7777-7777-7777-77777777aaaa', '66666666-6666-6666-6666-66666666aaaa', 'Tarifa pública');
 
-insert into stay_rates (rate_plan_id, name, season, nightly_cents, priority) values
+insert into rental_rates (rate_plan_id, name, season, nightly_cents, priority) values
   ('77777777-7777-7777-7777-77777777aaaa', 'Base',
    daterange('2026-01-01', '2029-01-01'), 180000, 0);
 
@@ -231,7 +231,7 @@ insert into product_media (product_id, url, alt_es, alt_en, width, height, posit
 
 -- Un bloqueo de mantenimiento en fechas fijas: hace demostrable el calendario y
 -- la regla de que el motivo no se expone al huésped.
-insert into stay_blocks (unit_id, stay, reason, note) values
+insert into rental_blocks (unit_id, dates, reason, note) values
   ('66666666-6666-6666-6666-666666666666', daterange('2026-10-05', '2026-10-09'),
    'maintenance', 'Pintura de la terraza');
 
@@ -245,14 +245,14 @@ insert into product_translations (product_id, locale, name, summary) values
   ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'es', 'Depa en el centro de Tulum',
    'Estudio para dos, a cuatro cuadras de la avenida principal.');
 
-insert into stay_units (id, product_id, code, max_guests, base_guests, bedrooms, beds, bathrooms, min_nights) values
+insert into rental_units (id, product_id, code, max_guests, base_guests, bedrooms, beds, bathrooms, min_nights) values
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'cccccccc-cccc-cccc-cccc-cccccccccccc',
    'estudio', 2, 2, 1, 1, 1, 1);
 
-insert into stay_rate_plans (id, unit_id, name) values
+insert into rental_rate_plans (id, unit_id, name) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Tarifa pública');
 
-insert into stay_rates (rate_plan_id, name, season, nightly_cents, priority) values
+insert into rental_rates (rate_plan_id, name, season, nightly_cents, priority) values
   ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Base',
    daterange('2026-01-01', '2029-01-01'), 145000, 0);
 

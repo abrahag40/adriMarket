@@ -98,7 +98,7 @@ export async function holdStay(
 ): Promise<string> {
   try {
     const rows = await db.execute<{ hold_id: string }>(sql`
-      select stay_hold_create(
+      select rental_hold_create(
         ${unitId}::uuid,
         ${toDateRangeLiteral(range)}::daterange,
         ${bookingItemId}::uuid,
@@ -177,7 +177,7 @@ export async function expireHolds(): Promise<ExpiryReport> {
 /** Consulta sin efectos: ¿están libres estas fechas? */
 export async function isStayAvailable(unitId: string, range: DateRange): Promise<boolean> {
   const rows = await db.execute<{ available: boolean }>(sql`
-    select stay_is_available(${unitId}::uuid, ${toDateRangeLiteral(range)}::daterange) as available
+    select rental_is_available(${unitId}::uuid, ${toDateRangeLiteral(range)}::daterange) as available
   `);
   return rows[0]!.available;
 }

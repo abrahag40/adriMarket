@@ -245,7 +245,7 @@ select p.id,
  );
 
 -- 4.2 La unidad. Una por casa: se renta entera, no por habitación.
-insert into stay_units
+insert into rental_units
   (product_id, code, max_guests, base_guests, extra_guest_fee_cents, cleaning_fee_cents,
    bedrooms, beds, bathrooms, min_nights, checkin_time, checkout_time, active)
 select p.id, c.code, c.max_guests, c.base_guests, c.extra_guest_cents, c.cleaning_cents,
@@ -254,13 +254,13 @@ select p.id, c.code, c.max_guests, c.base_guests, c.extra_guest_cents, c.cleanin
   join products p on p.slug = c.slug
 on conflict (product_id, code) do nothing;
 
-insert into stay_rate_plans (unit_id, name, currency, active)
+insert into rental_rate_plans (unit_id, name, currency, active)
 select u.id, 'Tarifa 2026', 'MXN', true
   from cat_stay c
   join products p on p.slug = c.slug
-  join stay_units u on u.product_id = p.id and u.code = c.code
+  join rental_units u on u.product_id = p.id and u.code = c.code
  where not exists (
-   select 1 from stay_rate_plans x where x.unit_id = u.id
+   select 1 from rental_rate_plans x where x.unit_id = u.id
  );
 
 -- 4.3 Las tarifas. Dos: la base de lunes a jueves y domingo, y el recargo de
@@ -272,20 +272,20 @@ select u.id, 'Tarifa 2026', 'MXN', true
 -- disponibilidad, así que una temporada más corta dejaría noches sin precio
 -- —y una noche sin tarifa no se puede cotizar, que es la forma silenciosa de
 -- que una casa publicada no se pueda comprar.
-insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights, priority)
+insert into rental_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights, priority)
 select r.id, v.name,
        daterange(current_date, current_date + 540, '[)'),
        v.dows, v.cents, c.min_nights, v.priority
   from cat_stay c
   join products p on p.slug = c.slug
-  join stay_units u on u.product_id = p.id and u.code = c.code
-  join stay_rate_plans r on r.unit_id = u.id
+  join rental_units u on u.product_id = p.id and u.code = c.code
+  join rental_rate_plans r on r.unit_id = u.id
  cross join lateral (values
    ('Base',           null::smallint[],       c.base_cents,    0),
    ('Fin de semana',  array[5, 6]::smallint[], c.weekend_cents, 10)
  ) v(name, dows, cents, priority)
  where not exists (
-   select 1 from stay_rates x where x.rate_plan_id = r.id and x.name = v.name
+   select 1 from rental_rates x where x.rate_plan_id = r.id and x.name = v.name
  );
 
 -- 5. Qué quedó ---------------------------------------------------------------
@@ -308,22 +308,22 @@ begin
   select count(*) into sin_unidad
     from products p
    where p.kind = 'stay' and p.status = 'published'
-     and not exists (select 1 from stay_units u where u.product_id = p.id and u.active);
+     and not exists (select 1 from rental_units u where u.product_id = p.id and u.active);
 
   select count(*) into sin_tarifa
     from products p
-    join stay_units u on u.product_id = p.id
+    join rental_units u on u.product_id = p.id
    where p.slug in (select slug from cat_stay)
      and not exists (
-       select 1 from stay_rate_plans r
-         join stay_rates s on s.rate_plan_id = r.id
+       select 1 from rental_rate_plans r
+         join rental_rates s on s.rate_plan_id = r.id
         where r.unit_id = u.id
      );
 
   select count(*) into noches
-    from stay_rates s
-    join stay_rate_plans r on r.id = s.rate_plan_id
-    join stay_units u on u.id = r.unit_id
+    from rental_rates s
+    join rental_rate_plans r on r.id = s.rate_plan_id
+    join rental_units u on u.id = r.unit_id
     join products p on p.id = u.product_id
    where p.slug in (select slug from cat_stay);
 

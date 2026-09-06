@@ -124,7 +124,7 @@ export async function createBlock(
 
   try {
     await db.execute(sql`
-      insert into stay_blocks (unit_id, stay, reason, note, created_by)
+      insert into rental_blocks (unit_id, dates, reason, note, created_by)
       values (${unitId}::uuid, daterange(${from}, ${to}), ${reason}::block_reason,
               ${note}, ${staff.id}::uuid)
     `);
@@ -159,7 +159,7 @@ export async function releaseBlock(
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "Bloqueo no válido.", ok: null };
 
   await db.execute(sql`
-    update stay_blocks set released_at = now()
+    update rental_blocks set released_at = now()
      where id = ${id}::uuid
        and released_at is null
        and reason in ('maintenance', 'owner_use', 'other')

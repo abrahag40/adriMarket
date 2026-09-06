@@ -98,7 +98,7 @@ export async function listCatalog(
     left join lateral (
       select case p.kind
         when 'stay' then (
-          select max(su.max_guests) from stay_units su
+          select max(su.max_guests) from rental_units su
            where su.product_id = p.id and su.active
         )
         else (
@@ -111,9 +111,9 @@ export async function listCatalog(
       select case p.kind
         when 'stay' then (
           select min(sr.nightly_cents)
-            from stay_rates sr
-            join stay_rate_plans rp on rp.id = sr.rate_plan_id
-            join stay_units su on su.id = rp.unit_id
+            from rental_rates sr
+            join rental_rate_plans rp on rp.id = sr.rate_plan_id
+            join rental_units su on su.id = rp.unit_id
            where su.product_id = p.id
              and su.active
              and rp.active
@@ -324,11 +324,11 @@ export async function getProductDetail(
         su.max_guests, su.bedrooms, su.beds, su.bathrooms, su.min_nights,
         su.checkin_time, su.checkout_time, su.cleaning_fee_cents,
         (select min(sr.nightly_cents)
-           from stay_rates sr
-           join stay_rate_plans rp on rp.id = sr.rate_plan_id
+           from rental_rates sr
+           join rental_rate_plans rp on rp.id = sr.rate_plan_id
           where rp.unit_id = su.id and rp.active and upper(sr.season) > current_date
         ) as from_cents
-      from stay_units su
+      from rental_units su
       where su.product_id = ${product.id}::uuid and su.active
       order by su.max_guests desc
       limit 1

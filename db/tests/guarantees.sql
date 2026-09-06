@@ -23,33 +23,33 @@ begin;
 create temporary table test_fixture as
 select gen_random_uuid() as unit_id;
 
-insert into stay_units (id, product_id, code, max_guests, base_guests,
+insert into rental_units (id, product_id, code, max_guests, base_guests,
                         extra_guest_fee_cents, cleaning_fee_cents, min_nights)
 select f.unit_id, u.product_id, 'TEST-' || left(f.unit_id::text, 8),
        u.max_guests, u.base_guests, u.extra_guest_fee_cents, u.cleaning_fee_cents, 1
   from test_fixture f
-  join stay_units u on u.id = '66666666-6666-6666-6666-666666666666';
+  join rental_units u on u.id = '66666666-6666-6666-6666-666666666666';
 
 -- La tarifa cuelga de la unidad, así que la copia también se clona: si no, la
 -- prueba 11 mediría una unidad sin precios en lugar de la resolución por
 -- temporada y día de semana que quiere verificar.
 create temporary table test_plan_map as
 select p.id as source_plan, gen_random_uuid() as clone_plan
-  from stay_rate_plans p
+  from rental_rate_plans p
  where p.unit_id = '66666666-6666-6666-6666-666666666666';
 
-insert into stay_rate_plans (id, unit_id, name, currency, active)
+insert into rental_rate_plans (id, unit_id, name, currency, active)
 select m.clone_plan, f.unit_id, p.name, p.currency, p.active
   from test_plan_map m
-  join stay_rate_plans p on p.id = m.source_plan
+  join rental_rate_plans p on p.id = m.source_plan
   cross join test_fixture f;
 
-insert into stay_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights,
+insert into rental_rates (rate_plan_id, name, season, dows, nightly_cents, min_nights,
                         closed_to_arrival, closed_to_departure, priority)
 select m.clone_plan, r.name, r.season, r.dows, r.nightly_cents, r.min_nights,
        r.closed_to_arrival, r.closed_to_departure, r.priority
   from test_plan_map m
-  join stay_rates r on r.rate_plan_id = m.source_plan;
+  join rental_rates r on r.rate_plan_id = m.source_plan;
 
 create or replace function test_unit() returns uuid
 language sql stable as $$ select unit_id from test_fixture $$;
@@ -77,7 +77,7 @@ begin
   returning id into v_customer;
 
   if p_kind = 'stay' then
-    select product_id into v_product from stay_units where id = p_unit_id;
+    select product_id into v_product from rental_units where id = p_unit_id;
   else
     select o.product_id into v_product
       from tour_options o
@@ -94,7 +94,7 @@ begin
           now() + interval '15 minutes', 'MXN')
   returning id into v_booking;
 
-  insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range, guests,
+  insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range, guests,
                              tour_departure_id, seats, subtotal_cents, quote)
   values (v_booking, p_kind, v_product, p_unit_id, p_range,
           case when p_kind = 'stay' then 2 end,
@@ -152,12 +152,12 @@ declare
   v_caught boolean := false;
 begin
   v_item := test_make_item('stay', v_unit, daterange('2026-09-14', '2026-09-17'));
-  perform stay_hold_create(v_unit, daterange('2026-09-14', '2026-09-17'), v_item);
+  perform rental_hold_create(v_unit, daterange('2026-09-14', '2026-09-17'), v_item);
 
   -- Segundo intento traslapando el día 16.
   begin
     v_item := test_make_item('stay', v_unit, daterange('2026-09-16', '2026-09-19'));
-    perform stay_hold_create(v_unit, daterange('2026-09-16', '2026-09-19'), v_item);
+    perform rental_hold_create(v_unit, daterange('2026-09-16', '2026-09-19'), v_item);
   exception when sqlstate 'AM002' then
     v_caught := true;
   end;
@@ -180,7 +180,7 @@ declare
   v_id   uuid;
 begin
   v_item := test_make_item('stay', v_unit, daterange('2026-09-17', '2026-09-20'));
-  v_id := stay_hold_create(v_unit, daterange('2026-09-17', '2026-09-20'), v_item);
+  v_id := rental_hold_create(v_unit, daterange('2026-09-17', '2026-09-20'), v_item);
 
   assert v_id is not null, 'FALLO: se rechazó una rotación válida el mismo día';
   raise notice '✔ 2. rotación el mismo día aceptada (salida 17 / llegada 17)';
@@ -197,19 +197,19 @@ declare
   v_item uuid;
   v_caught boolean := false;
 begin
-  insert into stay_blocks (unit_id, stay, reason, note)
+  insert into rental_blocks (unit_id, dates, reason, note)
   values (v_unit, daterange('2026-10-01', '2026-10-05'), 'maintenance', 'Pintura');
 
   begin
     v_item := test_make_item('stay', v_unit, daterange('2026-10-03', '2026-10-06'));
-    perform stay_hold_create(v_unit, daterange('2026-10-03', '2026-10-06'), v_item);
+    perform rental_hold_create(v_unit, daterange('2026-10-03', '2026-10-06'), v_item);
   exception when sqlstate 'AM002' then
     v_caught := true;
   end;
 
   assert v_caught, 'FALLO: se vendió sobre un bloqueo de mantenimiento';
-  assert not stay_is_available(v_unit, daterange('2026-10-03', '2026-10-06')),
-    'FALLO: stay_is_available no ve el bloqueo';
+  assert not rental_is_available(v_unit, daterange('2026-10-03', '2026-10-06')),
+    'FALLO: rental_is_available no ve el bloqueo';
   raise notice '✔ 3. bloqueo de mantenimiento impide la venta';
 end;
 $$;
@@ -227,9 +227,9 @@ declare
   v_result  jsonb;
 begin
   v_item := test_make_item('stay', v_unit, v_range);
-  perform stay_hold_create(v_unit, v_range, v_item);
+  perform rental_hold_create(v_unit, v_range, v_item);
 
-  assert not stay_is_available(v_unit, v_range), 'FALLO: el hold no apartó nada';
+  assert not rental_is_available(v_unit, v_range), 'FALLO: el hold no apartó nada';
 
   -- El anticipo nunca llegó: el plazo ya venció.
   select booking_id into v_booking from booking_items where id = v_item;
@@ -241,7 +241,7 @@ begin
     'FALLO: el job no expiró la reserva';
   assert (select status from bookings where id = v_booking) = 'expired',
     'FALLO: la reserva no quedó en expired';
-  assert stay_is_available(v_unit, v_range),
+  assert rental_is_available(v_unit, v_range),
     'FALLO: las fechas no volvieron a estar disponibles';
   raise notice '✔ 4. hold vencido libera las fechas y marca la reserva expirada';
 end;
@@ -322,17 +322,17 @@ begin
 
   -- Sin booking_item_id: nadie los va a liberar por reserva.
   perform tour_hold_create(v_dep, 3, null, interval '-1 minute');
-  perform stay_hold_create(v_unit, v_range, null, interval '-1 minute');
+  perform rental_hold_create(v_unit, v_range, null, interval '-1 minute');
 
   assert tour_seats_left(v_dep) = 5, 'FALLO: el hold huérfano no apartó lugares';
-  assert not stay_is_available(v_unit, v_range), 'FALLO: el hold huérfano no apartó fechas';
+  assert not rental_is_available(v_unit, v_range), 'FALLO: el hold huérfano no apartó fechas';
 
   v_result := booking_expire_holds();
 
   assert (v_result ->> 'orphan_holds_released')::int = 2,
     format('FALLO: se esperaban 2 huérfanos liberados, hubo %s', v_result ->> 'orphan_holds_released');
   assert tour_seats_left(v_dep) = 8, 'FALLO: los lugares huérfanos no regresaron';
-  assert stay_is_available(v_unit, v_range), 'FALLO: las fechas huérfanas no se liberaron';
+  assert rental_is_available(v_unit, v_range), 'FALLO: las fechas huérfanas no se liberaron';
   raise notice '✔ 7. apartados huérfanos recuperados por el barrido';
 end;
 $$;
@@ -349,7 +349,7 @@ declare
   v_caught  boolean := false;
 begin
   v_item := test_make_item('stay', v_unit, daterange('2027-02-10', '2027-02-14'), null, null, 2000000);
-  perform stay_hold_create(v_unit, daterange('2027-02-10', '2027-02-14'), v_item);
+  perform rental_hold_create(v_unit, daterange('2027-02-10', '2027-02-14'), v_item);
   select booking_id into v_booking from booking_items where id = v_item;
 
   begin
@@ -378,7 +378,7 @@ declare
   v_avisos  integer;
 begin
   v_item := test_make_item('stay', v_unit, daterange('2027-03-01', '2027-03-05'), null, null, 2000000);
-  perform stay_hold_create(v_unit, daterange('2027-03-01', '2027-03-05'), v_item);
+  perform rental_hold_create(v_unit, daterange('2027-03-01', '2027-03-05'), v_item);
   select booking_id into v_booking from booking_items where id = v_item;
 
   -- Casa Akumal sobreescribe el anticipo global: 40% de 20 000.00 = 8 000.00
@@ -404,9 +404,9 @@ begin
     'FALLO: el saldo en destino no quedó registrado como pago pendiente';
 
   -- El hold pasó a ocupación firme y ya no tiene vencimiento.
-  assert (select reason from stay_blocks where booking_item_id = v_item) = 'booking',
+  assert (select reason from rental_blocks where booking_item_id = v_item) = 'booking',
     'FALLO: el hold no se convirtió en reserva firme';
-  assert (select expires_at from stay_blocks where booking_item_id = v_item) is null,
+  assert (select expires_at from rental_blocks where booking_item_id = v_item) is null,
     'FALLO: la ocupación firme sigue con vencimiento';
 
   select count(*) into v_avisos from outbox where booking_id = v_booking;
@@ -429,7 +429,7 @@ declare
   v_dup     boolean := false;
 begin
   v_item := test_make_item('stay', v_unit, daterange('2027-04-01', '2027-04-04'), null, null, 1000000);
-  perform stay_hold_create(v_unit, daterange('2027-04-01', '2027-04-04'), v_item);
+  perform rental_hold_create(v_unit, daterange('2027-04-01', '2027-04-04'), v_item);
   select booking_id into v_booking from booking_items where id = v_item;
 
   insert into payments (booking_id, purpose, status, method, provider, provider_ref,
@@ -476,19 +476,19 @@ begin
   -- Jueves 2026-09-17 a domingo 2026-09-20: 3 noches (17, 18, 19).
   -- Jueves usa Base (320 000); viernes y sábado usan Fin de semana (390 000).
   select sum(nightly_cents) into v_total
-    from stay_nightly_rates(v_unit, daterange('2026-09-17', '2026-09-20'));
+    from rental_nightly_rates(v_unit, daterange('2026-09-17', '2026-09-20'));
 
   assert v_total = 1100000,
     format('FALLO: el total por noche no cuadra, se obtuvo %s', v_total);
 
   -- Diciembre 25 cae en temporada alta (priority 10) aunque sea viernes.
-  assert (select nightly_cents from stay_nightly_rates(v_unit, daterange('2026-12-25', '2026-12-26'))) = 580000,
+  assert (select nightly_cents from rental_nightly_rates(v_unit, daterange('2026-12-25', '2026-12-26'))) = 580000,
     'FALLO: la temporada alta no ganó por prioridad';
 
   -- Una noche sin tarifa configurada NO se cotiza sola: sale en null para que
   -- la aplicación se niegue en lugar de inventar un precio.
   select count(*) into v_sin_tarifa
-    from stay_nightly_rates(v_unit, daterange('2029-01-01', '2029-01-03'))
+    from rental_nightly_rates(v_unit, daterange('2029-01-01', '2029-01-03'))
    where nightly_cents is null;
   assert v_sin_tarifa = 2, 'FALLO: una noche sin tarifa no se reportó como null';
 
@@ -506,7 +506,7 @@ declare
 begin
   -- Un renglón no puede ser de estancia y de tour a la vez.
   begin
-    insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range,
+    insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range,
                                guests, tour_departure_id, seats, subtotal_cents, quote)
     select b.id, 'stay', '55555555-5555-5555-5555-555555555555',
            '66666666-6666-6666-6666-666666666666', daterange('2028-01-01','2028-01-03'), 2,
@@ -566,9 +566,9 @@ begin
   -- horas pedidas hay que fechar la noche, no el instante.
   v_range := daterange(v_start, v_start + 3);
 
-  insert into stay_units (id, product_id, code, max_guests, base_guests, min_nights)
+  insert into rental_units (id, product_id, code, max_guests, base_guests, min_nights)
   select v_unit, u.product_id, 'CANCEL-' || left(v_unit::text, 8), u.max_guests, u.base_guests, 1
-    from stay_units u where u.id = test_unit()
+    from rental_units u where u.id = test_unit()
   returning product_id into v_product;
 
   insert into customers (full_name, email)
@@ -585,12 +585,12 @@ begin
                from cancellation_policies limit 1)))
   returning id into v_booking;
 
-  insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range,
+  insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range,
                              guests, subtotal_cents, quote)
   values (v_booking, 'stay', v_product, v_unit, v_range, 2, 1000000, '{}'::jsonb)
   returning id into v_item;
 
-  perform stay_hold_create(v_unit, v_range, v_item);
+  perform rental_hold_create(v_unit, v_range, v_item);
 
   insert into payments (booking_id, purpose, status, method, provider, provider_ref,
                         amount_cents, currency, paid_at)
@@ -720,17 +720,17 @@ declare
 begin
   v_booking := test_confirmed_stay(400);
   -- La unidad se lee de la reserva: la fixture usa una propia por llamada.
-  select i.stay_unit_id, i.stay_range into v_unit, v_range
+  select i.rental_unit_id, i.rental_range into v_unit, v_range
     from booking_items i where i.booking_id = v_booking;
 
-  assert not stay_is_available(v_unit, v_range), 'FALLO: la reserva confirmada no apartó nada';
+  assert not rental_is_available(v_unit, v_range), 'FALLO: la reserva confirmada no apartó nada';
   assert (select count(*) from payments
            where booking_id = v_booking and purpose = 'balance' and status = 'pending') = 1,
     'FALLO: la confirmación no registró el saldo por cobrar';
 
   perform booking_cancel(v_booking, 'El huésped canceló', false, 'staff', null);
 
-  assert stay_is_available(v_unit, v_range),
+  assert rental_is_available(v_unit, v_range),
     'FALLO: cancelar no devolvió las noches a la venta';
   -- El saldo no se cobró nunca: no es un faltante, es un cobro que ya no ocurre.
   assert (select count(*) from payments
@@ -816,16 +816,16 @@ declare
   v_caught  boolean := false;
 begin
   v_booking := test_confirmed_stay(500);
-  select i.stay_unit_id, i.stay_range into v_unit, v_original
+  select i.rental_unit_id, i.rental_range into v_unit, v_original
     from booking_items i where i.booking_id = v_booking;
 
   -- Otra reserva ocupa un rango distinto de la misma unidad.
   v_ocupado := daterange(upper(v_original) + 10, upper(v_original) + 13);
   v_otra := test_make_item('stay', v_unit, v_ocupado);
-  perform stay_hold_create(v_unit, v_ocupado, v_otra);
+  perform rental_hold_create(v_unit, v_ocupado, v_otra);
 
   begin
-    perform booking_reschedule_stay(v_booking, v_ocupado, 1000000, '{}'::jsonb, null);
+    perform booking_reschedule_rental(v_booking, v_ocupado, 1000000, '{}'::jsonb, null);
   exception when sqlstate 'AM002' then
     v_caught := true;
   end;
@@ -848,12 +848,12 @@ declare
   v_diff     bigint;
 begin
   v_booking := test_confirmed_stay(600);
-  select i.stay_unit_id, i.stay_range into v_unit, v_original
+  select i.rental_unit_id, i.rental_range into v_unit, v_original
     from booking_items i where i.booking_id = v_booking;
   v_nuevo := daterange(upper(v_original) + 30, upper(v_original) + 33);
 
   -- La tarifa subió 200 000 centavos respecto de lo cotizado originalmente.
-  v_diff := booking_reschedule_stay(v_booking, v_nuevo, 1200000, '{}'::jsonb, null);
+  v_diff := booking_reschedule_rental(v_booking, v_nuevo, 1200000, '{}'::jsonb, null);
 
   assert v_diff = 200000, format('FALLO: la diferencia debía ser 200000, fue %s', v_diff);
 
@@ -868,8 +868,8 @@ begin
     'FALLO: la diferencia no se sumó al saldo por cobrar';
 
   -- Las noches viejas vuelven a la venta y las nuevas quedan apartadas.
-  assert stay_is_available(v_unit, v_original), 'FALLO: las noches viejas siguen apartadas';
-  assert not stay_is_available(v_unit, v_nuevo), 'FALLO: las noches nuevas no se apartaron';
+  assert rental_is_available(v_unit, v_original), 'FALLO: las noches viejas siguen apartadas';
+  assert not rental_is_available(v_unit, v_nuevo), 'FALLO: las noches nuevas no se apartaron';
 
   raise notice '✔ 19. reprogramar conserva el anticipo y ajusta el saldo';
 end;

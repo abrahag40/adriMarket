@@ -50,19 +50,19 @@ async function createFixtures(): Promise<void> {
   productId = stay[0]!.id;
 
   const unit = await db.execute<{ id: string }>(sql`
-    insert into stay_units (product_id, code, max_guests, base_guests, min_nights)
+    insert into rental_units (product_id, code, max_guests, base_guests, min_nights)
     values (${productId}::uuid, 'unidad', 6, 4, 1)
     returning id
   `);
   unitId = unit[0]!.id;
 
   const plan = await db.execute<{ id: string }>(sql`
-    insert into stay_rate_plans (unit_id, name) values (${unitId}::uuid, 'Prueba')
+    insert into rental_rate_plans (unit_id, name) values (${unitId}::uuid, 'Prueba')
     returning id
   `);
   // Tarifa plana para que la diferencia al reprogramar sea comprobable a mano.
   await db.execute(sql`
-    insert into stay_rates (rate_plan_id, name, season, nightly_cents, priority)
+    insert into rental_rates (rate_plan_id, name, season, nightly_cents, priority)
     values (${plan[0]!.id}::uuid, 'Base', daterange('2030-01-01', '2033-01-01'), 300000, 0)
   `);
 
@@ -116,7 +116,7 @@ async function confirmedStay(
         from c
       returning id, code
     )
-    insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range,
+    insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range,
                                guests, subtotal_cents, quote)
     select b.id, 'stay', ${productId}::uuid, ${unitId}::uuid,
            daterange(${from}, ${to}), 2, 1000000, '{}'::jsonb
@@ -387,7 +387,7 @@ describe("cancelaciones y cambios de fecha", () => {
       );
 
       const libre = await db.execute<{ libre: boolean }>(sql`
-        select stay_is_available(${unitId}::uuid, daterange(${range.from}, ${range.to})) as libre
+        select rental_is_available(${unitId}::uuid, daterange(${range.from}, ${range.to})) as libre
       `);
       assert.equal(libre[0]!.libre, true, "las noches viejas vuelven a la venta");
     });
@@ -406,7 +406,7 @@ describe("cancelaciones y cambios de fecha", () => {
 
       // Lo que de verdad importa: el huésped no se quedó sin nada.
       const sigue = await db.execute<{ rango: string; estado: string }>(sql`
-        select i.stay_range::text as rango, b.status::text as estado
+        select i.rental_range::text as rango, b.status::text as estado
           from booking_items i join bookings b on b.id = i.booking_id
          where i.booking_id = ${booking.id}::uuid
       `);

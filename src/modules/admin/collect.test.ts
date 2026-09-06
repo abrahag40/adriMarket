@@ -36,7 +36,7 @@ async function createFixtures(): Promise<void> {
       values ('stay', ${`s4-stay-${suffix}`}, 'draft', 'MXN', 40)
       returning id
     )
-    insert into stay_units (product_id, code, max_guests, base_guests, min_nights)
+    insert into rental_units (product_id, code, max_guests, base_guests, min_nights)
     select p.id, 'unidad', 6, 4, 1 from p
     returning id
   `);
@@ -73,7 +73,7 @@ async function confirmedBooking(
       values ('Huésped S4', 's4+' || gen_random_uuid() || '@example.com')
       returning id
     ), p as (
-      select product_id as id from stay_units where id = ${unitId}::uuid
+      select product_id as id from rental_units where id = ${unitId}::uuid
     ), b as (
       insert into bookings (customer_id, status, total_cents, deposit_pct, deposit_cents,
                             quote, deposit_due_at, currency)
@@ -82,7 +82,7 @@ async function confirmedBooking(
         from c
       returning id, deposit_cents
     )
-    insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range,
+    insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range,
                               guests, subtotal_cents, quote)
     select b.id, 'stay', p.id, ${unitId}::uuid, ${range}::daterange, 2, 1000000, '{}'::jsonb
       from b, p
@@ -270,7 +270,7 @@ describe("operación del panel", () => {
       await assert.rejects(
         () =>
           db.execute(sql`
-          insert into stay_blocks (unit_id, stay, reason, note, created_by)
+          insert into rental_blocks (unit_id, dates, reason, note, created_by)
           values (${unitId}::uuid, daterange('2029-05-03', '2029-05-07'),
                   'maintenance', 'Pintura', ${staffId}::uuid)
         `),
@@ -280,7 +280,7 @@ describe("operación del panel", () => {
 
     it("liberar un bloqueo lo deja fuera del camino sin borrarlo", async () => {
       const rows = await db.execute<{ id: string }>(sql`
-      insert into stay_blocks (unit_id, stay, reason, note, created_by)
+      insert into rental_blocks (unit_id, dates, reason, note, created_by)
       values (${unitId}::uuid, daterange('2029-06-01', '2029-06-05'),
               'maintenance', 'Impermeabilizar', ${staffId}::uuid)
       returning id
@@ -288,16 +288,16 @@ describe("operación del panel", () => {
       const blockId = rows[0]!.id;
 
       const ocupado = await db.execute<{ libre: boolean }>(sql`
-      select stay_is_available(${unitId}::uuid, daterange('2029-06-02', '2029-06-04')) as libre
+      select rental_is_available(${unitId}::uuid, daterange('2029-06-02', '2029-06-04')) as libre
     `);
       assert.equal(ocupado[0]!.libre, false);
 
       await db.execute(sql`
-      update stay_blocks set released_at = now() where id = ${blockId}::uuid
+      update rental_blocks set released_at = now() where id = ${blockId}::uuid
     `);
 
       const libre = await db.execute<{ libre: boolean }>(sql`
-      select stay_is_available(${unitId}::uuid, daterange('2029-06-02', '2029-06-04')) as libre
+      select rental_is_available(${unitId}::uuid, daterange('2029-06-02', '2029-06-04')) as libre
     `);
       assert.equal(
         libre[0]!.libre,
@@ -307,7 +307,7 @@ describe("operación del panel", () => {
 
       // Liberar es un UPDATE: la fila sigue ahí para poder explicar qué pasó.
       const sigue = await db.execute<{ n: number }>(sql`
-      select count(*)::int as n from stay_blocks where id = ${blockId}::uuid
+      select count(*)::int as n from rental_blocks where id = ${blockId}::uuid
     `);
       assert.equal(sigue[0]!.n, 1, "liberar nunca borra");
     });

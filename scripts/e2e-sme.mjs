@@ -368,7 +368,7 @@ const stayCode = query(`
     -- Dentro de la ventana que el seed tiene tarifada (2026).
     v_from date;
   begin
-    select product_id into v_product from stay_units where id = v_unit;
+    select product_id into v_product from rental_units where id = v_unit;
 
     -- Las noches se piden libres, y en **2028**: los recorridos de la vitrina
     -- venden en 2026 y los criterios de aceptación de smoke.sh usan fechas fijas
@@ -376,7 +376,7 @@ const stayCode = query(`
     -- fechas a las otras y que los fallos no digan nada del sistema.
     select d::date into v_from
       from generate_series(date '2028-03-01', date '2028-11-30', interval '1 day') d
-     where stay_is_available(v_unit, daterange(d::date, d::date + 3))
+     where rental_is_available(v_unit, daterange(d::date, d::date + 3))
      limit 1;
 
     if v_from is null then
@@ -394,11 +394,11 @@ const stayCode = query(`
                                        'deposit_refundable', deposit_refundable, 'text_es', text_es)
                from cancellation_policies limit 1))
     returning id into v_booking;
-    insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range,
+    insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range,
                                guests, subtotal_cents, quote)
     values (v_booking, 'stay', v_product, v_unit, daterange(v_from, v_from + 3), 5, 1618400, '{}'::jsonb)
     returning id into v_item;
-    perform stay_hold_create(v_unit, daterange(v_from, v_from + 3), v_item);
+    perform rental_hold_create(v_unit, daterange(v_from, v_from + 3), v_item);
     insert into payments (booking_id, purpose, status, method, provider, provider_ref,
                           amount_cents, currency, paid_at)
     values (v_booking, 'deposit', 'succeeded', 'card', 'stripe',
@@ -436,7 +436,7 @@ await page.waitForTimeout(300);
 const nuevo = query(`
   select d::date::text || '|' || (d::date + 3)::text
     from generate_series(date '2028-03-01', date '2028-11-30', interval '1 day') d
-   where stay_is_available('66666666-6666-6666-6666-666666666666',
+   where rental_is_available('66666666-6666-6666-6666-666666666666',
                            daterange(d::date, d::date + 3))
    limit 1
 `).split("|");
@@ -456,7 +456,7 @@ if (avisoMover.length === 0) ok("el cambio de fecha no produjo ningún aviso de 
 else fail(`el panel rechazó el cambio: ${avisoMover.join(" / ")}`);
 
 const movida = query(`
-  select i.stay_range::text from booking_items i join bookings b on b.id = i.booking_id
+  select i.rental_range::text from booking_items i join bookings b on b.id = i.booking_id
    where b.code = '${stayCode}'
 `);
 if (movida === `[${nuevo[0]},${nuevo[1]})`) ok(`la reserva se movió a ${nuevo[0]}`);

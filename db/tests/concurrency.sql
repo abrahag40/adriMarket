@@ -29,7 +29,7 @@ truncate bench_target;
 insert into bench_target (departure_id, unit_id)
 select
   (select id from tour_departures order by starts_at limit 1),
-  (select id from stay_units order by created_at limit 1);
+  (select id from rental_units order by created_at limit 1);
 
 -- Cupo exacto y contador en cero para que el resultado sea comparable.
 update tour_departures
@@ -57,7 +57,7 @@ $$;
 create or replace function bench_try_stay(p_from date, p_nights integer) returns boolean
 language plpgsql as $$
 begin
-  perform stay_hold_create(
+  perform rental_hold_create(
     (select unit_id from bench_target),
     daterange(p_from, p_from + p_nights), null, interval '15 minutes');
   insert into bench_result (ok) values (true);

@@ -74,19 +74,19 @@ async function createFixtures(): Promise<void> {
   CASA = stay[0]!.id;
 
   const unit = await db.execute<{ id: string }>(sql`
-    insert into stay_units (product_id, code, max_guests, base_guests, extra_guest_fee_cents,
+    insert into rental_units (product_id, code, max_guests, base_guests, extra_guest_fee_cents,
                             cleaning_fee_cents, bedrooms, beds, bathrooms, min_nights)
     values (${CASA}::uuid, 'casa', 6, 4, 60000, 80000, 2, 3, 2, 1)
     returning id
   `);
 
   const plan = await db.execute<{ id: string }>(sql`
-    insert into stay_rate_plans (unit_id, name) values (${unit[0]!.id}::uuid, 'Prueba')
+    insert into rental_rate_plans (unit_id, name) values (${unit[0]!.id}::uuid, 'Prueba')
     returning id
   `);
 
   await db.execute(sql`
-    insert into stay_rates (rate_plan_id, name, season, nightly_cents, priority)
+    insert into rental_rates (rate_plan_id, name, season, nightly_cents, priority)
     values (${plan[0]!.id}::uuid, 'Base', daterange('2027-01-01', '2029-01-01'), 320000, 0)
   `);
 
@@ -201,7 +201,7 @@ describe("crear la reserva con apartado", () => {
 
     // Y el inventario quedó apartado de verdad.
     const blocks = await db.execute<{ n: number }>(sql`
-      select count(*)::int as n from stay_blocks sb
+      select count(*)::int as n from rental_blocks sb
       join booking_items i on i.id = sb.booking_item_id
       where i.booking_id = ${booking.bookingId}::uuid and sb.released_at is null and sb.reason = 'hold'
     `);
@@ -220,7 +220,7 @@ describe("crear la reserva con apartado", () => {
           from bookings b
           join booking_items i on i.booking_id = b.id
          where i.product_id = ${CASA}::uuid
-           and i.stay_range = daterange(${range.from}, ${range.to})
+           and i.rental_range = daterange(${range.from}, ${range.to})
       `);
       return rows[0]!.n;
     };
@@ -416,7 +416,7 @@ describe("webhook de la pasarela", () => {
                where o.booking_id = b.id and o.channel = 'email') as correos,
              (select count(*)::int from outbox o
                where o.booking_id = b.id and o.channel = 'whatsapp') as whatsapps,
-             (select sb.reason::text from stay_blocks sb
+             (select sb.reason::text from rental_blocks sb
                 join booking_items i on i.id = sb.booking_item_id
                where i.booking_id = b.id and sb.released_at is null) as reason
         from bookings b where b.id = ${booking.bookingId}::uuid
@@ -531,7 +531,7 @@ describe("webhook de la pasarela", () => {
 
     const rows = await db.execute<{ status: string; bloqueos: number }>(sql`
       select b.status::text as status,
-             (select count(*)::int from stay_blocks sb
+             (select count(*)::int from rental_blocks sb
                 join booking_items i on i.id = sb.booking_item_id
                where i.booking_id = b.id and sb.released_at is null) as bloqueos
         from bookings b where b.id = ${booking.bookingId}::uuid
@@ -695,8 +695,8 @@ describe("expiración del apartado", () => {
 
     const rows = await db.execute<{ status: string; libre: boolean }>(sql`
       select b.status::text as status,
-             stay_is_available(
-               (select stay_unit_id from booking_items where booking_id = b.id),
+             rental_is_available(
+               (select rental_unit_id from booking_items where booking_id = b.id),
                daterange(${range.from}, ${range.to})
              ) as libre
         from bookings b where b.id = ${booking.bookingId}::uuid

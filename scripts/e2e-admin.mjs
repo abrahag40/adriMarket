@@ -82,7 +82,7 @@ const code = query(`
   begin
     select su.product_id, (now() at time zone coalesce(l.timezone, 'America/Cancun'))::date
       into v_product, v_today
-      from stay_units su
+      from rental_units su
       join products pr on pr.id = su.product_id
       left join locations l on l.id = pr.location_id
      where su.id = v_unit;
@@ -95,8 +95,8 @@ const code = query(`
 
     -- Las noches de hoy pueden venir ocupadas de una corrida anterior: se
     -- libera lo que este mismo guion dejó, y solo eso.
-    update stay_blocks set released_at = now()
-     where unit_id = v_unit and stay && v_range and released_at is null
+    update rental_blocks set released_at = now()
+     where unit_id = v_unit and dates && v_range and released_at is null
        and booking_item_id in (
          select i.id from booking_items i
            join bookings b on b.id = i.booking_id
@@ -114,12 +114,12 @@ const code = query(`
             now() + interval '15 minutes', 'MXN')
     returning id into v_booking;
 
-    insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range,
+    insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range,
                                guests, subtotal_cents, quote)
     values (v_booking, 'stay', v_product, v_unit, v_range, 2, 900000, '{}'::jsonb)
     returning id into v_item;
 
-    perform stay_hold_create(v_unit, v_range, v_item);
+    perform rental_hold_create(v_unit, v_range, v_item);
 
     insert into payments (booking_id, purpose, status, method, provider, provider_ref,
                           amount_cents, currency, paid_at)
@@ -242,7 +242,7 @@ await page.goto(`${base}/admin/bloqueos`, { waitUntil: "networkidle" });
 // fechas escritas a mano hace que el recorrido falle por dónde cayó, no por lo
 // que se quería probar.
 const unidad = query(`
-  select su.id::text from stay_units su
+  select su.id::text from rental_units su
     join products pr on pr.id = su.product_id
     left join product_translations t on t.product_id = pr.id and t.locale = 'es'
    where t.name = 'Casa Akumal' and su.active
@@ -251,7 +251,7 @@ const unidad = query(`
 const desde = "2031-02-10";
 const hasta = "2031-02-14";
 const libreAntes = query(`
-  select stay_is_available('${unidad}'::uuid, daterange('${desde}', '${hasta}'))::text
+  select rental_is_available('${unidad}'::uuid, daterange('${desde}', '${hasta}'))::text
 `);
 if (libreAntes === "true") ok(`las noches ${desde} a ${hasta} están libres antes de empezar`);
 else fail("las noches elegidas no estaban libres: el recorrido probaría otra cosa");
@@ -273,8 +273,8 @@ else fail(`el panel avisó: ${aviso.join(" / ")}`);
 // Corridas anteriores dejan bloqueos liberados en el mismo rango —así debe ser,
 // liberar no borra—, y contar por rango mediría también los de ayer.
 const bloqueoId = query(`
-  select id::text from stay_blocks
-   where unit_id = '${unidad}' and stay = daterange('${desde}', '${hasta}')
+  select id::text from rental_blocks
+   where unit_id = '${unidad}' and dates = daterange('${desde}', '${hasta}')
      and reason = 'maintenance' and released_at is null
 `);
 if (/^[0-9a-f-]{36}$/.test(bloqueoId)) ok("recepción bloquea unas noches sin ayuda del equipo técnico");
@@ -282,7 +282,7 @@ else fail(`el bloqueo no se creó (${bloqueoId || "ninguno"})`);
 
 // Esas noches ya no se pueden vender: es la misma garantía del inventario.
 const libre = query(`
-  select stay_is_available('${unidad}'::uuid, daterange('2031-02-11', '2031-02-13'))::text
+  select rental_is_available('${unidad}'::uuid, daterange('2031-02-11', '2031-02-13'))::text
 `);
 if (libre === "false") ok("las noches bloqueadas dejan de estar a la venta");
 else fail("las noches bloqueadas siguen disponibles");
@@ -306,14 +306,14 @@ await page
 await page.waitForTimeout(1500);
 
 const tras = query(`
-  select count(*)::text || '|' || count(released_at)::text from stay_blocks
+  select count(*)::text || '|' || count(released_at)::text from rental_blocks
    where id = '${bloqueoId}'
 `);
 if (tras === "1|1") ok("liberar marca la fila y no la borra: se puede explicar qué pasó");
 else fail(`estado del bloqueo tras liberar: ${tras}`);
 
 const devuelto = query(`
-  select stay_is_available('${unidad}'::uuid, daterange('2031-02-11', '2031-02-13'))::text
+  select rental_is_available('${unidad}'::uuid, daterange('2031-02-11', '2031-02-13'))::text
 `);
 if (devuelto === "true") ok("las noches vuelven a estar a la venta");
 else fail("las noches no volvieron a estar disponibles");

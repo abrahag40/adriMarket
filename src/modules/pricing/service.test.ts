@@ -55,7 +55,7 @@ function freshRange(nights: number): { from: string; to: string } {
 // base. Liberar es un UPDATE, igual que en producción.
 before(async () => {
   await db.execute(sql`
-    update stay_blocks set released_at = now()
+    update rental_blocks set released_at = now()
      where released_at is null and note = 'prueba'
   `);
 });
@@ -154,7 +154,7 @@ describe("cotización de estancia contra la base", () => {
 
     const contar = async (unitId: string) => {
       const rows = await db.execute<{ n: number }>(sql`
-        select count(*)::int as n from stay_blocks
+        select count(*)::int as n from rental_blocks
          where unit_id = ${unitId}::uuid and released_at is null
       `);
       return rows[0]?.n ?? -1;
@@ -180,7 +180,7 @@ describe("cotización de estancia contra la base", () => {
   it("reporta no disponible cuando las fechas están ocupadas", async () => {
     const range = freshRange(3);
     await db.execute(sql`
-      insert into stay_blocks (unit_id, stay, reason, note)
+      insert into rental_blocks (unit_id, dates, reason, note)
       values (${CASA_GRANDE}::uuid, daterange(${range.from}, ${range.to}), 'maintenance', 'prueba')
     `);
 
@@ -386,7 +386,7 @@ describe("calendario de disponibilidad", () => {
   it("marca ocupadas las noches de una reserva, pero no el día de salida", async () => {
     const range = freshRange(3);
     await db.execute(sql`
-      insert into stay_blocks (unit_id, stay, reason, note)
+      insert into rental_blocks (unit_id, dates, reason, note)
       values (${CASA_GRANDE}::uuid, daterange(${range.from}, ${range.to}), 'booking', 'prueba')
     `);
 

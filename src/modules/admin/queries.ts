@@ -65,7 +65,7 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
       coalesce(nullif(t.name, ''), pr.slug) as product_name,
       c.full_name as holder_name,
       c.phone as holder_phone,
-      coalesce(d.starts_at::text, lower(i.stay_range)::text) as when,
+      coalesce(d.starts_at::text, lower(i.rental_range)::text) as when,
       b.currency, b.total_cents,
       (select coalesce(sum(p.amount_cents), 0) from payments p
         where p.booking_id = b.id and p.purpose = 'balance' and p.status = 'pending') as balance_due,
@@ -89,15 +89,15 @@ export async function listBookings(filters: BookingFilters = {}): Promise<Bookin
       and (${filters.payable ? 1 : 0} = 0 or b.deposit_due_at > now())
       and (
         ${filters.today ? 1 : 0} = 0
-        or lower(i.stay_range) = (now() at time zone coalesce(l.timezone, 'America/Cancun'))::date
-        or upper(i.stay_range) = (now() at time zone coalesce(l.timezone, 'America/Cancun'))::date
+        or lower(i.rental_range) = (now() at time zone coalesce(l.timezone, 'America/Cancun'))::date
+        or upper(i.rental_range) = (now() at time zone coalesce(l.timezone, 'America/Cancun'))::date
         or (d.starts_at at time zone coalesce(l.timezone, 'America/Cancun'))::date
              = (now() at time zone coalesce(l.timezone, 'America/Cancun'))::date
       )
     order by
       -- Lo que urge primero: lo que espera pago, luego por fecha de servicio.
       case when b.status = 'hold' then 0 else 1 end,
-      coalesce(d.starts_at, lower(i.stay_range)::timestamptz) asc nulls last,
+      coalesce(d.starts_at, lower(i.rental_range)::timestamptz) asc nulls last,
       b.created_at desc
     limit 200
   `);
@@ -141,9 +141,9 @@ export async function bookingDetail(code: string): Promise<BookingDetail | null>
       i.kind,
       coalesce(nullif(t.name, ''), pr.slug) as product_name,
       c.full_name as holder_name, c.email as holder_email, c.phone as holder_phone,
-      coalesce(d.starts_at::text, lower(i.stay_range)::text) as when,
-      lower(i.stay_range)::text as check_in,
-      upper(i.stay_range)::text as check_out,
+      coalesce(d.starts_at::text, lower(i.rental_range)::text) as when,
+      lower(i.rental_range)::text as check_in,
+      upper(i.rental_range)::text as check_out,
       o.meeting_point,
       coalesce(l.timezone, 'America/Cancun') as timezone,
       (select coalesce(sum(p.amount_cents), 0)::text from payments p
@@ -256,19 +256,19 @@ export async function occupancyMonth(from: string, to: string): Promise<Occupanc
       coalesce(nullif(t.name, ''), pr.slug) || ' · ' || su.code as unit_label,
       coalesce(b.code, sb.note, sb.reason::text) as label,
       sb.reason::text as reason
-    from stay_blocks sb
-    join stay_units su on su.id = sb.unit_id
+    from rental_blocks sb
+    join rental_units su on su.id = sb.unit_id
     join products pr on pr.id = su.product_id
     left join product_translations t on t.product_id = pr.id and t.locale = 'es'
     left join booking_items i on i.id = sb.booking_item_id
     left join bookings b on b.id = i.booking_id
     cross join lateral generate_series(
-      greatest(lower(sb.stay), ${from}::date)::timestamp,
-      (least(upper(sb.stay), ${to}::date) - 1)::timestamp,
+      greatest(lower(sb.dates), ${from}::date)::timestamp,
+      (least(upper(sb.dates), ${to}::date) - 1)::timestamp,
       interval '1 day'
     ) d
     where sb.released_at is null
-      and sb.stay && daterange(${from}, ${to})
+      and sb.dates && daterange(${from}, ${to})
     order by unit_label, night
   `);
 
@@ -289,7 +289,7 @@ export async function listUnits(): Promise<UnitOption[]> {
   // elegir una unidad en el teléfono.
   const rows = await db.execute<{ id: string; label: string }>(sql`
     select su.id, coalesce(nullif(t.name, ''), pr.slug) || ' · ' || su.code as label
-      from stay_units su
+      from rental_units su
       join products pr on pr.id = su.product_id
       left join product_translations t on t.product_id = pr.id and t.locale = 'es'
      where su.active and pr.status <> 'archived'
@@ -318,16 +318,16 @@ export async function listManualBlocks(): Promise<ManualBlock[]> {
   }>(sql`
     select sb.id,
            coalesce(nullif(t.name, ''), pr.slug) || ' · ' || su.code as unit_label,
-           lower(sb.stay)::text as from, upper(sb.stay)::text as to,
+           lower(sb.dates)::text as from, upper(sb.dates)::text as to,
            sb.reason::text as reason, sb.note
-      from stay_blocks sb
-      join stay_units su on su.id = sb.unit_id
+      from rental_blocks sb
+      join rental_units su on su.id = sb.unit_id
       join products pr on pr.id = su.product_id
       left join product_translations t on t.product_id = pr.id and t.locale = 'es'
      where sb.released_at is null
        and sb.reason in ('maintenance', 'owner_use', 'other')
-       and upper(sb.stay) >= current_date
-     order by lower(sb.stay)
+       and upper(sb.dates) >= current_date
+     order by lower(sb.dates)
      limit 100
   `);
 

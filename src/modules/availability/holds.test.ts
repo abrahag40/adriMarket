@@ -46,7 +46,7 @@ async function createFixtures(): Promise<void> {
       values ('stay', ${`it-stay-${suffix}`}, 'draft', 'MXN', 40)
       returning id
     )
-    insert into stay_units (product_id, code, max_guests, base_guests, min_nights)
+    insert into rental_units (product_id, code, max_guests, base_guests, min_nights)
     select p.id, 'unidad', 6, 4, 1 from p
     returning id
   `);
@@ -81,7 +81,7 @@ async function newBookingItem(kind: "stay" | "tour", opts: {
       returning id
     ), p as (
       select case
-        when ${kind} = 'stay' then (select product_id from stay_units where id = ${UNIT}::uuid)
+        when ${kind} = 'stay' then (select product_id from rental_units where id = ${UNIT}::uuid)
         else (select o.product_id from tour_options o
                 join tour_departures d on d.tour_option_id = o.id
                where d.id = ${opts.departureId ?? null}::uuid)
@@ -95,7 +95,7 @@ async function newBookingItem(kind: "stay" | "tour", opts: {
         from c, p
       returning id, customer_id
     )
-    insert into booking_items (booking_id, kind, product_id, stay_unit_id, stay_range, guests,
+    insert into booking_items (booking_id, kind, product_id, rental_unit_id, rental_range, guests,
                               tour_departure_id, seats, subtotal_cents, quote)
     select b.id, ${kind}::product_kind, p.id,
            case when ${kind} = 'stay' then ${UNIT}::uuid end,

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, index, foreignKey, check, uuid, unique, integer, char, bigint, numeric, jsonb, uniqueIndex, boolean, bigserial, inet, date, time, smallint, primaryKey, pgView, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, index, foreignKey, unique, check, uuid, integer, char, bigint, numeric, jsonb, uniqueIndex, boolean, bigserial, inet, date, time, smallint, primaryKey, pgView, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 import { daterange } from "../types"
 
@@ -12,7 +12,7 @@ export const paxType = pgEnum("pax_type", ['adult', 'child', 'infant'])
 export const paymentMethod = pgEnum("payment_method", ['card', 'cash', 'transfer', 'oxxo', 'spei', 'other'])
 export const paymentPurpose = pgEnum("payment_purpose", ['deposit', 'balance', 'penalty'])
 export const paymentStatus = pgEnum("payment_status", ['pending', 'processing', 'succeeded', 'failed', 'cancelled', 'refunded', 'partially_refunded'])
-export const productKind = pgEnum("product_kind", ['tour', 'stay'])
+export const productKind = pgEnum("product_kind", ['tour', 'stay', 'vehicle'])
 export const productStatus = pgEnum("product_status", ['draft', 'published', 'archived'])
 export const staffRole = pgEnum("staff_role", ['owner', 'manager', 'front_desk', 'guide'])
 export const taxKind = pgEnum("tax_kind", ['percent', 'fixed_per_night', 'fixed_per_pax'])
@@ -22,39 +22,6 @@ export const schemaMigrations = pgTable("schema_migrations", {
 	filename: text().primaryKey().notNull(),
 	appliedAt: timestamp("applied_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
-
-export const stayBlocks = pgTable("stay_blocks", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	unitId: uuid("unit_id").notNull(),
-	stay: daterange("stay").notNull(),
-	reason: blockReason().notNull(),
-	bookingItemId: uuid("booking_item_id"),
-	expiresAt: timestamp("expires_at", { withTimezone: true, mode: 'string' }),
-	releasedAt: timestamp("released_at", { withTimezone: true, mode: 'string' }),
-	note: text(),
-	createdBy: uuid("created_by"),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	index("stay_blocks_expiry_idx").using("btree", table.expiresAt.asc().nullsLast().op("timestamptz_ops")).where(sql`((reason = 'hold'::block_reason) AND (released_at IS NULL))`),
-	index("stay_blocks_unit_idx").using("btree", table.unitId.asc().nullsLast().op("uuid_ops")).where(sql`(released_at IS NULL)`),
-	foreignKey({
-			columns: [table.unitId],
-			foreignColumns: [stayUnits.id],
-			name: "stay_blocks_unit_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.createdBy],
-			foreignColumns: [staffUsers.id],
-			name: "stay_blocks_created_by_fkey"
-		}),
-	foreignKey({
-			columns: [table.bookingItemId],
-			foreignColumns: [bookingItems.id],
-			name: "stay_blocks_booking_item_fk"
-		}).onDelete("set null"),
-	check("stay_blocks_not_empty", sql`NOT isempty(stay)`),
-	check("stay_blocks_hold_has_expiry", sql`((reason = 'hold'::block_reason) AND (expires_at IS NOT NULL)) OR ((reason <> 'hold'::block_reason) AND (expires_at IS NULL))`),
-]);
 
 export const tourDepartures = pgTable("tour_departures", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -192,6 +159,39 @@ export const customers = pgTable("customers", {
 	uniqueIndex("customers_email_key").using("btree", sql`lower(email)`).where(sql`(email IS NOT NULL)`),
 	index("customers_phone_idx").using("btree", table.phone.asc().nullsLast().op("text_ops")).where(sql`(phone IS NOT NULL)`),
 	check("customers_locale_check", sql`locale = ANY (ARRAY['es'::text, 'en'::text])`),
+]);
+
+export const rentalBlocks = pgTable("rental_blocks", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	unitId: uuid("unit_id").notNull(),
+	dates: daterange("dates").notNull(),
+	reason: blockReason().notNull(),
+	bookingItemId: uuid("booking_item_id"),
+	expiresAt: timestamp("expires_at", { withTimezone: true, mode: 'string' }),
+	releasedAt: timestamp("released_at", { withTimezone: true, mode: 'string' }),
+	note: text(),
+	createdBy: uuid("created_by"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("rental_blocks_expiry_idx").using("btree", table.expiresAt.asc().nullsLast().op("timestamptz_ops")).where(sql`((reason = 'hold'::block_reason) AND (released_at IS NULL))`),
+	index("rental_blocks_unit_idx").using("btree", table.unitId.asc().nullsLast().op("uuid_ops")).where(sql`(released_at IS NULL)`),
+	foreignKey({
+			columns: [table.bookingItemId],
+			foreignColumns: [bookingItems.id],
+			name: "rental_blocks_booking_item_fk"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.createdBy],
+			foreignColumns: [staffUsers.id],
+			name: "rental_blocks_created_by_fkey"
+		}),
+	foreignKey({
+			columns: [table.unitId],
+			foreignColumns: [rentalUnits.id],
+			name: "rental_blocks_unit_id_fkey"
+		}).onDelete("cascade"),
+	check("rental_blocks_hold_has_expiry", sql`((reason = 'hold'::block_reason) AND (expires_at IS NOT NULL)) OR ((reason <> 'hold'::block_reason) AND (expires_at IS NULL))`),
+	check("rental_blocks_not_empty", sql`NOT isempty(dates)`),
 ]);
 
 export const settings = pgTable("settings", {
@@ -397,7 +397,7 @@ export const productMedia = pgTable("product_media", {
 		}),
 ]);
 
-export const stayUnits = pgTable("stay_units", {
+export const rentalUnits = pgTable("rental_units", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	productId: uuid("product_id").notNull(),
 	code: text().notNull(),
@@ -420,18 +420,18 @@ export const stayUnits = pgTable("stay_units", {
 	foreignKey({
 			columns: [table.productId],
 			foreignColumns: [products.id],
-			name: "stay_units_product_id_fkey"
+			name: "rental_units_product_id_fkey"
 		}).onDelete("cascade"),
-	unique("stay_units_product_id_code_key").on(table.productId, table.code),
-	check("stay_units_max_guests_check", sql`max_guests > 0`),
-	check("stay_units_base_guests_check", sql`base_guests > 0`),
-	check("stay_units_extra_guest_fee_cents_check", sql`extra_guest_fee_cents >= 0`),
-	check("stay_units_cleaning_fee_cents_check", sql`cleaning_fee_cents >= 0`),
-	check("stay_units_min_nights_check", sql`min_nights > 0`),
-	check("stay_units_guests_ok", sql`base_guests <= max_guests`),
+	unique("rental_units_product_id_code_key").on(table.productId, table.code),
+	check("rental_units_base_guests_check", sql`base_guests > 0`),
+	check("rental_units_cleaning_fee_cents_check", sql`cleaning_fee_cents >= 0`),
+	check("rental_units_extra_guest_fee_cents_check", sql`extra_guest_fee_cents >= 0`),
+	check("rental_units_guests_ok", sql`base_guests <= max_guests`),
+	check("rental_units_max_guests_check", sql`max_guests > 0`),
+	check("rental_units_min_nights_check", sql`min_nights > 0`),
 ]);
 
-export const stayRatePlans = pgTable("stay_rate_plans", {
+export const rentalRatePlans = pgTable("rental_rate_plans", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	unitId: uuid("unit_id").notNull(),
 	name: text().notNull(),
@@ -442,12 +442,12 @@ export const stayRatePlans = pgTable("stay_rate_plans", {
 }, (table) => [
 	foreignKey({
 			columns: [table.unitId],
-			foreignColumns: [stayUnits.id],
-			name: "stay_rate_plans_unit_id_fkey"
+			foreignColumns: [rentalUnits.id],
+			name: "rental_rate_plans_unit_id_fkey"
 		}).onDelete("cascade"),
 ]);
 
-export const stayRates = pgTable("stay_rates", {
+export const rentalRates = pgTable("rental_rates", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	ratePlanId: uuid("rate_plan_id").notNull(),
 	name: text(),
@@ -462,16 +462,16 @@ export const stayRates = pgTable("stay_rates", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("stay_rates_lookup_idx").using("gist", table.ratePlanId.asc().nullsLast().op("range_ops"), table.season.asc().nullsLast().op("range_ops")),
+	index("rental_rates_lookup_idx").using("gist", table.ratePlanId.asc().nullsLast().op("range_ops"), table.season.asc().nullsLast().op("range_ops")),
 	foreignKey({
 			columns: [table.ratePlanId],
-			foreignColumns: [stayRatePlans.id],
-			name: "stay_rates_rate_plan_id_fkey"
+			foreignColumns: [rentalRatePlans.id],
+			name: "rental_rates_rate_plan_id_fkey"
 		}).onDelete("cascade"),
-	check("stay_rates_nightly_cents_check", sql`nightly_cents >= 0`),
-	check("stay_rates_min_nights_check", sql`min_nights > 0`),
-	check("stay_rates_season_not_empty", sql`NOT isempty(season)`),
-	check("stay_rates_dows_valid", sql`(dows IS NULL) OR (((array_length(dows, 1) >= 1) AND (array_length(dows, 1) <= 7)) AND (dows <@ ARRAY[(1)::smallint, (2)::smallint, (3)::smallint, (4)::smallint, (5)::smallint, (6)::smallint, (7)::smallint]))`),
+	check("rental_rates_dows_valid", sql`(dows IS NULL) OR (((array_length(dows, 1) >= 1) AND (array_length(dows, 1) <= 7)) AND (dows <@ ARRAY[(1)::smallint, (2)::smallint, (3)::smallint, (4)::smallint, (5)::smallint, (6)::smallint, (7)::smallint]))`),
+	check("rental_rates_min_nights_check", sql`min_nights > 0`),
+	check("rental_rates_nightly_cents_check", sql`nightly_cents >= 0`),
+	check("rental_rates_season_not_empty", sql`NOT isempty(season)`),
 ]);
 
 export const bookingItems = pgTable("booking_items", {
@@ -479,8 +479,8 @@ export const bookingItems = pgTable("booking_items", {
 	bookingId: uuid("booking_id").notNull(),
 	kind: productKind().notNull(),
 	productId: uuid("product_id").notNull(),
-	stayUnitId: uuid("stay_unit_id"),
-	stayRange: daterange("stay_range"),
+	rentalUnitId: uuid("rental_unit_id"),
+	rentalRange: daterange("rental_range"),
 	guests: integer(),
 	tourDepartureId: uuid("tour_departure_id"),
 	seats: integer(),
@@ -492,7 +492,7 @@ export const bookingItems = pgTable("booking_items", {
 }, (table) => [
 	index("booking_items_booking_idx").using("btree", table.bookingId.asc().nullsLast().op("uuid_ops")),
 	index("booking_items_departure_idx").using("btree", table.tourDepartureId.asc().nullsLast().op("uuid_ops")).where(sql`(tour_departure_id IS NOT NULL)`),
-	index("booking_items_stay_idx").using("btree", table.stayUnitId.asc().nullsLast().op("uuid_ops")).where(sql`(stay_unit_id IS NOT NULL)`),
+	index("booking_items_stay_idx").using("btree", table.rentalUnitId.asc().nullsLast().op("uuid_ops")).where(sql`(rental_unit_id IS NOT NULL)`),
 	foreignKey({
 			columns: [table.bookingId],
 			foreignColumns: [bookings.id],
@@ -504,8 +504,8 @@ export const bookingItems = pgTable("booking_items", {
 			name: "booking_items_product_id_fkey"
 		}),
 	foreignKey({
-			columns: [table.stayUnitId],
-			foreignColumns: [stayUnits.id],
+			columns: [table.rentalUnitId],
+			foreignColumns: [rentalUnits.id],
 			name: "booking_items_stay_unit_id_fkey"
 		}),
 	foreignKey({
@@ -516,7 +516,7 @@ export const bookingItems = pgTable("booking_items", {
 	check("booking_items_guests_check", sql`guests > 0`),
 	check("booking_items_seats_check", sql`seats > 0`),
 	check("booking_items_subtotal_cents_check", sql`subtotal_cents >= 0`),
-	check("booking_items_shape", sql`((kind = 'stay'::product_kind) AND (stay_unit_id IS NOT NULL) AND (stay_range IS NOT NULL) AND (guests IS NOT NULL) AND (tour_departure_id IS NULL) AND (seats IS NULL)) OR ((kind = 'tour'::product_kind) AND (tour_departure_id IS NOT NULL) AND (seats IS NOT NULL) AND (stay_unit_id IS NULL) AND (stay_range IS NULL))`),
+	check("booking_items_shape", sql`((kind = 'stay'::product_kind) AND (rental_unit_id IS NOT NULL) AND (rental_range IS NOT NULL) AND (guests IS NOT NULL) AND (tour_departure_id IS NULL) AND (seats IS NULL)) OR ((kind = 'tour'::product_kind) AND (tour_departure_id IS NOT NULL) AND (seats IS NOT NULL) AND (rental_unit_id IS NULL) AND (rental_range IS NULL))`),
 ]);
 
 export const bookingGuests = pgTable("booking_guests", {
@@ -784,6 +784,17 @@ export const tourItinerarySteps = pgTable("tour_itinerary_steps", {
 			name: "tour_itinerary_steps_tour_option_id_fkey"
 		}).onDelete("cascade"),
 ]);
+
+export const benchResult = pgTable("bench_result", {
+	ok: boolean().notNull(),
+	err: text(),
+	at: timestamp({ withTimezone: true, mode: 'string' }).default(sql`clock_timestamp()`).notNull(),
+});
+
+export const benchTarget = pgTable("bench_target", {
+	departureId: uuid("departure_id"),
+	unitId: uuid("unit_id"),
+});
 
 export const productTags = pgTable("product_tags", {
 	productId: uuid("product_id").notNull(),
