@@ -36,14 +36,29 @@ export class StripeProvider implements PaymentProvider {
     private readonly webhookSecret: string,
   ) {}
 
-  private async post(path: string, form: Record<string, string>): Promise<unknown> {
+  /**
+   * Una llamada que **mueve dinero**. La llave de idempotencia es explícita y
+   * obligatoria, nunca se inventa aquí.
+   *
+   * Antes salía de `form["metadata[idempotency_key]"] ?? crypto.randomUUID()`.
+   * El cobro sí ponía esa metadata, así que quedaba protegido; el reembolso no
+   * la ponía, así que caía en el UUID al azar y cada reintento era, para
+   * Stripe, una devolución nueva. Una llave que se genera sola no es una llave
+   * de idempotencia: es un identificador de intento. Ahora quien llama la pasa
+   * o no compila.
+   */
+  private async post(
+    path: string,
+    form: Record<string, string>,
+    idempotencyKey: string,
+  ): Promise<unknown> {
     const response = await fetch(`${API}${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.secretKey}`,
         "Content-Type": "application/x-www-form-urlencoded",
-        // Sin esto, un reintento por timeout puede cobrar dos veces.
-        "Idempotency-Key": form["metadata[idempotency_key]"] ?? crypto.randomUUID(),
+        // Sin esto, un reintento por timeout puede cobrar —o devolver— dos veces.
+        "Idempotency-Key": idempotencyKey,
       },
       body: new URLSearchParams(form).toString(),
     });
@@ -57,6 +72,35 @@ export class StripeProvider implements PaymentProvider {
       throw new PaymentProviderError(
         `stripe ${path}: ${detail}`,
         "No pudimos iniciar el pago. Inténtalo de nuevo en un momento.",
+      );
+    }
+    return body;
+  }
+
+  /**
+   * Leer un objeto. `GET`, que es como se recupera en la API de Stripe.
+   *
+   * Estaba escrito como un `POST` con el cuerpo vacío. `POST` sobre esa ruta no
+   * es "recuperar": es el endpoint de *actualizar*, que solo admite `metadata`,
+   * `line_items`, `shipping_options` y `collected_information` y está pensado
+   * para sesiones abiertas. Puede que devuelva el objeto sobre una sesión ya
+   * pagada y puede que no —nunca se ejecutó contra Stripe—, y no hay ninguna
+   * razón para averiguarlo con un reembolso de por medio.
+   */
+  private async get(path: string): Promise<unknown> {
+    const response = await fetch(`${API}${path}`, {
+      headers: { Authorization: `Bearer ${this.secretKey}` },
+    });
+
+    const body: unknown = await response.json();
+    if (!response.ok) {
+      const detail =
+        typeof body === "object" && body !== null && "error" in body
+          ? JSON.stringify((body as { error: unknown }).error)
+          : `HTTP ${response.status}`;
+      throw new PaymentProviderError(
+        `stripe GET ${path}: ${detail}`,
+        "No pudimos consultar el pago. Inténtalo de nuevo en un momento.",
       );
     }
     return body;
@@ -83,7 +127,11 @@ export class StripeProvider implements PaymentProvider {
     };
     if (request.email) form.customer_email = request.email;
 
-    const session = (await this.post("/checkout/sessions", form)) as {
+    const session = (await this.post(
+      "/checkout/sessions",
+      form,
+      `deposit:${request.bookingId}`,
+    )) as {
       id?: string;
       url?: string;
     };
@@ -137,7 +185,7 @@ export class StripeProvider implements PaymentProvider {
 
   async refund(request: RefundRequest): Promise<{ providerRef: string }> {
     // La sesión de Checkout no se reembolsa: se reembolsa su intento de pago.
-    const session = (await this.post(`/checkout/sessions/${request.providerRef}`, {})) as {
+    const session = (await this.get(`/checkout/sessions/${request.providerRef}`)) as {
       payment_intent?: string;
     };
     if (!session.payment_intent) {
@@ -147,11 +195,18 @@ export class StripeProvider implements PaymentProvider {
       );
     }
 
-    const refund = (await this.post("/refunds", {
-      payment_intent: session.payment_intent,
-      amount: String(request.amountCents),
-      "metadata[reason]": request.reason,
-    })) as { id?: string };
+    const refund = (await this.post(
+      "/refunds",
+      {
+        payment_intent: session.payment_intent,
+        amount: String(request.amountCents),
+        "metadata[reason]": request.reason,
+        "metadata[refund_id]": request.refundId,
+      },
+      // La fila de `refunds` ya existe cuando se llega aquí, y su UUID no
+      // cambia entre reintentos. Es la llave, no un adorno de auditoría.
+      `refund:${request.refundId}`,
+    )) as { id?: string };
 
     return { providerRef: refund.id ?? "" };
   }

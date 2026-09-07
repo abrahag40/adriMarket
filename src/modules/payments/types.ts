@@ -41,6 +41,16 @@ export type PaymentEventPayload = {
 };
 
 export type RefundRequest = {
+  /**
+   * El `refunds.id` de la fila que registra esta devolución.
+   *
+   * Es la llave de idempotencia contra el proveedor, y por eso es obligatorio.
+   * La fila se escribe **antes** de llamar a la pasarela —`booking_cancel` la
+   * inserta en la misma transacción que cancela—, así que su UUID ya existe y
+   * es estable entre reintentos. Sin él, un reintento por timeout devuelve el
+   * dinero dos veces.
+   */
+  refundId: string;
   providerRef: string;
   amountCents: number;
   reason: string;

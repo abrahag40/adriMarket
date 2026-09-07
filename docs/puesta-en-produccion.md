@@ -125,6 +125,7 @@ quedan descartados en cualquier caso.
 | `DATABASE_URL` | base | no arranca |
 | `NEXT_PUBLIC_SITE_URL` | canonical, hreflang y retorno de la pasarela | el huésped vuelve de pagar a una dirección equivocada |
 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` | cobro real | se usa la pasarela local: **no cobra** |
+| `PAYMENT_SIMULATOR` | el botón que finge un pago. **En producción NO se pone** | sin él y sin Stripe, el checkout se cierra y lo dice — que es lo correcto |
 | `MAIL_FROM` | remitente; hace falta para cualquier envío | el aviso se guarda pero no se manda |
 | `RESEND_API_KEY` | correo por Resend (**exige dominio verificado**) | se intenta SMTP |
 | `SMTP_HOST` + `SMTP_USER` + `SMTP_PASSWORD` | correo por la propia cuenta, sin dominio | el aviso se guarda pero no se manda |
@@ -167,6 +168,12 @@ tampoco. Nada da error; simplemente deja de pasar.
 
 ## 5. Pasarela de pago
 
+- [ ] **`PAYMENT_SIMULATOR` NO está en producción.** Se comprueba en un
+      segundo: `/api/health` → `checks.payments.detail`. Si dice "se puede
+      fingir un pago", cualquiera que entre al sitio puede confirmar una
+      reserva sin pagar; se quita con `vercel env rm PAYMENT_SIMULATOR
+      production` y un despliegue. Ver
+      [decisión 0011](decisiones/0011-el-simulador-es-un-permiso.md).
 - [ ] Llaves de producción configuradas.
 - [ ] Webhook apuntando a `https://EL-SITIO/api/webhooks/stripe`.
 - [ ] Eventos suscritos: los de pago exitoso y fallido.
@@ -281,7 +288,7 @@ verdad**, y se niega si es el local.
 
 ## 9. Antes de anunciar
 
-- [ ] `npm run db:test` — las 23 garantías.
+- [ ] `npm run db:test` — las 24 garantías.
 - [ ] `npm run test:integration`.
 - [ ] `./scripts/smoke.sh` contra **producción**.
 - [ ] `npm run audit` — accesibilidad y peso.

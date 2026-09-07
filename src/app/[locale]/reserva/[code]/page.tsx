@@ -7,7 +7,7 @@ import { db } from "@/db/index";
 import { QuoteBreakdown } from "@/components/quote-breakdown";
 import { formatMoney, isLocale, LOCALE_TAG, type ProductKind, isRental } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
-import { LocalProvider, paymentProvider } from "@/modules/payments";
+import { gatewayState } from "@/modules/payments";
 
 import { simulatePayment } from "./actions";
 
@@ -125,10 +125,9 @@ export default async function BookingPage({
             ? t.bookingCancelled
             : booking.status;
 
-  // El panel de simulación solo aparece con la pasarela local y mientras la
-  // reserva espera el pago.
-  const isLocalGateway = paymentProvider() instanceof LocalProvider;
-  const showSimulator = isLocalGateway && booking.status === "hold";
+  // El panel de simulación exige el permiso explícito, no solo que la pasarela
+  // sea la local: producción corre con la local y esto se mostraba ahí.
+  const showSimulator = gatewayState() === "simulator" && booking.status === "hold";
   const ref = typeof sp.ref === "string" ? sp.ref : "";
 
   return (

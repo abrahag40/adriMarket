@@ -191,6 +191,7 @@ export type Messages = {
   payDeposit: (amount: string) => string;
   holdNotice: (minutes: number) => string;
   checkoutError: string;
+  bookingClosed: string;
   requiredField: string;
   invalidEmail: string;
   mustAcceptPolicy: string;
@@ -409,6 +410,8 @@ const es: Messages = {
   holdNotice: (minutes) =>
     `Apartamos tus fechas ${minutes} minutos mientras completas el pago.`,
   checkoutError: "No pudimos crear tu reserva.",
+  bookingClosed:
+    "La reserva en línea todavía no está abierta. Escríbenos y apartamos tu lugar.",
   requiredField: "Falta este dato.",
   invalidEmail: "Ese correo no parece válido.",
   mustAcceptPolicy: "Hay que aceptar la política para continuar.",
@@ -625,6 +628,8 @@ const en: Messages = {
   payDeposit: (amount) => `Pay ${amount} deposit`,
   holdNotice: (minutes) => `We hold your dates for ${minutes} minutes while you pay.`,
   checkoutError: "We could not create your booking.",
+  bookingClosed:
+    "Online booking is not open yet. Write to us and we will hold your spot.",
   requiredField: "This is required.",
   invalidEmail: "That email does not look valid.",
   mustAcceptPolicy: "You need to accept the policy to continue.",

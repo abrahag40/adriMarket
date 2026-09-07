@@ -40,6 +40,36 @@ export function paymentProvider(): PaymentProvider {
   return cached;
 }
 
+/**
+ * En qué estado está el cobro. Tres, y solo tres:
+ *
+ * - `stripe`   · hay llaves reales: el dinero se mueve.
+ * - `simulator`· pasarela local **y** `PAYMENT_SIMULATOR=si`. Desarrollo y la
+ *                barra de verificación, donde el botón que fabrica un evento de
+ *                pago pagado es justamente lo que hay que ejercitar.
+ * - `closed`   · pasarela local sin ese permiso explícito. Nadie puede cobrar y
+ *                —esto es lo que importa— nadie puede fingir que pagó.
+ *
+ * Existe por un defecto real, no por prolijidad. Hasta el 2026-09-07 el
+ * simulador se mostraba con la única condición de que la pasarela fuera la
+ * local, y producción corre con la local porque las llaves de Stripe nunca
+ * llegaron. Con `robots.txt` en `Allow: /` y 86 URLs en el sitemap, eso quería
+ * decir que cualquiera que entrara al sitio podía apretar "Simular pago
+ * exitoso" y salir con una reserva confirmada: inventario real consumido,
+ * correo real enviado, cero pesos cobrados.
+ *
+ * El permiso es una variable que hay que **poner**, no una que haya que quitar.
+ * Un despliegue que se olvida de algo se queda en `closed`, que es el estado
+ * seguro; la alternativa —una bandera de "modo producción"— se rompe en la
+ * dirección contraria y ese es exactamente el error que ya se cometió.
+ */
+export type GatewayState = "stripe" | "simulator" | "closed";
+
+export function gatewayState(): GatewayState {
+  if (paymentProvider().name === "stripe") return "stripe";
+  return process.env.PAYMENT_SIMULATOR === "si" ? "simulator" : "closed";
+}
+
 /** Para las pruebas, que cambian de proveedor entre casos. */
 export function resetPaymentProvider(): void {
   cached = null;

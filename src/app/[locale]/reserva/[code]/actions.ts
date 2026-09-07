@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
 import { processPaymentWebhook } from "@/modules/booking/webhook";
-import { LocalProvider, paymentProvider } from "@/modules/payments";
+import { gatewayState, LocalProvider, paymentProvider } from "@/modules/payments";
 
 /**
  * Simulación del resultado del cobro, solo con la pasarela local.
@@ -15,13 +15,22 @@ import { LocalProvider, paymentProvider } from "@/modules/payments";
  * transaccional. Es la única forma de ejercitar el flujo completo mientras la
  * cuenta del cliente sigue en verificación.
  *
- * Con llaves de Stripe presentes esta acción se niega a actuar: en producción no
- * debe existir una forma de confirmar una reserva sin que el dinero llegue.
+ * **El candado está aquí, no en la página.** Antes la única condición era que la
+ * pasarela fuera la local, y producción corre con la local: cualquiera podía
+ * confirmar una reserva sin pagar. Ahora hace falta `PAYMENT_SIMULATOR=si`,
+ * que producción no tiene.
+ *
+ * Que la página no dibuje el botón no cuenta como permiso —una Server Action se
+ * puede invocar por su identificador sin pasar por la página—, y ese es
+ * justamente el invariante que el proyecto ya tenía escrito: cada acción vuelve
+ * a preguntar quién la pide.
  */
 export async function simulatePayment(form: FormData): Promise<void> {
   const provider = paymentProvider();
-  if (!(provider instanceof LocalProvider)) {
-    throw new Error("La simulación de pago no está disponible con una pasarela real.");
+  if (!(provider instanceof LocalProvider) || gatewayState() !== "simulator") {
+    throw new Error(
+      "La simulación de pago no está habilitada. Requiere la pasarela local y PAYMENT_SIMULATOR=si.",
+    );
   }
 
   const code = String(form.get("code") ?? "");

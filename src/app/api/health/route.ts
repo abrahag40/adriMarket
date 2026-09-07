@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
+import { gatewayState } from "@/modules/payments";
 
 /**
  * Salud del sistema · S7-3
@@ -22,6 +23,9 @@ import { db } from "@/db/index";
  * - **Hay a quién avisarle de una reserva nueva.** Es configuración, no
  *   operación, y por eso se comprueba aquí: sin ella nada da error, solo deja
  *   de pasar. Igual que el cron del latido.
+ * - **En qué estado está el cobro.** Este informa y nunca falla: los tres
+ *   estados son legítimos. Está aquí porque "¿producción puede cobrar hoy?" se
+ *   contestaba leyendo variables de entorno en el panel de Vercel.
  *
  * Responde 200 cuando todo está bien y **503 cuando algo lo está**, porque es lo
  * que un monitor entiende sin configurarle reglas. El detalle va en el cuerpo
@@ -133,6 +137,22 @@ export async function GET() {
       row.correo_admin === null
         ? "falta settings.notifications.admin_email: nadie se entera de una reserva nueva"
         : "correo de administración configurado",
+  };
+
+  // En qué estado está el cobro. **No hace fallar la salud**, a propósito: los
+  // tres estados son configuraciones legítimas —producción sin llaves todavía
+  // no puede vender, y eso es un hecho, no una avería— y un chequeo que lleva
+  // meses en rojo enseña a ignorar el rojo. Se reporta para que quien abra la
+  // salud sepa si el sitio puede cobrar sin ir a leer variables de entorno.
+  const gateway = gatewayState();
+  checks.payments = {
+    ok: true,
+    detail:
+      gateway === "stripe"
+        ? "Stripe: el checkout cobra"
+        : gateway === "simulator"
+          ? "pasarela local con PAYMENT_SIMULATOR=si: se puede fingir un pago (no debe ser producción)"
+          : "pasarela local sin simulador: el checkout está cerrado y no se puede cobrar",
   };
 
   const healthy = Object.values(checks).every((check) => check.ok);

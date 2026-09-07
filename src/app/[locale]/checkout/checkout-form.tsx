@@ -38,19 +38,21 @@ export function CheckoutForm({
   const errorMessage =
     state.error === null
       ? null
-      : state.error === "missing"
-        ? t.requiredField
-        : state.error === "email"
-          ? t.invalidEmail
-          : state.error === "policy"
-            ? t.mustAcceptPolicy
-            : state.error === "AM001"
-              ? t.errSoldOut(0)
-              : state.error === "AM002"
-                ? t.quoteUnavailable
-                : state.error === "AM004"
-                  ? t.couponRedeemedOut
-                  : t.checkoutError;
+      : state.error === "closed"
+        ? t.bookingClosed
+        : state.error === "missing"
+          ? t.requiredField
+          : state.error === "email"
+            ? t.invalidEmail
+            : state.error === "policy"
+              ? t.mustAcceptPolicy
+              : state.error === "AM001"
+                ? t.errSoldOut(0)
+                : state.error === "AM002"
+                  ? t.quoteUnavailable
+                  : state.error === "AM004"
+                    ? t.couponRedeemedOut
+                    : t.checkoutError;
 
   return (
     <form action={action} className="checkout-form">

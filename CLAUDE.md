@@ -34,7 +34,7 @@ en el `PATH`.
 cp .env.example .env          # y apuntar DATABASE_URL a tu Postgres
 npm install
 
-npm run db:migrate            # aplica las 16 migraciones en orden
+npm run db:migrate            # aplica las 20 migraciones en orden
 npm run db:seed               # datos de desarrollo
 npm run dev                   # http://localhost:3000
 ```
@@ -329,6 +329,20 @@ Están aquí porque cada una se pagó una vez.
   costar lo contrario, que es peor: una barra en verde sobre un cambio sin
   probar. Antes de creerle a la barra: `lsof -nP -iTCP:3100 -sTCP:LISTEN`, o
   comprobar que el HTML servido tiene lo que se acaba de escribir.
+- **El simulador de pagos es un permiso, y producción no lo tiene.** El panel
+  con "Simular pago exitoso" se mostraba con la única condición de que la
+  pasarela fuera la local — y **producción corre con la local**, porque las
+  llaves de Stripe nunca llegaron. Con `robots.txt` en `Allow: /`, cualquiera
+  que entrara al sitio podía confirmar una reserva sin pagar: inventario
+  consumido, correo enviado, cero pesos. Ahora hace falta `PAYMENT_SIMULATOR=si`
+  y el candado vive en la Server Action, no en la página: **ocultar un botón no
+  es un permiso**, una acción se invoca por su identificador. Sin ese permiso y
+  sin llaves, `gatewayState()` es `closed` y el checkout se cierra antes de
+  crear el apartado, en vez de dejar al huésped en una página sin forma de
+  pagar. `/api/health` dice en cuál de los tres estados está y **no falla por
+  ello**: los tres son legítimos y un chequeo siempre en rojo enseña a ignorar
+  el rojo. Ver [decisión 0011](docs/decisiones/0011-el-simulador-es-un-permiso.md).
+  Si `npm run test:e2e` se cuelga esperando el botón, falta la variable en `.env`.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 

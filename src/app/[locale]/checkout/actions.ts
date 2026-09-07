@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isLocale, productPath, type Locale, type ProductKind, isRental } from "@/i18n/config";
 import { InventoryUnavailableError } from "@/modules/availability/holds";
 import { createBookingWithHold, type BookingInput, type PaxInput } from "@/modules/booking/create";
-import { paymentProvider } from "@/modules/payments";
+import { gatewayState, paymentProvider } from "@/modules/payments";
 import { QuoteError } from "@/modules/pricing/types";
 import { absoluteUrl } from "@/site";
 
@@ -39,6 +39,14 @@ export async function startCheckout(
   _previous: CheckoutState,
   form: FormData,
 ): Promise<CheckoutState> {
+  // Sin pasarela que cobre, la reserva no se empieza siquiera.
+  //
+  // Tapar el simulador sin esto dejaba un callejón: el huésped llenaba sus
+  // datos, se creaba un apartado real que ocupaba inventario, y aterrizaba en
+  // una página sin ninguna forma de pagar hasta que el apartado venciera solo.
+  // Un catálogo que todavía no puede vender lo dice antes de pedir el nombre.
+  if (gatewayState() === "closed") return { error: "closed" };
+
   const rawLocale = text(form, "locale");
   const locale: Locale = isLocale(rawLocale) ? rawLocale : "es";
 
