@@ -1095,4 +1095,94 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 25. Una devolución liquidada dice cómo, cuándo y quién
+-- ---------------------------------------------------------------------------
+--
+-- El dinero de un reembolso sale **fuera del sistema**: transferencia, SPEI o
+-- efectivo. Eso está bien —el saldo se cobra en destino, así que parte del
+-- dinero nunca pasó por la pasarela y no puede volver por ella—, pero convierte
+-- a `refunds` en el único registro de que salió.
+--
+-- Un registro que se puede marcar como pagado sin decir cómo, cuándo ni quién
+-- no es un registro: es una casilla. La restricción lo impide desde la base, no
+-- desde el formulario, porque el formulario no es el único camino a la tabla —el
+-- procedimiento viejo era un `UPDATE` a mano contra producción.
+do $$
+declare
+  v_booking  uuid;
+  v_refund   uuid;
+  v_staff    uuid;
+  v_caught   boolean := false;
+  v_metodo   payment_method;
+  v_cuando   timestamptz;
+  v_quien    uuid;
+begin
+  -- Una reserva confirmada que se cancela deja su devolución en 'pending'.
+  --
+  -- La política va explícita y no la del seed: si el seed cambiara sus
+  -- porcentajes, esta prueba mediría el seed en vez de la restricción. Es la
+  -- misma lección que ya está escrita arriba sobre no tomar filas compartidas.
+  v_booking := test_confirmed_stay(
+    300,
+    '{"name":"Prueba liquidación","deposit_refundable":true,
+      "rules":[{"hours_before":168,"refund_pct":100}]}'::jsonb
+  );
+  perform booking_cancel(v_booking, 'Prueba de liquidación', false, 'guest', null);
+
+  select r.id into v_refund
+    from refunds r
+    join payments p on p.id = r.payment_id
+   where p.booking_id = v_booking
+   limit 1;
+
+  assert v_refund is not null,
+    'FALLO: cancelar no dejó registrada la devolución';
+
+  select id into v_staff from staff_users limit 1;
+
+  -- (a) Marcarla como pagada sin explicar nada tiene que rebotar.
+  begin
+    update refunds set status = 'succeeded' where id = v_refund;
+    exception when check_violation then v_caught := true;
+  end;
+  assert v_caught,
+    'FALLO: se pudo marcar una devolución como pagada sin cómo, cuándo ni quién';
+
+  -- (b) A medias tampoco: con método pero sin autor sigue sin poder auditarse.
+  v_caught := false;
+  begin
+    update refunds
+       set status = 'succeeded', method = 'spei', settled_at = now()
+     where id = v_refund;
+    exception when check_violation then v_caught := true;
+  end;
+  assert v_caught,
+    'FALLO: se liquidó una devolución sin decir quién la ejecutó';
+
+  -- (c) Completa sí pasa, y deja los tres datos que el informe necesita.
+  update refunds
+     set status       = 'succeeded',
+         method       = 'spei',
+         settled_at   = now(),
+         settled_by   = v_staff,
+         provider_ref = 'CLAVE-DE-RASTREO-1'
+   where id = v_refund;
+
+  select method, settled_at, settled_by into v_metodo, v_cuando, v_quien
+    from refunds where id = v_refund;
+
+  assert v_metodo = 'spei' and v_cuando is not null and v_quien = v_staff,
+    'FALLO: la devolución liquidada no conservó cómo, cuándo y quién';
+
+  -- (d) Y `pending` sigue sin exigir nada: la restricción no estorba al estado
+  --     en el que la fila nace, que legítimamente no sabe nada de esto.
+  update refunds set status = 'pending', method = null,
+                     settled_at = null, settled_by = null
+   where id = v_refund;
+
+  raise notice '✔ 25. una devolución liquidada dice cómo, cuándo y quién';
+end;
+$$;
+
 rollback;

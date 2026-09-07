@@ -171,27 +171,37 @@ Borrar la fila no pierde historia: lo que le pasó a la reserva vive en
 dinero no ha salido**. El huésped ya sabe que le toca reembolso porque se le
 avisó por correo.
 
-**Qué hacer.**
+**Qué hacer.** Todo desde el panel, en **Devoluciones**
+(`/admin/reembolsos`). Pide rol de gerencia.
 
-1. Listar los atorados:
-   ```sql
-   select r.id, r.amount_cents, r.reason, b.code, r.created_at
-     from refunds r
-     join payments p on p.id = r.payment_id
-     join bookings b on b.id = p.booking_id
-    where r.status = 'pending' order by r.created_at;
-   ```
-2. Hacer la devolución en el panel de la pasarela, contra el cargo original.
-3. Marcarlo aquí, **con la referencia que devolvió la pasarela**:
-   ```sql
-   update refunds set status = 'succeeded', provider_ref = 'LA-REFERENCIA'
-    where id = 'EL-ID';
-   ```
+1. La lista muestra lo pendiente, lo más viejo primero, con cuánto lleva
+   esperando. Lo que pasó de 24 h sale marcado: es lo que tiene la salud en
+   rojo.
+2. **Hacer el movimiento en el banco** —transferencia, SPEI o efectivo en el
+   mostrador— contra los datos que dio el huésped.
+3. Registrarlo: cómo se devolvió, la clave de rastreo o folio, el comprobante
+   (foto o PDF, hasta 4 MB) y una nota si hace falta. La fecha y el autor los
+   pone el sistema con la sesión de quien lo registra; no se teclean.
 
-> **Deuda conocida.** Hoy los reembolsos **se registran, no se ejecutan**: la
-> fila queda pendiente esperando que alguien haga el movimiento en la pasarela.
-> Automatizarlo depende de la cuenta de Stripe, que sigue sin llegar. Mientras
-> tanto esto es un paso manual y por eso está en el manual.
+Al registrar, la fila sale de pendientes y `/api/health` vuelve a verde.
+
+> **El dinero sale fuera del sistema, y eso no es provisional.** El negocio
+> cobra el anticipo en línea y **el saldo en destino, en efectivo**: parte del
+> dinero nunca pasa por la pasarela y no puede volver por ella. Cuando llegue
+> Stripe será un método más de los que ya están en la lista, no un camino
+> aparte. Lo que sí falta es que la devolución a tarjeta se dispare sola
+> —hoy también se hace a mano en el panel de la pasarela y se registra aquí—.
+
+> **Por qué el registro pide tanto.** La base se niega a marcar una devolución
+> como pagada sin cómo, cuándo y quién (garantía 25). Marcar dinero como
+> devuelto es una afirmación sobre el mundo, y una afirmación sin autor no se
+> puede revisar después. Es también lo que hace que el informe sirva: tiempo de
+> devolución, reembolsos por método y por mes para conciliar contra el banco, y
+> quién los ejecuta.
+
+> **Registrar exige gerencia a propósito.** Recepción ve la lista y sabe qué
+> falta, pero quien declara que el dinero salió no debería ser la misma persona
+> que canceló la reserva.
 
 ---
 

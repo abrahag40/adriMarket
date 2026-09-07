@@ -288,7 +288,7 @@ verdad**, y se niega si es el local.
 
 ## 9. Antes de anunciar
 
-- [ ] `npm run db:test` — las 24 garantías.
+- [ ] `npm run db:test` — las 25 garantías.
 - [ ] `npm run test:integration`.
 - [ ] `./scripts/smoke.sh` contra **producción**.
 - [ ] `npm run audit` — accesibilidad y peso.
@@ -304,9 +304,13 @@ verdad**, y se niega si es el local.
 
 Se dice aquí para que nadie lo descubra después:
 
-- **Los reembolsos se registran, no se ejecutan.** Cancelar deja la devolución
-  anotada; hacerla en la pasarela es un paso manual. Está en `docs/operacion.md`
-  §4. Automatizarlo depende de la cuenta de Stripe.
+- ~~Los reembolsos se registran, no se ejecutan.~~ **Cerrada en lo que era
+  urgente.** El movimiento lo hace la agencia en su banco y el panel lo registra
+  desde `/admin/reembolsos` —cómo, cuándo, quién, clave de rastreo y
+  comprobante—, en vez de exigir un `UPDATE` a mano contra producción. Sale
+  fuera del sistema **por diseño**: el saldo se cobra en destino en efectivo y
+  ese dinero nunca pasó por la pasarela. Lo que sigue abierto es que la
+  devolución a tarjeta se dispare sola, y eso sí depende de Stripe.
 - ~~Los cupones se administran pero no se canjean.~~ **Cerrada.** Se canjean
   desde el checkout; ver [decisión 0004](decisiones/0004-cupon-agotado-es-inventario.md).
 - ~~El panel no crea opciones de tour ni unidades de estancia.~~ **Cerrada.**

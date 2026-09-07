@@ -38,7 +38,7 @@ import { db } from "@/db/index";
  * generar variantes, y en Blob eso significa una descarga por HTTP, no abrir un
  * archivo.
  */
-type MediaStorage = {
+export type MediaStorage = {
   name: string;
   save(filename: string, bytes: Buffer): Promise<string>;
   read(url: string): Promise<Buffer>;
@@ -89,7 +89,7 @@ class BlobStorage implements MediaStorage {
   }
 }
 
-function mediaStorage(): MediaStorage {
+export function mediaStorage(): MediaStorage {
   return process.env.BLOB_READ_WRITE_TOKEN ? new BlobStorage() : new LocalStorage();
 }
 

@@ -34,7 +34,7 @@ en el `PATH`.
 cp .env.example .env          # y apuntar DATABASE_URL a tu Postgres
 npm install
 
-npm run db:migrate            # aplica las 20 migraciones en orden
+npm run db:migrate            # aplica las 21 migraciones en orden
 npm run db:seed               # datos de desarrollo
 npm run dev                   # http://localhost:3000
 ```
@@ -71,7 +71,7 @@ por qué** — ver también la trampa de abajo.
 Es lo mismo que corre el pipeline, y **está pensada para correrse entera**:
 
 ```bash
-npm run db:test               # 24 garantías del inventario, en transacción
+npm run db:test               # 25 garantías del inventario, en transacción
 npm run test:integration      # 165 casos del dominio
 npm run typecheck
 npm run lint
@@ -422,7 +422,14 @@ docs/               plan maestro, arquitectura, esquema, sprints y decisiones
 Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
 `docs/puesta-en-produccion.md`.
 
-- **Los reembolsos se registran, no se ejecutan.** Paso manual documentado.
+- **Los reembolsos se liquidan a mano, y no es provisional.** El movimiento
+  —transferencia, SPEI o efectivo— lo hace la agencia en su banco; el panel lo
+  **registra** desde `/admin/reembolsos` con cómo, cuándo, quién, la clave de
+  rastreo y el comprobante. No es un rodeo mientras llega Stripe: **el saldo se
+  cobra en destino en efectivo**, así que parte del dinero nunca pasa por la
+  pasarela y no puede volver por ella. Cuando Stripe llegue será un `method` más
+  del enum que ya existe. Lo que sigue faltando es que la devolución a tarjeta se
+  dispare sola. Ver [decisión 0012](docs/decisiones/0012-el-dinero-que-sale-tambien-se-audita.md).
 - ~~Los cupones se administran pero no se canjean (falta el campo en checkout).~~
   **Cerrada.** El checkout tiene el campo, descuenta antes de impuestos y el
   canje se registra en la misma transacción que el apartado — ver

@@ -24,6 +24,7 @@ export function AdminNav({ user, active }: { user: StaffUser; active: string }) 
   // le muestran a recepción ni a un guía. El servidor los protege igual, esto
   // solo evita ofrecer una puerta cerrada.
   const managerItems = [
+    { href: "/admin/reembolsos", label: "Devoluciones" },
     { href: "/admin/catalogo", label: "Catálogo" },
     { href: "/admin/ajustes", label: "Ajustes" },
     { href: "/admin/bitacora", label: "Bitácora" },
