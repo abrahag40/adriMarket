@@ -109,6 +109,17 @@ expect_absent "/es?guests=6" "Depa en el centro" "capacidad 6: no aparece el est
 expect_contains "/es?location=playa-del-carmen" "Catamarán al arrecife" "el filtro por ubicación funciona"
 expect_absent "/es?location=playa-del-carmen" "Casa Akumal" "el filtro por ubicación excluye otras ubicaciones"
 expect_contains "/es?kind=tour&guests=20" "Catamarán al arrecife" "dos filtros combinados"
+
+# Un vehículo se ocupa por fechas, como una casa: su cupo vive en rental_units y
+# su precio en rental_rates. `listCatalog` preguntaba `kind = 'stay'` en vez de
+# por el mecanismo, así que mandaba los vehículos a buscar cupo y precio entre
+# los tours —donde no tienen nada— y toda camioneta salía con los dos en nulo:
+# sin precio en su tarjeta, fuera de cualquier `?guests=`, y sin las facetas de
+# Personas y Precio en su sección. Nada fallaba; solo faltaba.
+expect_contains "/es?kind=vehicle" "price-amount" "los vehículos muestran su precio"
+expect_contains "/es?kind=vehicle&guests=4" "SUV familiar" "un vehículo entra en un filtro por plazas"
+expect_absent "/es?kind=vehicle&guests=4" "Scooter 125" "y el de dos plazas se queda fuera"
+expect_contains "/es?kind=vehicle" "facet-price" "la sección de vehículos conserva su filtro de precio"
 expect_contains "/es?guests=49" "Nada coincide con esos filtros" "sin resultados se explica, no se deja vacío"
 expect_contains "/es?guests=49" "Quitar filtros" "sin resultados se ofrece la salida"
 expect_status "/es?guests=abc&kind=inventado" 200 "un filtro inválido se ignora en lugar de reventar"

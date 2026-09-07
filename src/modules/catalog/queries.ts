@@ -95,9 +95,20 @@ export async function listCatalog(
       order by m.position, m.created_at
       limit 1
     ) cover on true
+    -- p.kind <> 'tour' y no p.kind = 'stay': es el isRental de i18n/config.ts
+    -- escrito en SQL. Preguntar por 'stay' mandaba **los vehículos al camino
+    -- de los tours**, a buscar su cupo en tour_options, donde un vehículo no
+    -- tiene nada — así que toda camioneta salía con capacidad y precio nulos:
+    -- sin "Desde $…" en su tarjeta, invisible para ?guests=, y sin las
+    -- facetas de Personas y Precio en su sección, que desaparecían por no
+    -- tener dos opciones que ofrecer.
+    --
+    -- Es exactamente la pregunta mal hecha contra la que existe isRental, y
+    -- este archivo ya lo importa y lo usa bien más abajo, en la ficha. El
+    -- listado se quedó preguntando por el tipo en vez de por el mecanismo.
     left join lateral (
-      select case p.kind
-        when 'stay' then (
+      select case
+        when p.kind <> 'tour' then (
           select max(su.max_guests) from rental_units su
            where su.product_id = p.id and su.active
         )
@@ -107,9 +118,11 @@ export async function listCatalog(
         )
       end as capacity
     ) cap on true
+    -- Mismo mecanismo, misma pregunta: lo que se ocupa por fechas cobra por
+    -- noche, venga en llaves o en placas.
     left join lateral (
-      select case p.kind
-        when 'stay' then (
+      select case
+        when p.kind <> 'tour' then (
           select min(sr.nightly_cents)
             from rental_rates sr
             join rental_rate_plans rp on rp.id = sr.rate_plan_id

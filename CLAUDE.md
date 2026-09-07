@@ -72,7 +72,7 @@ npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
 npx next start -p 3100 &
-BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 125 criterios
+BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 129 criterios
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e            #  8 · el checkout
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin      # 18 · un día de recepción
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme        # 25 · cierran el puerto
@@ -273,6 +273,21 @@ Están aquí porque cada una se pagó una vez.
   regla `@media print`. Ninguna prueba de la barra captura una página con
   rieles —`p5-en-el-sitio.png` es la búsqueda, que no los tiene—, así que esto
   solo muerde a quien tome una captura a mano y crea que rompió el sitio.
+- **Preguntar por el tipo en vez de por el mecanismo deja a los vehículos sin
+  precio.** `listCatalog` sacaba el cupo y el "desde" con
+  `case p.kind when 'stay' then … else …`, así que **un vehículo caía en el
+  `else` de los tours** y buscaba su capacidad en `tour_options` y su precio en
+  `tour_pax_prices`, donde no tiene nada. Resultado: toda camioneta salía con
+  los dos en nulo — sin precio en su tarjeta, invisible para `?guests=`, y sin
+  las facetas de Personas y Precio en su sección, que desaparecían por no tener
+  dos opciones que ofrecer. **Nada fallaba; solo faltaba**, y por eso vivió
+  desde que entraron los vehículos hasta que el filtro lateral lo hizo visible.
+  `isRental()` existe exactamente para esto y el mismo archivo ya lo usaba bien
+  en la ficha; el listado se había quedado atrás. En SQL se escribe
+  `p.kind <> 'tour'`. Lo cubren cuatro criterios de `smoke.sh` — tres de los
+  cuales se comprobó que **fallan** con el defecto puesto; el cuarto es un
+  `expect_absent` y pasa en vacío, que es lo que hace una comprobación de
+  ausencia cuando no hay nada.
 - **Un `next start` olvidado en el 3100 hace que la barra mida el build de
   ayer.** `npx next start -p 3100 &` falla con `EADDRINUSE` si ya hay uno
   escuchando, pero como va al fondo nadie lee su error: `curl` responde 200,
