@@ -157,6 +157,27 @@ cmd_migrate() {
 cmd_seed() {
   echo "→ cargando datos de desarrollo"
   "${PSQL[@]}" -f db/seed/dev_seed.sql
+
+  # Los vehículos son el tercer inventario y `dev_seed.sql` nunca los tuvo: se
+  # cargaron a producción aparte, con `prod:sql`. El efecto secundario fue que
+  # **cuatro criterios de smoke.sh solo pasaban en una base que casualmente
+  # tuviera ese seed**: sobre una recién creada fallaban tres —precio, filtro
+  # por plazas, faceta de precio— y el cuarto, que es un `expect_absent`,
+  # pasaba en vacío. Lo destapó la primera corrida de CI que llegó hasta la
+  # barra: siete fallos, y tres eran esto.
+  #
+  # Es la lección que este proyecto ya tenía escrita dos veces —una prueba que
+  # depende del seed comprueba el seed— aplicada al revés: aquí la prueba
+  # dependía de un seed que **no** se cargaba.
+  #
+  # El archivo une contra `locations` por slug, así que sobre la base de
+  # desarrollo entran solo los vehículos cuyos destinos existen —Playa del
+  # Carmen y Tulum— y los demás se saltan solos. Dos bastan y son justo los que
+  # los criterios necesitan: uno de 5 plazas y otro de 2, con precios distintos
+  # para que la faceta tenga dos opciones que ofrecer.
+  echo "→ vehículos (el tercer inventario, que la barra necesita)"
+  "${PSQL[@]}" -f db/seed/vehiculos_caribe.sql
+
   echo "Listo."
 }
 

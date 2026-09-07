@@ -77,6 +77,32 @@ tenga que desplegar a mano alguna vez.
 sirve de verdad: aplicar una migración sin desplegar código, o reintentar si el
 despliegue se cayó entre un paso y el otro.
 
+## El conflicto con la integración nativa, y cómo queda
+
+Al abrir el primer PR apareció algo que no estaba a la vista: **Vercel ya está
+conectado a GitHub.** El PR estrenó un despliegue de vista previa sin que nadie
+lo pidiera.
+
+Eso significa que al mergear habría **dos despliegues de producción a la vez**:
+el de la integración nativa, que arranca con el push, y el de este workflow, que
+espera a la CI. El de la integración no espera nada y, sobre todo, **no migra
+antes** — que es justo el orden que este proyecto no puede permitirse.
+
+Se resuelve con `vercel.json`, apagando el despliegue automático **solo** de la
+rama que despliega:
+
+```json
+{ "git": { "deploymentEnabled": { "claude/blissful-noether-2wvgdx": false } } }
+```
+
+Las vistas previas de los PR se quedan —son útiles y no tocan producción ni la
+base—; producción pasa a tener un solo dueño, este workflow.
+
+**Si algún día se renombra la rama por defecto, hay que actualizar esa llave**,
+o Vercel volverá a desplegar producción por su cuenta. La compuerta de
+verificación lo notaría —el despliegue de la integración no migra— pero
+tardaría más y sería más confuso de leer.
+
 ## Las alternativas descartadas
 
 **La integración nativa de Vercel con GitHub** (`vercel git connect`). Es más

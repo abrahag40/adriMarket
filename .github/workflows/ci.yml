@@ -30,6 +30,13 @@ concurrency:
 env:
   DATABASE_URL: postgres://postgres:postgres@localhost:5432/adrimarket_ci
   NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+  # La CI reproduce una máquina de desarrollo, y `.env.example` trae estas dos.
+  # Sin ellas no hay pasarela ninguna: `/api/webhooks/local` no puede responder
+  # 400 a una firma inválida —no tiene con qué verificarla— y varios criterios
+  # de smoke.sh dan 500. No son secretos: el valor de desarrollo es público y
+  # solo sirve para firmar eventos contra esta misma base efímera.
+  LOCAL_WEBHOOK_SECRET: ci_secreto_de_verificacion
+  PAYMENT_SIMULATOR: si
 
 jobs:
   verificar:
