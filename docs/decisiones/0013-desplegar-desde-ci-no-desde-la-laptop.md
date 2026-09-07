@@ -88,20 +88,40 @@ el de la integración nativa, que arranca con el push, y el de este workflow, qu
 espera a la CI. El de la integración no espera nada y, sobre todo, **no migra
 antes** — que es justo el orden que este proyecto no puede permitirse.
 
-Se resuelve con `vercel.json`, apagando el despliegue automático **solo** de la
-rama que despliega:
+La primera versión de este arreglo apagaba el despliegue automático **solo** de
+la rama que despliega, para conservar las vistas previas de los PR. Al abrir el
+PR quedó claro que esas vistas previas **nunca han funcionado**:
 
-```json
-{ "git": { "deploymentEnabled": { "claude/blissful-noether-2wvgdx": false } } }
+```
+Error: Falta DATABASE_URL. Ver .env.example.
+> Build error occurred
+[Error: Failed to collect page data for /admin/entrar/[token]]
 ```
 
-Las vistas previas de los PR se quedan —son útiles y no tocan producción ni la
-base—; producción pasa a tener un solo dueño, este workflow.
+`DATABASE_URL` solo existe en el entorno *Production* del proyecto. El entorno
+*Preview* tiene únicamente las tres variables de Blob, así que una vista previa
+no puede ni compilar — el build lee la base para recolectar los datos de las
+páginas.
 
-**Si algún día se renombra la rama por defecto, hay que actualizar esa llave**,
-o Vercel volverá a desplegar producción por su cuenta. La compuerta de
-verificación lo notaría —el despliegue de la integración no migra— pero
-tardaría más y sería más confuso de leer.
+Y no se arregla cargándole `DATABASE_URL`: la única base que hay es producción,
+y dejar que una rama cualquiera —con migraciones a medias, o con el simulador
+encendido— hable con la base real es peor que no tener vistas previas. Harían
+falta una base de preview y un plan que hoy no existe.
+
+Así que se apagan del todo:
+
+```json
+{ "git": { "deploymentEnabled": false } }
+```
+
+Producción pasa a tener un solo dueño, este workflow, que despliega por CLI con
+token —eso no lo toca esta bandera—. Y el PR deja de traer un check rojo
+permanente, que es lo mismo que se evitó en `/api/health`: **un rojo que
+siempre está rojo enseña a ignorar el rojo.**
+
+**Para reconsiderarlo hace falta una base de preview**, no cambiar esta línea.
+Cuando exista, las vistas previas valen mucho: revisar un cambio de vitrina en
+una URL real es más honesto que leer un diff.
 
 ## Las alternativas descartadas
 
