@@ -307,6 +307,19 @@ Están aquí porque cada una se pagó una vez.
   cuales se comprobó que **fallan** con el defecto puesto; el cuarto es un
   `expect_absent` y pasa en vacío, que es lo que hace una comprobación de
   ausencia cuando no hay nada.
+- **Un build puede salir con el manifiesto de cliente incompleto, y se ve como
+  un defecto de accesibilidad.** Pasó el 2026-09-07 con un `.next` recién
+  borrado: la compilación dijo "Compiled successfully", el sitio público sirvió
+  200 en todo —incluida la hoja de estilos, que es lo que comprueba la guarda
+  de más abajo— y **`/admin/ajustes` respondía 500** con
+  `Could not find the module "…settings-forms.tsx#DepartureBatchForm" in the
+  React Client Manifest`. Lo que reportó la barra no fue eso: `test:e2e:publicar`
+  se colgó treinta segundos esperando `#optionId`, y la auditoría dijo
+  **`panel · ajustes: document-title (1), html-has-lang (1)`** — porque la
+  página de error de Next no trae ni título ni `lang`, no porque falte nada en
+  el panel. Buscar un `<title>` en el layout del panel es el camino
+  equivocado. Se arregla con `rm -rf .next` y volver a construir; para
+  descartarlo en un minuto: `grep -i "client manifest"` en el log del servidor.
 - **Un `next start` olvidado en el 3100 hace que la barra mida el build de
   ayer.** `npx next start -p 3100 &` falla con `EADDRINUSE` si ya hay uno
   escuchando, pero como va al fondo nadie lee su error: `curl` responde 200,
