@@ -37,6 +37,13 @@ env:
   # solo sirve para firmar eventos contra esta misma base efímera.
   LOCAL_WEBHOOK_SECRET: ci_secreto_de_verificacion
   PAYMENT_SIMULATOR: si
+  # Y este por una razón que `smoke.sh` ya tenía escrita en su cabecera: provoca
+  # un latido antes de preguntar por la salud, porque sobre una base recién
+  # creada `/api/health` responde 503 con "nunca ha latido" — que es correcto.
+  # Sin `JOBS_SECRET` ese latido se rechaza con 401 en silencio y el criterio
+  # falla. El guion lo describía como un fallo que solo ocurre "la primera vez";
+  # aquí **siempre** es la primera vez, porque la base es efímera.
+  JOBS_SECRET: ci_secreto_del_latido
 
 jobs:
   verificar:
