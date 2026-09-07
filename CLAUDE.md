@@ -47,17 +47,22 @@ exportar nada a mano.
 
 ### Si no tienes Postgres instalado
 
-Un clúster desechable, sin tocar el sistema:
+Un clúster propio del proyecto, sin tocar el Postgres del sistema ni mezclarse
+con las bases de otros proyectos:
 
 ```bash
-export PGDIR=/tmp/ampg
-initdb -D $PGDIR/pgdata -U postgres
-mkdir -p $PGDIR/pgrun
-pg_ctl -D $PGDIR/pgdata -l $PGDIR/pg.log \
-  -o "-k $PGDIR/pgrun -p 5433 -c listen_addresses=127.0.0.1" start
-createdb -h 127.0.0.1 -p 5433 -U postgres adrimarket
-# DATABASE_URL=postgres://postgres@127.0.0.1:5433/adrimarket
+./scripts/pg-local.sh crear
+./scripts/pg-local.sh start
+createdb -h 127.0.0.1 -p 5444 -U postgres adrimarket
+# DATABASE_URL=postgres://postgres@127.0.0.1:5444/adrimarket
 ```
+
+Después de reiniciar la máquina hay que volver a levantarlo con
+`./scripts/pg-local.sh start`. Si la aplicación responde 500 con
+`ECONNREFUSED ... 5444`, es eso.
+
+**Vive en `~/.local/share/adrimarket/pg`, fuera de `/tmp`, y el guion explica
+por qué** — ver también la trampa de abajo.
 
 ---
 
@@ -273,6 +278,20 @@ Están aquí porque cada una se pagó una vez.
   regla `@media print`. Ninguna prueba de la barra captura una página con
   rieles —`p5-en-el-sitio.png` es la búsqueda, que no los tiene—, así que esto
   solo muerde a quien tome una captura a mano y crea que rompió el sitio.
+- **Un clúster de Postgres en `/tmp` no se muere: se queda a medio comer.** La
+  base de desarrollo vivió en `/tmp/ampg` hasta el 2026-09-07, cuando el
+  limpiador periódico de macOS borró los archivos sueltos del directorio de
+  datos —`PG_VERSION`, `postgresql.conf`, `pg_hba.conf` y, lo que lo volvió
+  irrecuperable, `global/pg_filenode.map` y los catálogos del sistema—. Los
+  directorios quedaron, con 228 archivos de tablas y ninguna forma de saber qué
+  era cada uno. **Lo caro no fue perder los datos** —son de prueba y se
+  regeneran con `db:reset` más los seeds del Caribe— **sino el rato de
+  diagnóstico**: la aplicación responde 500, la barra reporta fallos que no
+  existen, y hay que llegar hasta el log de Postgres para entender por qué.
+  Ahora vive en `~/.local/share/adrimarket/pg`; lo gestiona
+  `scripts/pg-local.sh`, que también lleva el `LC_ALL=C` sin el cual el
+  postmaster de Homebrew aborta con "postmaster became multithreaded during
+  startup" y no dice nada más.
 - **Preguntar por el tipo en vez de por el mecanismo deja a los vehículos sin
   precio.** `listCatalog` sacaba el cupo y el "desde" con
   `case p.kind when 'stay' then … else …`, así que **un vehículo caía en el
