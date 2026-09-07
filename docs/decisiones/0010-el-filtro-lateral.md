@@ -56,6 +56,16 @@ Con la cuenta a la vista se pueden tirar dos clases de opción:
 
 Y si un grupo se queda con menos de dos opciones, el grupo entero desaparece.
 
+**La fila de "Todo" también desaparece cuando vaciaría la vista entera.** Se
+encontró comprobando las 90 opciones de faceta una por una: estando en tours,
+"Tipo · Todo" prometía **48** y apuntaba a `/es`, que desde la decisión 0008
+**no es un listado** sino la portada. La opción entregaba el hero, los destinos
+y las cuatro vitrinas, sin una sola de esas 48 tarjetas. Se quitó la fila en
+vez de quitarle la cuenta —relabelar el problema lo deja ahí—; desde una vista
+con dos filtros la fila sigue, porque ahí sí lleva a otro listado. Vaciarlo
+todo es lo que hacen las fichas de arriba y su "Quitar filtros", que están
+junto a los resultados y dicen exactamente eso.
+
 ### Las cubetas de precio salen del catálogo
 
 Un tour parte de $650 y una casa de $1,450, así que una escalera escrita a mano

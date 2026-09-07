@@ -323,6 +323,20 @@ export default async function CatalogPage({
    *
    * Y si queda una sola opción, el grupo entero se va: un filtro con una
    * alternativa no es un filtro.
+   *
+   * ## La fila de "Todo" desaparece cuando vaciaría la vista entera
+   *
+   * Estando en tours, "Tipo · Todo" apuntaba a `/es` —sin ningún parámetro— y
+   * `/es` **no es un listado**: es la portada, que desde la decisión 0008 no
+   * lleva catálogo dentro. La opción prometía "48" y entregaba el hero, los
+   * destinos y las cuatro vitrinas, sin una sola de esas 48 tarjetas.
+   *
+   * Se quita la fila en vez de quitarle la cuenta: relabelar el problema lo
+   * deja ahí. Desde una vista con dos filtros la fila sigue —"Todo" desde
+   * `?kind=tour&location=tulum` lleva a `?location=tulum`, que sí es un
+   * listado y sí tiene esas cuentas—; vaciarlo todo es lo que hacen las
+   * fichas de arriba y su "Quitar filtros", que están junto a los resultados
+   * y dicen exactamente eso.
    */
   function agregarGrupo(
     id: string,
@@ -337,10 +351,15 @@ export default async function CatalogPage({
       (option) => option.selected || (option.count > 0 && option.count < total),
     );
     if (utiles.length < 2) return;
+
+    const llevaAlListado = anyHref.includes("?");
+
     facetGroups.push({
       id,
       heading,
-      any: { label: anyLabel, href: anyHref, count: total, selected: anySelected },
+      any: llevaAlListado
+        ? { label: anyLabel, href: anyHref, count: total, selected: anySelected }
+        : null,
       options: utiles,
     });
   }
