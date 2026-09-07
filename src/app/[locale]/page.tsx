@@ -322,7 +322,14 @@ export default async function CatalogPage({
    * que hay que volver a pulsar para quitarla.
    *
    * Y si queda una sola opción, el grupo entero se va: un filtro con una
-   * alternativa no es un filtro.
+   * alternativa no es un filtro. **Salvo que el grupo lleve puesto el filtro
+   * actual**, y esa excepción no es un detalle: sin ella, en
+   * `?kind=stay&location=cozumel&guests=4` —una sola estancia— el grupo de
+   * Personas se podaba con "4 o más" **aplicado dentro**, y la barra quedaba
+   * sin rastro de que estaba filtrando por capacidad. El huésped veía un
+   * resultado, una ficha arriba, y una barra que decía que no había ningún
+   * filtro de Personas. Se podía deshacer desde la ficha, pero la barra
+   * mentía por omisión. Pasaba en 63 de 143 combinaciones.
    *
    * ## La fila de "Todo" desaparece cuando vaciaría la vista entera
    *
@@ -350,7 +357,8 @@ export default async function CatalogPage({
     const utiles = options.filter(
       (option) => option.selected || (option.count > 0 && option.count < total),
     );
-    if (utiles.length < 2) return;
+    const hayPuesto = options.some((option) => option.selected);
+    if (utiles.length < 2 && !hayPuesto) return;
 
     const llevaAlListado = anyHref.includes("?");
 
@@ -370,17 +378,29 @@ export default async function CatalogPage({
      no habría forma de pasar de tours a estancias sin volver al inicio.
      Enseñar dónde estoy y ofrecer el salto no es lo mismo que preguntármelo
      otra vez en un formulario. */
-  const sinTipo: Facets = { ...filters, kind: undefined };
+  /* **Cambiar de tipo suelta el precio.** La escalera de precios es de la
+     sección: un tour parte de $650 y una casa de $1,450, así que sus cortes no
+     son los mismos. Arrastrar "Más de $2,100" de tours a vehículos dejaba
+     puesto un rango que la sección nueva no ofrece — la ficha lo enseñaba y el
+     grupo de Precio no tenía dónde marcarlo—. Es la misma razón por la que
+     cambiar de faceta vuelve a la página 1: lo que se traía de la vista
+     anterior ya no significa lo mismo aquí. */
+  /* Y la cuenta se calcula **sin el precio también**, porque el enlace lo
+     suelta. Contarla con el precio puesto y llevarlo a una vista sin él era la
+     única forma de romper la regla que sostiene toda la barra: "Estancias"
+     prometía 1 —las estancias dentro del rango de precio de los tours— y
+     entregaba 10. La cuenta describe su destino o no sirve de nada. */
+  const sinTipo: Facets = { ...filters, kind: undefined, price: undefined };
   agregarGrupo(
     "facet-kind",
     t.filterKind,
     t.filterKindAll,
-    hrefCon({ kind: null, page: 1 }),
+    hrefCon({ kind: null, price: null, page: 1 }),
     filters.kind === undefined,
     countWith(allItems, sinTipo, {}),
     (["tour", "stay", "vehicle"] as const).map((kind) => ({
       label: kindLabels[kind],
-      href: hrefCon({ kind, page: 1 }),
+      href: hrefCon({ kind, price: null, page: 1 }),
       count: countWith(allItems, sinTipo, { kind }),
       selected: filters.kind === kind,
     })),
@@ -418,11 +438,24 @@ export default async function CatalogPage({
     })),
   );
 
-  /* Las cubetas de precio salen del catálogo que se está viendo, no de una
-     escalera escrita a mano: un tour parte de $650 y una casa de $1,450, así
-     que un corte fijo dejaría cubetas vacías en una de las dos secciones. */
+  /* Las cubetas de precio salen del catálogo, no de una escalera escrita a
+     mano: un tour parte de $650 y una casa de $1,450, así que un corte fijo
+     dejaría cubetas vacías en una de las dos secciones.
+     
+     Pero salen **de la sección entera, no de lo que queda tras filtrar**, y
+     esa diferencia es la que hace que la faceta funcione. Calculándolas sobre
+     el resultado ya estrechado, los cortes se movían con cada clic: quien
+     elegía "Más de $2,000" en vehículos y luego marcaba Cozumel se encontraba
+     con que su rango **había dejado de existir** —los dos vehículos de Cozumel
+     producen otros cortes—, así que la ficha decía "Más de $2,000" y el grupo
+     de Precio ofrecía tres tramos distintos, ninguno marcado. Pasaba en 53 de
+     143 combinaciones.
+     
+     Con la escalera fija por sección, el tramo elegido siempre está entre los
+     que se ofrecen, y lo que cambia con los demás filtros son las cuentas —que
+     es lo que tiene que cambiar. */
   const sinPrecio: Facets = { ...filters, price: undefined };
-  const cubetas = priceBuckets(applyFacets(allItems, sinPrecio));
+  const cubetas = priceBuckets(applyFacets(allItems, { kind: filters.kind }));
 
   /* La moneda sale del catálogo, no de una constante: el modelo la guarda por
      producto y todo el catálogo de hoy es MXN, pero escribirlo aquí sería
