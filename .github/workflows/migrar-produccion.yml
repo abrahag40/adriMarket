@@ -10,10 +10,16 @@
 # secreto del repositorio (Settings → Secrets and variables → Actions), igual
 # que JOBS_SECRET para el latido.
 #
-# Es `workflow_dispatch` a propósito y no `push`: el despliegue de este
-# proyecto se dispara a mano con `vercel --prod`, así que migrar en cada push
-# adelantaría el esquema a un código que todavía no está arriba. Cuando el
-# despliegue se automatice, aquí se agrega `push` a la rama que despliega.
+# Sigue siendo `workflow_dispatch`, pero ya no por la razón original.
+#
+# Desde el 2026-09-07 el despliegue está automatizado y **migra él mismo**, en
+# el mismo job y antes de desplegar: ver `desplegar.yml`. Migrar aquí en cada
+# push duplicaría ese paso.
+#
+# Este workflow se queda como **escotilla manual**, que es para lo que sirve de
+# verdad: aplicar una migración sin desplegar código —un arreglo de datos, un
+# índice que urge— o volver a intentar la migración si el despliegue se cayó
+# justo entre un paso y el otro.
 
 name: Migrar producción
 

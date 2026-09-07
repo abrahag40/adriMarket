@@ -13,7 +13,14 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # La rama por defecto de este repositorio **no se llama `main`**: se llama
+    # `claude/blissful-noether-2wvgdx`. Con `branches: [main]` este disparador
+    # nunca corrió, así que durante meses la CI solo se ejecutó en los pull
+    # requests y ningún push directo se verificó jamás. Se listan las dos para
+    # que renombrar la rama a `main` algún día no vuelva a apagarla en silencio.
+    branches:
+      - main
+      - 'claude/**'
 
 concurrency:
   # Un push nuevo cancela la corrida anterior de la misma rama.

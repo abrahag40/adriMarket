@@ -1,0 +1,193 @@
+# Desplegar producción · automatización del 2026-09-07
+#
+# Cierra el ciclo que hasta hoy terminaba a mano: commit → PR → CI → merge →
+# **migrar** → **desplegar** → **comprobar que lo desplegado sirve**.
+#
+# ---------------------------------------------------------------------------
+# Por qué no se despliega desde la laptop
+# ---------------------------------------------------------------------------
+#
+# El 2026-09-07 un `vercel --prod` desde la máquina de desarrollo subió el
+# `.env` local pese a estar en `.gitignore`. El log lo dijo con todas sus
+# letras —`- Environments: .env`— y Next lo cargó en el build de producción.
+# Las variables que Vercel define ganaron, pero **las que no, se llenaron con
+# el valor local**: `PAYMENT_SIMULATOR=si` viajó de la laptop a producción y
+# dejó vivo el botón que confirma reservas sin cobrar. El despliegue que iba a
+# cerrar ese hueco lo mantuvo abierto por otra puerta.
+#
+# Existe `.vercelignore` para que no vuelva a pasar, pero la defensa de verdad
+# es esta: **el runner no tiene `.env`**, porque git nunca lo tuvo. Desplegar
+# desde CI hace que ese error sea imposible en lugar de improbable.
+#
+# ---------------------------------------------------------------------------
+# Por qué `workflow_run` y no `push`
+# ---------------------------------------------------------------------------
+#
+# Se despliega **después** de que la CI termine en verde sobre la rama que
+# despliega, no en paralelo. Con `push` las dos arrancarían a la vez y
+# producción podría estrenar un commit cuyas pruebas todavía no han terminado
+# —o que van a fallar—. Aquí, si la CI no pasó, esto ni siquiera corre.
+#
+# ---------------------------------------------------------------------------
+# El orden migrar → desplegar no es negociable
+# ---------------------------------------------------------------------------
+#
+# El código nuevo lee columnas que la migración crea. Al revés, entre el
+# despliegue y la migración hay una ventana en la que producción sirve código
+# que consulta algo que no existe. Por eso van en el mismo job y en este orden:
+# si la migración falla, no hay despliegue.
+#
+# Las migraciones son aditivas por convención (nunca se edita una aplicada), así
+# que migrar antes es seguro para el código viejo que todavía está arriba
+# durante esos segundos.
+
+name: Desplegar producción
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches:
+      - main
+      - 'claude/**'
+  # Escotilla manual para volver a desplegar sin tocar código.
+  workflow_dispatch:
+
+concurrency:
+  # Dos despliegues a la vez sobre la misma base y el mismo proyecto no tienen
+  # sentido, y el segundo podría adelantar al primero.
+  group: desplegar-produccion
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    name: Migrar y desplegar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Sin esto, un PR que no pasó la CI llegaría hasta aquí. `workflow_dispatch`
+    # no trae `workflow_run`, así que se acepta explícitamente.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      # ── Compuerta 0: ¿están las llaves? ──
+      # Falla aquí, en el primer paso y con un mensaje que dice qué hacer, en
+      # vez de a mitad del despliegue con un error de la API de Vercel.
+      - name: Comprobar credenciales
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          falta=0
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::error::Falta el secreto VERCEL_TOKEN. Se genera en"\
+                 "vercel.com/account/tokens (alcance: el equipo del proyecto) y se"\
+                 "carga con: gh secret set VERCEL_TOKEN"
+            falta=1
+          fi
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Falta el secreto DATABASE_URL (la cadena directa de Neon)."
+            falta=1
+          fi
+          [ "$falta" -eq 0 ] || exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          # `workflow_run` apunta al commit que disparó la CI, no a la punta de
+          # la rama. Sin esto se desplegaría lo que hubiera en HEAD, que puede
+          # ser otra cosa.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ── Paso 1: migrar, antes de desplegar ──
+      - name: Migraciones pendientes en producción
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # DB_CONFIRM porque el destino ya viene del secreto, no de un teclado.
+          # DB_BOOTSTRAP **no** se pasa: estrenar el esquema en una base remota
+          # sigue exigiendo una decisión humana, y una base de producción vacía
+          # siempre es un destino equivocado.
+          DB_CONFIRM=si ./scripts/db.sh migrate
+
+      # ── Paso 2: desplegar ──
+      - name: Desplegar a Vercel
+        id: desplegar
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npm i -g vercel@latest
+          # La URL se pesca del log con una expresión, no con `tail -1`: el CLI
+          # cambia lo que imprime al final entre versiones y a veces cierra con
+          # un bloque JSON de sugerencias.
+          vercel deploy --prod --yes --token "$VERCEL_TOKEN" 2>&1 | tee /tmp/despliegue.log
+          url="$(grep -oE 'https://adrimarket-[a-z0-9]+-[a-z0-9-]+\.vercel\.app' /tmp/despliegue.log | tail -1)"
+          echo "desplegado en: ${url:-(no se pudo leer la URL del log)}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # ── Paso 3: comprobar lo desplegado ──
+      #
+      # No se marca la casilla por confianza. Estas tres comprobaciones son las
+      # que habrían atrapado el incidente del 2026-09-07 en el minuto uno en
+      # lugar de dejarlo vivo en el sitio público.
+      - name: Comprobar que lo desplegado sirve
+        run: |
+          sitio="https://adrimarket.vercel.app"
+
+          # El despliegue tarda unos segundos en tomar el alias de producción.
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null "$sitio/es" && break
+            sleep 2
+          done
+
+          curl -s --max-time 30 "$sitio/api/health" -o /tmp/salud.json
+          python3 -m json.tool /tmp/salud.json
+
+          python3 <<'PY'
+          import json, sys
+          salud = json.load(open("/tmp/salud.json"))
+          checks = salud["checks"]
+          fallos = []
+
+          # 1. La portada responde y la salud es legible: ya se comprobó arriba.
+
+          # 2. **El simulador no puede estar vivo en producción.** Es el
+          #    incidente del 2026-09-07 convertido en compuerta: si
+          #    PAYMENT_SIMULATOR vuelve a colarse —por un .env en el paquete,
+          #    por alguien que lo cargue en Vercel— el despliegue falla aquí y
+          #    se ve, en vez de quedarse regalando inventario en silencio.
+          detalle = checks.get("payments", {}).get("detail", "(ausente)")
+          if "fingir un pago" in detalle:
+              fallos.append(f"el simulador de pagos está ACTIVO en producción: {detalle}")
+          print(f"pasarela: {detalle}")
+
+          # 3. Ningún chequeo de salud en rojo.
+          rojos = [k for k, v in checks.items() if not v["ok"]]
+          if rojos:
+              fallos.append(f"chequeos de salud en rojo: {', '.join(rojos)}")
+
+          if fallos:
+              for f in fallos:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print("✔ producción responde, la salud está limpia y nadie puede fingir un pago")
+          PY
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "### Despliegue a producción"
+            echo
+            echo "- commit: \`${{ github.event.workflow_run.head_sha || github.sha }}\`"
+            echo "- despliegue: ${{ steps.desplegar.outputs.url }}"
+            echo "- sitio: https://adrimarket.vercel.app"
+          } >> "$GITHUB_STEP_SUMMARY"
