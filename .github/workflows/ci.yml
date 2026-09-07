@@ -58,6 +58,18 @@ jobs:
           node-version: 22
           cache: npm
 
+      # `npm ci` y no `npm install`: la gracia es que el lock mande.
+      #
+      # Ojo con una trampa que costó el primer PR de este repositorio: un
+      # `package-lock.json` generado en macOS **no trae las dependencias
+      # opcionales de Linux**, y aquí `npm ci` falla con "Missing:
+      # @emnapi/runtime@… from lock file". No es un lock corrupto — es que npm
+      # resuelve las opcionales según la plataforma donde corre.
+      #
+      # Se regenera dentro de un contenedor Linux, que produce un lock que
+      # sirve en las dos:
+      #   docker run --rm -v "$PWD":/app -w /app node:22-bookworm \
+      #     npm install --package-lock-only --ignore-scripts
       - run: npm ci
 
       # ── Compuerta: las migraciones aplican limpias desde cero ──
