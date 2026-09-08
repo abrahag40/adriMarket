@@ -119,18 +119,49 @@ jobs:
           DB_CONFIRM=si ./scripts/db.sh migrate
 
       # ── Paso 2: desplegar ──
+      #
+      # `shell: bash` y no el de por omisión. GitHub corre los `run:` con
+      # `bash -e`, **sin `pipefail`**, y en una tubería el código de salida es
+      # el del último comando. La primera versión de este paso hacía
+      # `vercel deploy … | tee`, así que cuando el despliegue falló con
+      # "Error: User not found" el paso se reportó **verde**: el que devolvía
+      # cero era `tee`. `shell: bash` añade `-o pipefail` y el fallo se ve.
       - name: Desplegar a Vercel
         id: desplegar
+        shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          # Sin esto el CLI no sabe a qué proyecto desplegar y muere con
+          # "User not found", que suena a un problema del token y no lo es:
+          # `.vercel/` está en `.gitignore`, así que el runner nunca tiene el
+          # enlace que sí existe en la máquina de quien desarrolla.
+          #
+          # Son identificadores, no credenciales: van como variables del
+          # repositorio y sin el token no sirven para nada.
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
         run: |
+          if [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::error::Faltan las variables VERCEL_ORG_ID / VERCEL_PROJECT_ID."\
+                 "Salen de .vercel/project.json y se cargan con: gh variable set VERCEL_ORG_ID"
+            exit 1
+          fi
+
           npm i -g vercel@latest
-          # La URL se pesca del log con una expresión, no con `tail -1`: el CLI
-          # cambia lo que imprime al final entre versiones y a veces cierra con
-          # un bloque JSON de sugerencias.
           vercel deploy --prod --yes --token "$VERCEL_TOKEN" 2>&1 | tee /tmp/despliegue.log
-          url="$(grep -oE 'https://adrimarket-[a-z0-9]+-[a-z0-9-]+\.vercel\.app' /tmp/despliegue.log | tail -1)"
-          echo "desplegado en: ${url:-(no se pudo leer la URL del log)}"
+
+          # La URL se pesca con una expresión y no con `tail -1`: el CLI cambia
+          # lo que imprime al final entre versiones.
+          url="$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/despliegue.log | tail -1)"
+
+          # Y si no hay URL, no hubo despliegue. Esta guarda es la que habría
+          # atrapado el fallo silencioso aunque `pipefail` no estuviera.
+          if [ -z "$url" ]; then
+            echo "::error::El CLI no devolvió ninguna URL: no hubo despliegue."
+            exit 1
+          fi
+
+          echo "desplegado en: $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       # ── Paso 3: comprobar lo desplegado ──
@@ -138,7 +169,37 @@ jobs:
       # No se marca la casilla por confianza. Estas tres comprobaciones son las
       # que habrían atrapado el incidente del 2026-09-07 en el minuto uno en
       # lugar de dejarlo vivo en el sitio público.
+      # Antes que nada: que producción sirva **este** despliegue y no otro.
+      #
+      # La primera versión de este workflow se saltó esto, y por eso reportó un
+      # despliegue exitoso que nunca ocurrió: el `vercel deploy` falló, el paso
+      # se puso verde por culpa de la tubería, y las comprobaciones de abajo
+      # pasaron **sobre el despliegue anterior**, que casualmente estaba bien.
+      # Comprobar que el sitio responde no dice nada si nadie comprueba que el
+      # sitio es el que se acaba de subir.
+      - name: El alias de producción apunta a este despliegue
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          ESPERADA: ${{ steps.desplegar.outputs.url }}
+        run: |
+          vercel ls --prod --token "$VERCEL_TOKEN" 2>&1 | tee /tmp/lista.log
+          ultima="$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/lista.log | head -1)"
+
+          echo "  desplegada ahora: $ESPERADA"
+          echo "  la más reciente:  ${ultima:-(ninguna)}"
+
+          if [ "$ultima" != "$ESPERADA" ]; then
+            echo "::error::El despliegue más reciente de producción no es el que acaba"\
+                 "de crearse. Producción podría estar sirviendo código viejo."
+            exit 1
+          fi
+          echo "✔ producción sirve el despliegue de esta corrida"
+
       - name: Comprobar que lo desplegado sirve
+        shell: bash
         run: |
           sitio="https://adrimarket.vercel.app"
 

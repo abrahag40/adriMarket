@@ -153,6 +153,44 @@ exactamente eso, en vez de morir a media API de Vercel.
 `DATABASE_URL` (la cadena directa de Neon) ya existe como secreto desde el
 2026-09-04.
 
+## El primer despliegue automático mintió, y lo que enseñó
+
+La primera corrida completa —con `VERCEL_TOKEN` ya cargado— reportó **todos los
+pasos en verde**. No había desplegado nada:
+
+```
+Error: User not found.
+desplegado en: (no se pudo leer la URL del log)
+✔ producción responde, la salud está limpia y nadie puede fingir un pago
+```
+
+Tres defectos encadenados, y los tres valen la pena:
+
+1. **`Error: User not found` no era del token.** `.vercel/` está en
+   `.gitignore`, así que el runner nunca tiene el enlace al proyecto que sí
+   existe en la máquina de quien desarrolla. Sin `VERCEL_ORG_ID` y
+   `VERCEL_PROJECT_ID`, el CLI no sabe a dónde desplegar y el error que da
+   suena a credencial inválida. Ahora van como **variables** del repositorio —
+   son identificadores, no credenciales, y sin el token no sirven de nada.
+
+2. **La tubería se tragó el fallo.** GitHub corre los `run:` con `bash -e`,
+   **sin `pipefail`**, y en una tubería el código de salida es el del último
+   comando. `vercel deploy … | tee` devolvía el cero de `tee`. Se arregla con
+   `shell: bash`, que añade `-o pipefail`, y con una guarda explícita: **si no
+   hay URL, no hubo despliegue**.
+
+3. **Y la comprobación pasó igual**, porque preguntaba si
+   `adrimarket.vercel.app` estaba sano — y lo estaba, sirviendo el despliegue
+   anterior. *Comprobar que el sitio responde no dice nada si nadie comprueba
+   que el sitio es el que se acaba de subir.* Ahora hay un paso previo que
+   exige que el despliegue más reciente de producción sea **el de esta
+   corrida**.
+
+Es exactamente el defecto contra el que existe este workflow —una barra verde
+sobre código que no se probó— cometido por el workflow mismo. Que lo haya
+destapado en su primer uso, y no dentro de tres semanas con una reserva real de
+por medio, es el argumento de la decisión entera.
+
 ## Cómo se comprobó
 
 - Los cuatro workflows parsean como YAML válido.
