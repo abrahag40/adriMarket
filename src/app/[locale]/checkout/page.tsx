@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown";
 import { formatMoney, isLocale, productPath, type ProductKind, isRental } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
+import { holdMinutes } from "@/modules/booking/create";
 import { getProductDetail } from "@/modules/catalog/queries";
 import { quoteRental, quoteTour } from "@/modules/pricing/service";
 import { QuoteError } from "@/modules/pricing/types";
@@ -42,6 +43,12 @@ export default async function CheckoutPage({
   if (!isLocale(locale)) notFound();
   const t = getMessages(locale);
   const sp = await searchParams;
+
+  // Cuánto dura el apartado sale de la **misma función** que lo aplica al
+  // crearlo. Estaban los dos hardcodeados en 15 mientras el ajuste decía otra
+  // cosa: la página le prometía al huésped una prisa que no era la real, y con
+  // el apartado subido a 35 le habría metido una que no existe.
+  const minutosDeApartado = await holdMinutes();
 
   /* El tipo viene de la URL, o sea de un desconocido: se valida contra la
      lista real en vez de asumir "si no es tour, es estancia" —que era lo que
@@ -96,7 +103,7 @@ export default async function CheckoutPage({
           // huéspedes no cambian el precio ni el cupo.
           paxSlots={[]}
           depositLabel={formatMoney(result.quote.deposit_cents, result.quote.currency, locale)}
-          holdMinutes={15}
+          holdMinutes={minutosDeApartado}
           policyText={product.kind === "stay" ? null : null}
         />
       );
@@ -154,7 +161,7 @@ export default async function CheckoutPage({
           }}
           paxSlots={paxSlots}
           depositLabel={formatMoney(result.quote.deposit_cents, result.quote.currency, locale)}
-          holdMinutes={15}
+          holdMinutes={minutosDeApartado}
           policyText={null}
         />
       );

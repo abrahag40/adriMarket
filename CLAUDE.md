@@ -34,7 +34,7 @@ en el `PATH`.
 cp .env.example .env          # y apuntar DATABASE_URL a tu Postgres
 npm install
 
-npm run db:migrate            # aplica las 21 migraciones en orden
+npm run db:migrate            # aplica las 22 migraciones en orden
 npm run db:seed               # datos de desarrollo
 npm run dev                   # http://localhost:3000
 ```
@@ -375,6 +375,19 @@ Están aquí porque cada una se pagó una vez.
   prueba de la carrera acepta los dos caminos al mismo "no" en vez de exigir un
   detalle de temporización. Ver
   [decisión 0014](docs/decisiones/0014-un-cupon-que-no-se-aplica-detiene-la-reserva.md).
+- **Stripe no permite sesiones de pago menores a 30 minutos, y el apartado
+  duraba 15.** Entre el minuto 15 y el 30 el huésped podía pagar por fechas ya
+  liberadas: se le cobraba, `booking_confirm` rechazaba con AM003, **la
+  transacción rodaba atrás borrando hasta el registro del pago**, y la ruta
+  respondía 500 en cada reintento de Stripe durante tres días. Ni reserva, ni
+  rastro — `/api/health` no lo veía porque no quedaba nada que ver. No ocurría
+  solo porque el simulador local es instantáneo. Ahora el apartado son 35
+  minutos, `HOLD_MINUTES_MINIMO` impide bajarlo de 30, `expires_at` deriva del
+  apartado real, y un pago que llegue tarde igual **se registra, se devuelve y
+  se avisa** en vez de perderse. Ver
+  [decisión 0015](docs/decisiones/0015-el-apartado-tiene-que-sobrevivir-a-la-sesion-de-pago.md).
+  **En producción hay que correr `db/arreglos/apartado-35-minutos.sql`**: el
+  seed no se corre allá.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 

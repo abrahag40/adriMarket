@@ -28,6 +28,18 @@ import {
 
 const API = "https://api.stripe.com/v1";
 
+/** Lo que Stripe admite en `expires_at`: de 30 minutos a 24 horas. */
+const STRIPE_MIN_SEGUNDOS = 30 * 60;
+const STRIPE_MAX_SEGUNDOS = 24 * 60 * 60;
+
+/** El vencimiento del apartado, en la forma y los límites que acepta Stripe. */
+export function stripeExpiresAt(holdExpiresAt: string, now: Date = new Date()): number {
+  const ahora = Math.floor(now.getTime() / 1000);
+  const pedido = Math.floor(new Date(holdExpiresAt).getTime() / 1000);
+  const margen = Number.isFinite(pedido) ? pedido - ahora : 0;
+  return ahora + Math.min(Math.max(margen, STRIPE_MIN_SEGUNDOS), STRIPE_MAX_SEGUNDOS);
+}
+
 export class StripeProvider implements PaymentProvider {
   readonly name = "stripe";
 
@@ -121,9 +133,20 @@ export class StripeProvider implements PaymentProvider {
       "metadata[booking_id]": request.bookingId,
       "metadata[booking_code]": request.bookingCode,
       "metadata[idempotency_key]": `deposit:${request.bookingId}`,
-      // El anticipo expira con el apartado: una sesión que sobrevive al hold
-      // permitiría pagar por fechas que ya se liberaron.
-      expires_at: String(Math.floor(Date.now() / 1000) + 30 * 60),
+      // El anticipo expira **con el apartado**, no en un plazo inventado aquí.
+      //
+      // Antes esta línea decía `Date.now() + 30 * 60` mientras el apartado
+      // duraba 15 minutos, así que el comentario que la acompañaba —"una sesión
+      // que sobrevive al hold permitiría pagar por fechas que ya se liberaron"—
+      // describía exactamente el defecto que la propia línea causaba.
+      //
+      // Stripe **no acepta menos de 30 minutos** (ni más de 24 horas), así que
+      // el apartado se configura por encima de ese piso y aquí solo se lleva a
+      // segundos. El `Math.max` no está para permitir apartados cortos: está
+      // para que, si alguien los configura, la sesión no se rechace y el
+      // huésped vea un error en lugar de una página de pago. La ventana la
+      // cierra `HOLD_MINUTES_MINIMO`, no esto.
+      expires_at: String(stripeExpiresAt(request.holdExpiresAt)),
     };
     if (request.email) form.customer_email = request.email;
 

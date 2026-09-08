@@ -26,6 +26,16 @@ export type DepositRequest = {
   description: string;
   successUrl: string;
   cancelUrl: string;
+  /**
+   * Cuándo vence el apartado, en ISO. La sesión de pago no puede sobrevivirlo.
+   *
+   * Viaja hasta aquí en vez de calcularse en la pasarela porque el apartado es
+   * un ajuste (`settings.checkout.hold_minutes`) y la pasarela no tiene por qué
+   * saberlo. Antes `stripe.ts` fijaba 30 minutos a mano mientras el apartado
+   * duraba 15: entre el minuto 15 y el 30 el huésped podía pagar por fechas que
+   * ya se habían liberado.
+   */
+  holdExpiresAt: string;
 };
 
 /** Lo que el proveedor nos dice que pasó, ya normalizado. */

@@ -4,6 +4,10 @@ import type { PaymentProvider } from "./types";
 
 export * from "./types";
 export { LocalProvider } from "./local";
+// La pasarela real y su cálculo de vencimiento se exportan para `probar:stripe`:
+// una sonda que arma la llamada por su cuenta deja de parecerse a la real en
+// cuanto alguien toca una de las dos.
+export { StripeProvider, stripeExpiresAt } from "./stripe";
 export { signPayload, verifySignature } from "./signature";
 
 /**
