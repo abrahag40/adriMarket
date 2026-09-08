@@ -66,11 +66,32 @@ export type CreatedBooking = {
   depositDueAt: string;
 };
 
-async function holdMinutes(): Promise<number> {
+/**
+ * Cuánto dura el apartado.
+ *
+ * **No baja de 30 minutos, y no es una preferencia.** Stripe no permite una
+ * sesión de pago más corta que eso, así que un apartado menor deja una ventana
+ * en la que el huésped paga por inventario que ya se liberó: se le cobra el
+ * anticipo, `booking_confirm` rechaza con AM003, la transacción rueda atrás
+ * —borrando hasta el registro del pago— y el webhook responde 500 en cada uno
+ * de los reintentos que Stripe hace durante tres días. Ni el huésped tiene
+ * reserva, ni el sistema tiene rastro de que cobró.
+ *
+ * El valor por omisión son 35: los 30 que exige Stripe más margen para el
+ * desfase de reloj y para que el webhook llegue, que no es instantáneo.
+ * Quince minutos —lo que había— además es poco para un pago real: buscar la
+ * tarjeta, el 3-D Secure, la app del banco.
+ */
+export const HOLD_MINUTES_MINIMO = 30;
+const HOLD_MINUTES_POR_OMISION = 35;
+
+export async function holdMinutes(): Promise<number> {
   const rows = await db.execute<{ minutes: number | null }>(sql`
     select (value -> 'hold_minutes')::int as minutes from settings where key = 'checkout'
   `);
-  return rows[0]?.minutes ?? 15;
+  const configurado = rows[0]?.minutes ?? HOLD_MINUTES_POR_OMISION;
+  // Un ajuste mal puesto no debe reabrir la ventana en silencio.
+  return Math.max(configurado, HOLD_MINUTES_MINIMO);
 }
 
 /** Política vigente del producto, para congelarla en la reserva. */

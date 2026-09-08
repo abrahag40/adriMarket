@@ -145,6 +145,7 @@ async function payDeposit(booking: { bookingId: string; depositCents: number; cu
     currency: booking.currency,
     email: holder.email,
     description: "anticipo",
+    holdExpiresAt: new Date(Date.now() + 35 * 60_000).toISOString(),
     successUrl: "https://example.com/ok",
     cancelUrl: "https://example.com/no",
   });
@@ -189,7 +190,13 @@ describe("crear la reserva con apartado", () => {
     const row = rows[0]!;
 
     assert.equal(row.status, "hold");
-    assert.ok(row.due_in_minutes >= 13 && row.due_in_minutes <= 15, "el apartado vence en 15 minutos");
+    // 35 y no 15: Stripe no permite sesiones de pago menores a 30 minutos, así
+    // que un apartado más corto deja una ventana en la que el huésped paga por
+    // inventario que ya se liberó. Ver HOLD_MINUTES_MINIMO en create.ts.
+    assert.ok(
+      row.due_in_minutes >= 33 && row.due_in_minutes <= 35,
+      `el apartado vence en 35 minutos, y venció en ${row.due_in_minutes}`,
+    );
     assert.equal(row.pax, 1, "el titular se guarda como pax con bandera");
 
     // El desglose se congela con las etiquetas ya traducidas: un comprobante que
@@ -439,6 +446,7 @@ describe("crear la reserva con apartado", () => {
 });
 
 describe("webhook de la pasarela", () => {
+
   it("confirma la reserva, registra el saldo y encola los avisos", async () => {
     const range = freshRange();
     const booking = await createBookingWithHold({ kind: "stay", productId: CASA, range, guests: 5 }, holder, []);
@@ -753,7 +761,21 @@ describe("expiración del apartado", () => {
     assert.equal(rows[0]?.libre, true, "las fechas vuelven a estar a la venta");
   });
 
-  it("una reserva expirada ya no se puede confirmar con un pago tardío", async () => {
+  it("una reserva expirada no se resucita, pero el dinero no se pierde", async () => {
+    // **Esta prueba cambió de intención, a propósito.**
+    //
+    // Antes exigía que el webhook **lanzara** —"debe fallar ruidosamente en
+    // lugar de resucitar una reserva cuyo inventario ya se revendió"—. La
+    // primera mitad sigue siendo cierta y se comprueba abajo. La segunda era
+    // falsa: lanzar no fallaba ruidosamente, fallaba en el peor silencio.
+    //
+    // La excepción tumbaba la transacción entera y rodaba atrás **hasta el
+    // registro del pago**, así que quedaba el huésped sin reserva, el dinero
+    // cobrado en la pasarela, y ni un renglón en la base que lo mencionara. La
+    // ruta devolvía 500 y el proveedor reintentaba durante tres días fallando
+    // idéntico. Se reprodujo a mano: 0 pagos, 0 eventos.
+    //
+    // No confirmar es correcto. Perder el rastro no lo es nunca.
     const range = freshRange();
     const booking = await createBookingWithHold({ kind: "stay", productId: CASA, range, guests: 5 }, holder, []);
     await db.execute(sql`
@@ -763,13 +785,33 @@ describe("expiración del apartado", () => {
     await expireHolds();
 
     const event = await payDeposit(booking);
-    // El pago llega tarde: la transición es inválida y debe fallar ruidosamente
-    // en lugar de resucitar una reserva cuyo inventario ya se revendió.
-    await assert.rejects(() => processPaymentWebhook(event.body, event.signature), () => true);
+    const outcome = await processPaymentWebhook(event.body, event.signature);
+    assert.equal(outcome.status, "late_payment", "se atiende y se dice, en vez de reventar");
 
+    // Lo que la prueba vieja protegía, intacto: no se resucita nada.
     const rows = await db.execute<{ status: string }>(sql`
       select status::text as status from bookings where id = ${booking.bookingId}::uuid
     `);
-    assert.equal(rows[0]?.status, "expired");
+    assert.equal(rows[0]?.status, "expired", "el inventario pudo venderse a otro");
+
+    // Y lo que le faltaba: las tres huellas del dinero.
+    const rastro = await db.execute<{ pagos: string; reembolsos: string; avisos: string }>(sql`
+      select (select count(*)::text from payments p
+               where p.booking_id = ${booking.bookingId}::uuid
+                 and p.purpose = 'deposit' and p.status = 'succeeded')            as pagos,
+             (select count(*)::text from refunds r join payments p on p.id = r.payment_id
+               where p.booking_id = ${booking.bookingId}::uuid and r.status = 'pending') as reembolsos,
+             (select count(*)::text from outbox
+               where booking_id = ${booking.bookingId}::uuid
+                 and template = 'payment_late_admin')                             as avisos
+    `);
+    const t = rastro[0]!;
+    assert.equal(t.pagos, "1", "el dinero que entró queda registrado aunque no haya reserva");
+    assert.equal(t.reembolsos, "1", "y su devolución queda pendiente en el panel");
+    assert.equal(t.avisos, "1", "y alguien se entera");
+
+    // El reintento del proveedor no duplica nada.
+    const otra = await processPaymentWebhook(event.body, event.signature);
+    assert.equal(otra.status, "duplicate");
   });
 });

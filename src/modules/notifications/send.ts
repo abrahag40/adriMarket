@@ -6,6 +6,7 @@ import { formatMoney } from "@/i18n/config";
 
 import {
   adminNotification,
+  latePaymentNotice,
   cancellationNotice,
   guestConfirmation,
   reminderNotice,
@@ -440,13 +441,25 @@ export type OutboxReport = { sent: number; failed: number; dead: number };
 function renderTemplate(
   template: string,
   data: BookingNotification,
-  payload: { refund_cents?: number; reason?: string | null; hours_before?: number } | null,
+  payload: {
+    refund_cents?: number;
+    reason?: string | null;
+    hours_before?: number;
+    amount_cents?: number;
+    booking_status?: string;
+  } | null,
 ): { subject: string; text: string } {
   switch (template) {
     case "booking_confirmed_guest":
       return guestConfirmation(data);
     case "booking_confirmed_admin":
       return adminNotification(data);
+    case "payment_late_admin":
+      return latePaymentNotice({
+        ...data,
+        amountCents: Number(payload?.amount_cents ?? 0),
+        bookingStatus: String(payload?.booking_status ?? "desconocido"),
+      });
     case "booking_cancelled_by_operator":
     case "booking_cancelled_by_guest":
       return cancellationNotice({
@@ -478,6 +491,8 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
       refund_cents?: number;
       reason?: string | null;
       hours_before?: number;
+      amount_cents?: number;
+      booking_status?: string;
       rendered?: { subject?: string; text?: string };
     } | null;
   }>(sql`

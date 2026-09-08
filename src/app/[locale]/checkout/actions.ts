@@ -131,6 +131,7 @@ export async function startCheckout(
       description: `Anticipo reserva ${booking.code}`,
       successUrl: absoluteUrl(`/${locale}/reserva/${booking.code}`),
       cancelUrl: absoluteUrl(productPath(locale, kind, slug)),
+      holdExpiresAt: booking.depositDueAt,
     });
 
     destination = session.url;

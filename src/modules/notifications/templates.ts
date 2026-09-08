@@ -204,6 +204,41 @@ export function guestConfirmation(data: BookingNotification): {
   };
 }
 
+/**
+ * Aviso a la administración: entró dinero de una reserva que ya no estaba.
+ *
+ * Es el correo más urgente que manda este sistema, porque del otro lado hay una
+ * persona a la que se le cobró y no tiene reserva. Dice qué pasó, cuánto, y qué
+ * hay que hacer — en ese orden, porque quien lo lee está en el mostrador.
+ */
+export function latePaymentNotice(
+  data: BookingNotification & { amountCents: number; bookingStatus: string },
+): { subject: string; text: string } {
+  const money = (cents: number) => formatMoney(cents, data.currency, "es");
+  const lines: string[] = [];
+
+  lines.push(`Se recibió un pago de una reserva que ya no estaba vigente.`);
+  lines.push("");
+  lines.push(`Reserva: ${data.code} (${data.bookingStatus})`);
+  lines.push(`Producto: ${data.productName}`);
+  lines.push(`Titular: ${data.holderName}`);
+  lines.push(`Monto cobrado: ${money(data.amountCents)}`);
+  lines.push("");
+  lines.push("Qué pasó: el pago llegó después de que venciera el apartado, así que");
+  lines.push("el inventario ya se había liberado y la reserva no se pudo confirmar.");
+  lines.push("");
+  lines.push("Qué hacer:");
+  lines.push("  1. Hablarle al huésped. Se le cobró y no tiene reserva.");
+  lines.push("  2. Si todavía hay disponibilidad, ofrecerle rehacerla.");
+  lines.push("  3. Si no, la devolución ya está registrada en el panel:");
+  lines.push("     /admin/reembolsos");
+
+  return {
+    subject: `Pago sin reserva · ${data.code} · ${money(data.amountCents)}`,
+    text: lines.join("\n"),
+  };
+}
+
 export function adminNotification(data: BookingNotification): {
   subject: string;
   text: string;

@@ -17,7 +17,7 @@ insert into settings (key, value, description) values
    '{"admin_email": "reservas@adrimarket.mx", "reminder_hours": [72, 24]}',
    'Destino de los avisos internos y horas de recordatorio.'),
   ('checkout',
-   '{"hold_minutes": 15, "currencies": ["MXN", "USD"]}',
+   '{"hold_minutes": 35, "currencies": ["MXN", "USD"]}',
    'Duración del apartado durante el checkout.');
 
 insert into staff_users (email, full_name, role) values

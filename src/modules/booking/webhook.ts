@@ -29,7 +29,13 @@ export type WebhookOutcome =
   | { status: "unknown_booking"; eventId: string }
   | { status: "amount_mismatch"; eventId: string; bookingId: string; expected: number; received: number }
   | { status: "confirmed"; eventId: string; bookingId: string }
-  | { status: "payment_failed"; eventId: string; bookingId: string };
+  | { status: "payment_failed"; eventId: string; bookingId: string }
+  | {
+      status: "late_payment";
+      eventId: string;
+      bookingId: string;
+      bookingStatus: string;
+    };
 
 function bookingIdFrom(event: PaymentEventPayload): string | null {
   const raw = event.raw as
@@ -132,6 +138,39 @@ export async function processPaymentWebhook(
           bookingId: booking.id,
           expected,
           received,
+        } as const;
+      }
+
+      // ── El dinero llegó cuando la reserva ya no estaba ──
+      //
+      // Stripe no permite sesiones de pago menores a 30 minutos, así que por
+      // más que el apartado dure más (35), un webhook demorado o un reloj
+      // desfasado pueden traer el pago cuando la reserva ya expiró o se
+      // canceló. Antes esto tumbaba la transacción entera: `booking_confirm`
+      // lanzaba AM003, rodaba atrás **hasta el registro del pago**, y la ruta
+      // devolvía 500 en cada uno de los reintentos de tres días. El huésped sin
+      // reserva, el dinero cobrado, y ni un renglón que lo dijera.
+      //
+      // No confirmar sigue siendo lo correcto —el inventario pudo venderse a
+      // otro—, pero perder el rastro no lo es nunca. Se registra el pago, se
+      // deja la devolución en `/admin/reembolsos`, se avisa, y se responde
+      // 200 para que el proveedor deje de reintentar algo que ya se atendió.
+      if (booking.status !== "hold" && booking.status !== "confirmed") {
+        await tx.execute(sql`
+          select booking_register_late_payment(
+            ${booking.id}::uuid, ${provider.name}, ${event.providerRef},
+            ${received}::bigint, ${booking.currency}::char(3))
+        `);
+        await tx.execute(sql`
+          update payment_events
+             set process_error = ${`pago recibido con la reserva en ${booking.status}: registrado y devolución pendiente`}
+           where provider = ${provider.name} and provider_event_id = ${event.eventId}
+        `);
+        return {
+          status: "late_payment",
+          eventId: event.eventId,
+          bookingId: booking.id,
+          bookingStatus: booking.status,
         } as const;
       }
 

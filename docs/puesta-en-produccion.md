@@ -174,6 +174,21 @@ tampoco. Nada da error; simplemente deja de pasar.
       reserva sin pagar; se quita con `vercel env rm PAYMENT_SIMULATOR
       production` y un despliegue. Ver
       [decisión 0011](decisiones/0011-el-simulador-es-un-permiso.md).
+- [ ] **El apartado dura al menos 30 minutos.** Stripe no admite una sesión de
+      pago más corta, y con un apartado menor el huésped puede pagar por
+      inventario que ya se liberó — se le cobra y no tiene reserva. El seed no
+      se corre en producción, así que el ajuste hay que subirlo aparte:
+      ```bash
+      npm run prod:sql -- db/arreglos/apartado-35-minutos.sql
+      ```
+      Ver [decisión 0015](decisiones/0015-el-apartado-tiene-que-sobrevivir-a-la-sesion-de-pago.md).
+- [ ] **Ejercitar la integración con llaves de prueba antes que con las reales.**
+      Son gratis, inmediatas y no exigen cuenta verificada:
+      ```bash
+      STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… npm run probar:stripe
+      ```
+      Comprueba la creación de la sesión, que `expires_at` sea el del apartado,
+      y la firma del webhook con vectores legítimo, alterado y vencido.
 - [ ] Llaves de producción configuradas.
 - [ ] Webhook apuntando a `https://EL-SITIO/api/webhooks/stripe`.
 - [ ] Eventos suscritos: los de pago exitoso y fallido.
