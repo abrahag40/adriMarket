@@ -171,32 +171,58 @@ jobs:
       # lugar de dejarlo vivo en el sitio público.
       # Antes que nada: que producción sirva **este** despliegue y no otro.
       #
-      # La primera versión de este workflow se saltó esto, y por eso reportó un
-      # despliegue exitoso que nunca ocurrió: el `vercel deploy` falló, el paso
-      # se puso verde por culpa de la tubería, y las comprobaciones de abajo
-      # pasaron **sobre el despliegue anterior**, que casualmente estaba bien.
-      # Comprobar que el sitio responde no dice nada si nadie comprueba que el
-      # sitio es el que se acaba de subir.
+      # La primera versión de este workflow se saltó esta comprobación, y por
+      # eso reportó un despliegue exitoso que nunca ocurrió: el `vercel deploy`
+      # falló, el paso se puso verde por culpa de la tubería, y las
+      # comprobaciones de abajo pasaron **sobre el despliegue anterior**, que
+      # casualmente estaba bien. Comprobar que el sitio responde no dice nada
+      # si nadie comprueba que el sitio es el que se acaba de subir.
+      #
+      # Se pregunta por la **API**, no por el CLI. La segunda versión usaba
+      # `vercel ls --prod` y murió con "Could not retrieve Project Settings":
+      # el CLI quiere un directorio enlazado y el runner no lo tiene. Tampoco
+      # sirve comparar por HTTP — la URL del despliegue está detrás del SSO de
+      # Vercel y responde 302, y `x-vercel-id` identifica la petición, no la
+      # compilación.
       - name: El alias de producción apunta a este despliegue
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           ESPERADA: ${{ steps.desplegar.outputs.url }}
         run: |
-          vercel ls --prod --token "$VERCEL_TOKEN" 2>&1 | tee /tmp/lista.log
-          ultima="$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/lista.log | head -1)"
+          curl -sS --max-time 30 \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=production&limit=1" \
+            -o /tmp/deployments.json
 
-          echo "  desplegada ahora: $ESPERADA"
-          echo "  la más reciente:  ${ultima:-(ninguna)}"
+          python3 - <<'PY'
+          import json, os, sys
 
-          if [ "$ultima" != "$ESPERADA" ]; then
-            echo "::error::El despliegue más reciente de producción no es el que acaba"\
-                 "de crearse. Producción podría estar sirviendo código viejo."
-            exit 1
-          fi
-          echo "✔ producción sirve el despliegue de esta corrida"
+          esperada = os.environ["ESPERADA"].removeprefix("https://")
+          try:
+              datos = json.load(open("/tmp/deployments.json"))
+              ultima = datos["deployments"][0]
+          except Exception as e:
+              # Si la respuesta no tiene la forma esperada se falla **y se
+              # enseña**, en vez de dar por bueno lo que no se pudo leer.
+              print(f"::error::No se pudo leer la respuesta de la API de Vercel: {e}")
+              print(open("/tmp/deployments.json").read()[:600])
+              sys.exit(1)
+
+          print(f"  desplegada ahora: {esperada}")
+          print(f"  la más reciente:  {ultima.get('url')}  ({ultima.get('state')})")
+
+          if ultima.get("url") != esperada:
+              print("::error::El despliegue de producción más reciente no es el que acaba"
+                    " de crearse. Producción podría estar sirviendo código viejo.")
+              sys.exit(1)
+          if ultima.get("state") != "READY":
+              print(f"::error::El despliegue quedó en estado {ultima.get('state')}, no READY.")
+              sys.exit(1)
+
+          print("✔ producción sirve el despliegue de esta corrida")
+          PY
 
       - name: Comprobar que lo desplegado sirve
         shell: bash

@@ -184,7 +184,22 @@ Tres defectos encadenados, y los tres valen la pena:
    anterior. *Comprobar que el sitio responde no dice nada si nadie comprueba
    que el sitio es el que se acaba de subir.* Ahora hay un paso previo que
    exige que el despliegue más reciente de producción sea **el de esta
-   corrida**.
+   corrida**, y que esté en `READY`.
+
+   Ese paso costó dos intentos, y los dos descartes valen la pena:
+
+   - **`vercel ls --prod`** murió con *"Could not retrieve Project Settings"*:
+     el CLI quiere un directorio enlazado y `.vercel/` está en `.gitignore`,
+     así que el runner nunca lo tiene. Pasarle los identificadores por entorno
+     alcanza para `deploy`, no para `ls`.
+   - **Comparar por HTTP** tampoco: la URL del despliegue está detrás del SSO
+     de Vercel y responde `302`, y `x-vercel-id` identifica la petición, no la
+     compilación.
+
+   Se pregunta por la **API REST**, que no depende de ninguna de las dos cosas.
+   Y si la respuesta no tiene la forma esperada, el paso **falla y la imprime**
+   en vez de dar por bueno lo que no pudo leer — que es el mismo error que se
+   está corrigiendo, un nivel más abajo.
 
 Es exactamente el defecto contra el que existe este workflow —una barra verde
 sobre código que no se probó— cometido por el workflow mismo. Que lo haya
