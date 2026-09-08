@@ -65,9 +65,33 @@ export function paymentProvider(): PaymentProvider {
  */
 export type GatewayState = "stripe" | "simulator" | "closed";
 
+/**
+ * **Esta función no lanza, nunca.** Lee la configuración; no construye la
+ * pasarela.
+ *
+ * La primera versión preguntaba `paymentProvider().name === "stripe"`, y
+ * `paymentProvider()` lanza a propósito cuando no hay ninguna configuración de
+ * pagos —lo cual está bien para el checkout: sin pasarela no hay nada que
+ * cobrar—. Pero `gatewayState()` la usa `/api/health`, y un chequeo de salud
+ * que revienta cuando algo no está configurado no informa de nada: responde 500
+ * y se lleva por delante el estado del worker, de los avisos y de los
+ * reembolsos, que sí se sabían. Lo atrapó la CI, que corre sin llaves de pago.
+ *
+ * Un reporte describe la realidad; no exige que la realidad sea correcta.
+ */
 export function gatewayState(): GatewayState {
-  if (paymentProvider().name === "stripe") return "stripe";
-  return process.env.PAYMENT_SIMULATOR === "si" ? "simulator" : "closed";
+  if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET) return "stripe";
+
+  // Simular exige dos cosas, no una: el permiso explícito **y** que la pasarela
+  // local se pueda construir de verdad. Sin `LOCAL_WEBHOOK_SECRET` no hay con
+  // qué firmar el evento, así que ofrecer el botón sería ofrecer un error.
+  if (process.env.PAYMENT_SIMULATOR === "si" && process.env.LOCAL_WEBHOOK_SECRET) {
+    return "simulator";
+  }
+
+  // Incluye el caso "no hay ninguna configuración de pagos". Nadie cobra y
+  // nadie finge: es exactamente lo que `closed` significa.
+  return "closed";
 }
 
 /** Para las pruebas, que cambian de proveedor entre casos. */

@@ -87,6 +87,14 @@ npm run db:bench              # sobreventa bajo concurrencia real
 ```
 
 **Última corrida completa: todo en verde, sobre una base recreada desde cero.**
+
+Desde el 2026-09-07 esto también corre solo: **commit → PR → CI → merge →
+migrar → desplegar → comprobar**. La CI (`ci.yml`) es la compuerta del PR;
+`desplegar.yml` se dispara cuando la CI termina en verde sobre la rama por
+defecto, aplica las migraciones pendientes **antes** de desplegar y después
+comprueba contra el sitio real que la salud esté limpia y que **el simulador
+de pagos no esté activo** — el incidente del mismo día, vuelto compuerta.
+No se despliega a mano; ver [decisión 0013](docs/decisiones/0013-desplegar-desde-ci-no-desde-la-laptop.md).
 Si vas a tocar algo del dominio, corre `db:test` y `test:integration` antes y
 después: son rápidas y son las que atrapan lo caro.
 
@@ -343,6 +351,30 @@ Están aquí porque cada una se pagó una vez.
   ello**: los tres son legítimos y un chequeo siempre en rojo enseña a ignorar
   el rojo. Ver [decisión 0011](docs/decisiones/0011-el-simulador-es-un-permiso.md).
   Si `npm run test:e2e` se cuelga esperando el botón, falta la variable en `.env`.
+- **`vercel --prod` desde la laptop sube tu `.env`, aunque esté en
+  `.gitignore`.** El 2026-09-07 el despliegue que iba a cerrar el hueco del
+  simulador lo mantuvo abierto por otra puerta: el CLI empaquetó el `.env`
+  local y el log del build lo dijo —`- Environments: .env`—. Next lo carga, y
+  aunque **las variables definidas en Vercel ganan** (`DATABASE_URL` y las
+  demás siguieron siendo las de producción), las que Vercel **no** define se
+  llenan con el valor local: `PAYMENT_SIMULATOR=si` viajó de la máquina de
+  desarrollo a producción. Es la misma lección que la de
+  `.env.production.local`, por otro camino: **`.gitignore` protege el
+  repositorio, no el paquete que sube el CLI.** Ahora existe `.vercelignore`,
+  pero la defensa real es no desplegar desde la laptop: **el runner no tiene
+  `.env` porque git nunca lo tuvo.** Para descartarlo en un despliegue:
+  `vercel inspect --logs <url> | grep -i environments` — no debe salir nada.
+- **Una prueba intermitente puede ser dos pruebas que se contradicen.** La de
+  la carrera por el último canje de un cupón fallaba una de cada tres veces, y
+  no era ruido: convivía con otra que afirmaba lo contrario —"un código que no
+  existe no bloquea la reserva: se cobra el precio completo"— y el código
+  implementaba esa. Ganaba una u otra según **cuándo** corriera el segundo
+  presupuesto. Lo caro no era el fallo sino lo que tapaba: un huésped que pedía
+  un descuento y pagaba de más **sin que nadie se lo dijera**. Hoy un cupón que
+  no se aplica detiene la reserva con su motivo, para las siete razones, y la
+  prueba de la carrera acepta los dos caminos al mismo "no" en vez de exigir un
+  detalle de temporización. Ver
+  [decisión 0014](docs/decisiones/0014-un-cupon-que-no-se-aplica-detiene-la-reserva.md).
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 

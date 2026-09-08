@@ -4,7 +4,7 @@ import { db, toDateRangeLiteral, type DateRange } from "@/db/index";
 import { rethrowDomainError } from "@/modules/availability/holds";
 import { freezeQuoteLabels } from "@/modules/pricing/labels";
 import { quoteRental, quoteTour } from "@/modules/pricing/service";
-import type { PaxCounts, Quote } from "@/modules/pricing/types";
+import { QuoteError, type PaxCounts, type Quote } from "@/modules/pricing/types";
 import type { Locale } from "@/i18n/config";
 
 /**
@@ -149,6 +149,22 @@ export async function createBookingWithHold(
     // consultó `counts_toward_capacity`. Aquí no se recalcula.
     seatsNeeded = quoted.seatsNeeded;
     couponId = quoted.couponId;
+  }
+
+  // Un cupón que se pidió y no se pudo aplicar detiene la reserva.
+  //
+  // No es celo: sin esto, el huésped que escribe un código agotado —o vencido,
+  // o de otro producto— termina con una reserva **a precio completo y sin
+  // aviso**. Pidió un descuento, se le cobra de más, y se entera cuando le
+  // llega el comprobante. Es material de contracargo.
+  //
+  // Vale para las siete razones de rechazo, sin casos especiales: cada una
+  // tiene su mensaje escrito en los dos idiomas desde que existe el campo. Y
+  // es el mismo trato que reciben las otras tres categorías de inventario
+  // (AM001-3): quien no puede completar, no se completa a medias — recibe un
+  // no claro y decide.
+  if (input.couponCode && quote.coupon && !quote.coupon.applied) {
+    throw new QuoteError("coupon_rejected", { reason: quote.coupon.reason });
   }
 
   const ttl = await holdMinutes();

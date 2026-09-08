@@ -63,6 +63,37 @@ describe("estado de la pasarela", () => {
     );
   });
 
+  it("sin ninguna configuración de pagos NO lanza: reporta 'closed'", () => {
+    // Lo atrapó la primera corrida de CI que llegó a la barra. `gatewayState()`
+    // preguntaba `paymentProvider().name`, y `paymentProvider()` lanza a
+    // propósito cuando no hay nada configurado. Como `/api/health` usa esta
+    // función, la salud respondía **500** y se llevaba por delante el estado
+    // del worker, de los avisos y de los reembolsos, que sí se sabían.
+    //
+    // Un reporte describe la realidad; no exige que la realidad sea correcta.
+    for (const key of [
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET",
+      "PAYMENT_SIMULATOR",
+      "LOCAL_WEBHOOK_SECRET",
+    ]) {
+      delete process.env[key];
+    }
+    resetPaymentProvider();
+
+    assert.doesNotThrow(() => gatewayState(), "la salud no puede reventar por esto");
+    assert.equal(gatewayState(), "closed");
+  });
+
+  it("el permiso sin pasarela local tampoco simula", () => {
+    // Con el permiso puesto pero sin `LOCAL_WEBHOOK_SECRET` no hay con qué
+    // firmar el evento: ofrecer el botón sería ofrecer un error.
+    conEntorno({ PAYMENT_SIMULATOR: "si" });
+    delete process.env.LOCAL_WEBHOOK_SECRET;
+    resetPaymentProvider();
+    assert.equal(gatewayState(), "closed");
+  });
+
   it("un valor que no es exactamente 'si' no habilita nada", () => {
     // Un `PAYMENT_SIMULATOR=false` o `=0` heredado de otro proyecto no debe
     // leerse como "encendido" por el simple hecho de estar definido.

@@ -1,0 +1,42 @@
+# Qué NO se sube al desplegar desde el CLI.
+#
+# Existe por un despliegue que salió mal el 2026-09-07. `vercel --prod` subió el
+# `.env` local pese a estar en `.gitignore`, y el log del build lo dijo con
+# todas sus letras:
+#
+#   - Environments: .env
+#
+# Next carga ese archivo, y aunque **las variables que Vercel define ganan**
+# —`DATABASE_URL`, `JOBS_SECRET` y las demás siguieron siendo las de
+# producción—, las que Vercel **no** define se llenan con el valor local. Ese
+# día `PAYMENT_SIMULATOR=si` viajó de la laptop a producción y dejó vivo el
+# botón que confirma reservas sin cobrar: el despliegue que iba a cerrar el
+# hueco lo mantuvo abierto por otra puerta.
+#
+# La lección es la misma que la de `.env.production.local` en CLAUDE.md, por un
+# camino distinto: `.gitignore` protege el repositorio, no el paquete que sube
+# el CLI. Son dos fronteras y hacen falta las dos.
+#
+# Para comprobarlo en un despliegue:
+#   vercel inspect --logs <url> | grep -i environments
+# No debe aparecer ningún `.env`.
+
+# --- Lo que motivó este archivo ---
+.env
+.env.*
+
+# --- Ruido que además hace el paquete más pesado ---
+node_modules
+.next
+.git
+.vercel
+.claude
+
+# Capturas de los recorridos en navegador: megabytes de evidencia de una
+# corrida concreta que no tienen nada que hacer en producción.
+/*.png
+
+# Artefactos locales
+*.log
+*.tsbuildinfo
+var/media

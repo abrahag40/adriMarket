@@ -136,7 +136,16 @@ export async function startCheckout(
     destination = session.url;
   } catch (error) {
     if (error instanceof InventoryUnavailableError) return { error: error.code };
-    if (error instanceof QuoteError) return { error: error.code };
+    if (error instanceof QuoteError) {
+      // El motivo del rechazo viaja pegado al código, porque este estado es una
+      // cadena plana y sin él el huésped leería "No pudimos crear tu reserva"
+      // en vez de "ese cupón ya se agotó" — que es justo lo que hay que decirle
+      // para que decida si reserva igual.
+      if (error.code === "coupon_rejected") {
+        return { error: `coupon:${String(error.params.reason)}` };
+      }
+      return { error: error.code };
+    }
     throw error;
   }
 
