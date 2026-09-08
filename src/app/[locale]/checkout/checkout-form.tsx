@@ -2,8 +2,10 @@
 
 import { useActionState } from "react";
 
+import { describeCouponReason } from "@/components/quote-breakdown";
 import type { Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
+import type { CouponRejectReason } from "@/modules/pricing/types";
 
 import { startCheckout, type CheckoutState } from "./actions";
 
@@ -38,7 +40,11 @@ export function CheckoutForm({
   const errorMessage =
     state.error === null
       ? null
-      : state.error === "closed"
+      : // Un cupón que se pidió y no se pudo aplicar: se dice cuál de las siete
+        // razones fue, no un genérico.
+        state.error.startsWith("coupon:")
+        ? describeCouponReason(state.error.slice("coupon:".length) as CouponRejectReason, t)
+        : state.error === "closed"
         ? t.bookingClosed
         : state.error === "missing"
           ? t.requiredField

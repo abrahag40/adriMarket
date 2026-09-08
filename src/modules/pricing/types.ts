@@ -95,7 +95,19 @@ export type QuoteErrorCode =
   | "over_capacity"
   | "no_pax"
   | "sold_out"
-  | "departure_closed";
+  | "departure_closed"
+  // Un cupón que el huésped pidió y no se pudo aplicar. El motivo va en
+  // `params.reason` y es uno de `CouponRejectReason`.
+  //
+  // Es un error y no un silencio a propósito: antes, si el cupón se agotaba
+  // entre que el huésped lo aplicaba y daba sus datos, la reserva seguía **a
+  // precio completo sin decir nada**. El huésped pidió un descuento, se le
+  // cobraba de más y nadie se lo decía. La prueba de la carrera por el último
+  // canje ya documentaba el comportamiento correcto —"la que pierde recibe un
+  // no honesto"— y fallaba de forma intermitente porque el código no lo
+  // cumplía: fallaba justo cuando el segundo presupuesto alcanzaba a ver el
+  // cupón ya agotado.
+  | "coupon_rejected";
 
 /**
  * Error de cotización.

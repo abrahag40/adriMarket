@@ -9,6 +9,7 @@ import { InventoryUnavailableError } from "@/modules/availability/holds";
 import { expireHolds } from "@/modules/availability/holds";
 import { processOutbox, renderNotification } from "@/modules/notifications/send";
 import { LocalProvider, resetPaymentProvider } from "@/modules/payments";
+import { QuoteError } from "@/modules/pricing/types";
 
 import { createBookingWithHold } from "./create";
 import { processPaymentWebhook } from "./webhook";
@@ -341,19 +342,44 @@ describe("crear la reserva con apartado", () => {
     assert.equal(row.redemptions, 1, "el canje quedó registrado en el propio cupón");
   });
 
-  it("un código de cupón que no existe no bloquea la reserva: se cobra el precio completo", async () => {
+  it("un código de cupón que no se puede aplicar detiene la reserva y dice por qué", async () => {
+    // **Esta prueba cambió de intención el 2026-09-07, a propósito.**
+    //
+    // Antes decía "no bloquea la reserva: se cobra el precio completo", y el
+    // código hacía eso. El problema es que contradecía a la prueba de la
+    // carrera de aquí abajo —"la que pierde recibe un no honesto"— y esa
+    // contradicción se manifestaba como un fallo **intermitente**: si el
+    // segundo presupuesto alcanzaba a ver el cupón ya agotado, la reserva
+    // seguía en silencio a precio completo y ganaban las dos.
+    //
+    // Lo que se decidió: un cupón que el huésped pidió y no se pudo aplicar
+    // **siempre** detiene la reserva, con su motivo. Vale para las siete
+    // razones de rechazo, sin casos especiales. Un huésped que escribe un
+    // código espera un descuento; cobrarle de más sin decírselo es material de
+    // contracargo, y es el mismo trato que ya recibían las otras tres
+    // categorías de inventario (AM001-3).
     const range = freshRange();
-    const booking = await createBookingWithHold(
-      { kind: "stay", productId: CASA, range, guests: 5, couponCode: "ESTE-CODIGO-NO-EXISTE" },
-      holder,
-      [],
+
+    await assert.rejects(
+      () =>
+        createBookingWithHold(
+          { kind: "stay", productId: CASA, range, guests: 5, couponCode: "ESTE-CODIGO-NO-EXISTE" },
+          holder,
+          [],
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof QuoteError, "es un error de cotización, no un 500");
+        assert.equal(error.code, "coupon_rejected");
+        assert.equal(error.params.reason, "not_found", "se dice cuál de las siete razones fue");
+        return true;
+      },
     );
 
-    assert.equal(booking.quote.coupon?.applied, false);
-    assert.equal(
-      booking.quote.lines.find((line) => line.kind === "discount"),
-      undefined,
-    );
+    // Y no queda una reserva a medias: se detiene antes de abrir la transacción.
+    const quedaron = await db.execute<{ n: string }>(sql`
+      select count(*)::text as n from bookings where coupon_code = 'ESTE-CODIGO-NO-EXISTE'
+    `);
+    assert.equal(quedaron[0]?.n, "0");
   });
 
   it("dos reservas por el último canje de un cupón: una lo usa, la otra recibe un no honesto (AM004)", async () => {
@@ -379,9 +405,31 @@ describe("crear la reserva con apartado", () => {
 
     assert.equal(ok.length, 1, "solo una reserva se queda con el cupón");
     assert.equal(fallidos.length, 1);
+
+    // **Hay dos caminos al mismo "no", y los dos son correctos.** Cuál toca
+    // depende de dónde alcance la carrera a la segunda reserva:
+    //
+    //   - si su presupuesto corre **antes** de que la primera confirme, ve el
+    //     cupón disponible, llega hasta `coupon_redeem` y ahí el `FOR UPDATE`
+    //     la rechaza → InventoryUnavailableError AM004;
+    //   - si corre **después**, el presupuesto ya lo ve agotado y se detiene
+    //     antes de abrir la transacción → QuoteError coupon_rejected.
+    //
+    // Exigir solo el primero era lo que volvía intermitente esta prueba. Lo que
+    // de verdad importa —y es lo que se comprueba— es que el huésped reciba un
+    // no que menciona el cupón agotado, no una reserva silenciosa a precio
+    // completo ni un error genérico.
     const razon = (fallidos[0] as PromiseRejectedResult).reason;
-    assert.ok(razon instanceof InventoryUnavailableError);
-    assert.equal(razon.code, "AM004");
+    const esAM004 = razon instanceof InventoryUnavailableError && razon.code === "AM004";
+    const esCuponAgotado =
+      razon instanceof QuoteError &&
+      razon.code === "coupon_rejected" &&
+      razon.params.reason === "redeemed_out";
+
+    assert.ok(
+      esAM004 || esCuponAgotado,
+      `la que pierde debe recibir un no que hable del cupón agotado, y recibió: ${String(razon)}`,
+    );
 
     const redemptions = await db.execute<{ n: number }>(sql`
       select redemptions as n from coupons where id = ${coupon.id}::uuid

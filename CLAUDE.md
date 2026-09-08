@@ -364,6 +364,17 @@ Están aquí porque cada una se pagó una vez.
   pero la defensa real es no desplegar desde la laptop: **el runner no tiene
   `.env` porque git nunca lo tuvo.** Para descartarlo en un despliegue:
   `vercel inspect --logs <url> | grep -i environments` — no debe salir nada.
+- **Una prueba intermitente puede ser dos pruebas que se contradicen.** La de
+  la carrera por el último canje de un cupón fallaba una de cada tres veces, y
+  no era ruido: convivía con otra que afirmaba lo contrario —"un código que no
+  existe no bloquea la reserva: se cobra el precio completo"— y el código
+  implementaba esa. Ganaba una u otra según **cuándo** corriera el segundo
+  presupuesto. Lo caro no era el fallo sino lo que tapaba: un huésped que pedía
+  un descuento y pagaba de más **sin que nadie se lo dijera**. Hoy un cupón que
+  no se aplica detiene la reserva con su motivo, para las siete razones, y la
+  prueba de la carrera acepta los dos caminos al mismo "no" en vez de exigir un
+  detalle de temporización. Ver
+  [decisión 0014](docs/decisiones/0014-un-cupon-que-no-se-aplica-detiene-la-reserva.md).
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 

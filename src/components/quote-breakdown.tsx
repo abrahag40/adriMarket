@@ -36,6 +36,11 @@ export function describeQuoteError(error: QuoteError, t: Messages): string {
       return t.errSoldOut(Number(params.left ?? 0));
     case "departure_closed":
       return t.errDepartureClosed;
+    // El motivo viaja en los parámetros y ya tiene su propio traductor abajo:
+    // aquí solo se reencamina, para que el huésped lea "ese cupón ya se agotó"
+    // y no un genérico.
+    case "coupon_rejected":
+      return describeCouponReason(params.reason as CouponRejectReason, t);
   }
 }
 
