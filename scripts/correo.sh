@@ -116,11 +116,48 @@ if [[ "$camino" == "resend" ]]; then
   esac
   GUARDADAS+=(RESEND_API_KEY)
 else
-  pedir SMTP_HOST "Servidor SMTP (smtp.gmail.com)" no si
-  pedir SMTP_PORT "Puerto (465 para TLS implícito, 587 para STARTTLS)" no no
-  SMTP_PORT="${SMTP_PORT:-465}"
-  pedir SMTP_USER "Usuario, que normalmente es la misma dirección" no si
-  pedir SMTP_PASSWORD "Contraseña de aplicación (16 caracteres, SIN espacios)" si si
+  # El servidor, el puerto y el usuario **no son datos que haya que buscar**:
+  # los dos primeros son constantes del proveedor y el tercero es la misma
+  # dirección que ya se pidió. Preguntarlos uno por uno era pedirle al usuario
+  # que supiera algo que este guion ya sabe.
+  #
+  # `SMTP_USER` es MAIL_FROM y no una variante: SPF y DKIM alinean con quien
+  # autentica, así que si el remitente no es esa misma dirección el correo llega
+  # a no deseado aunque el envío diga que salió bien. Es la razón por la que no
+  # se eligió un ESP con "remitente verificado" — ver `send.ts`.
+  if [[ -z "${SMTP_HOST:-}" ]]; then
+    case "${MAIL_FROM##*@}" in
+      gmail.com|googlemail.com) SMTP_HOST="smtp.gmail.com" ;;
+      outlook.com|hotmail.com|live.com) SMTP_HOST="smtp-mail.outlook.com" ;;
+      yahoo.com|yahoo.com.mx) SMTP_HOST="smtp.mail.yahoo.com" ;;
+      icloud.com|me.com) SMTP_HOST="smtp.mail.me.com" ;;
+    esac
+  fi
+
+  if [[ -n "${SMTP_HOST:-}" ]]; then
+    echo "  → servidor: $SMTP_HOST (deducido de $MAIL_FROM)"
+    echo
+  else
+    echo "  No conozco el servidor de ${MAIL_FROM##*@}. Búscalo como"
+    echo "  \"SMTP settings\" en la ayuda de ese proveedor."
+    echo
+    pedir SMTP_HOST "Servidor SMTP" no si
+  fi
+
+  SMTP_PORT="${SMTP_PORT:-465}"   # 465 es TLS implícito; 587 sube con STARTTLS
+  SMTP_USER="${SMTP_USER:-$MAIL_FROM}"
+  echo "  → puerto:   $SMTP_PORT"
+  echo "  → usuario:  $SMTP_USER"
+  echo
+
+  if [[ "$SMTP_HOST" == "smtp.gmail.com" ]]; then
+    echo "  La contraseña NO es la de tu correo: es una contraseña de aplicación."
+    echo "  Se genera en myaccount.google.com/apppasswords y exige verificación"
+    echo "  en dos pasos activada. Son 16 caracteres; los espacios con que Google"
+    echo "  los enseña **no son parte de ella** y este guion los quita."
+    echo
+  fi
+  pedir SMTP_PASSWORD "Contraseña de aplicación (16 caracteres)" si si
   GUARDADAS+=(SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD)
 fi
 
