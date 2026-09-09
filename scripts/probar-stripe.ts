@@ -43,10 +43,13 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 if (!secretKey || !webhookSecret) {
   console.error("Faltan STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET.");
   console.error();
-  console.error("Las de prueba se sacan en dashboard.stripe.com/test/apikeys y son gratis:");
-  console.error("no hacen falta ni cuenta verificada ni datos bancarios.");
+  console.error("Se cargan una sola vez, con el prompt tapado:");
   console.error();
-  console.error("  STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… npm run probar:stripe");
+  console.error("  ./scripts/llaves-stripe.sh");
+  console.error();
+  console.error("Las de prueba se sacan en dashboard.stripe.com/test/apikeys y son gratis:");
+  console.error("no hacen falta ni cuenta verificada ni datos bancarios. El secreto del");
+  console.error("webhook NO sale del panel — lo da el CLI, y el guion se lo pide solo.");
   process.exit(1);
 }
 

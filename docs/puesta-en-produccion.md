@@ -185,8 +185,14 @@ tampoco. Nada da error; simplemente deja de pasar.
 - [ ] **Ejercitar la integración con llaves de prueba antes que con las reales.**
       Son gratis, inmediatas y no exigen cuenta verificada:
       ```bash
-      STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… npm run probar:stripe
+      ./scripts/llaves-stripe.sh    # pide la llave con el prompt tapado
+      npm run probar:stripe
       ```
+      El guion valida el formato, **rechaza una llave de producción** —la sonda
+      crea sesiones de cobro reales— y guarda en `.env.stripe` con permisos de
+      solo dueño. El secreto del webhook **no sale del panel**: el panel da uno
+      distinto, para un endpoint desplegado; el de pruebas locales lo genera
+      `stripe listen` y el guion se lo pide al CLI sin imprimirlo.
       Comprueba la creación de la sesión, que `expires_at` sea el del apartado,
       y la firma del webhook con vectores legítimo, alterado y vencido.
 - [ ] Llaves de producción configuradas.
