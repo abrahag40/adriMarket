@@ -490,7 +490,20 @@ Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
   precio de adulto, o una unidad de estancia con al menos una tarifa cargada.
 - **No hay colchón de rotación entre estancias** (se bloquea el día a mano).
 - **El cobro parcial del saldo se rechaza a propósito**: no hay regla de negocio.
-- **Stripe y WhatsApp no se han ejecutado contra el servicio real.** El correo
+- **Stripe está verificado contra la API real, pero en una cuenta *sandbox*.**
+  El 2026-09-09 se ejercitó el camino entero con llaves de prueba: sesión de
+  cobro, pago con tarjeta, webhook firmado **por Stripe**, `booking_confirm`,
+  cancelación y `refund()` —incluida la comprobación de que dos llamadas
+  devuelven el mismo reembolso, que con la llave aleatoria anterior habría
+  devuelto el dinero dos veces—. **Del lado del código no falta nada para
+  cobrar**; falta que el cliente entregue su información fiscal para activar la
+  cuenta real. Ver
+  [decisión 0016](docs/decisiones/0016-stripe-se-queda-en-sandbox-hasta-tener-la-fiscal-del-cliente.md).
+  La trampa que apareció y muerde el día del despliegue: **el `whsec_` tiene que
+  ser de la misma cuenta que la llave**. Con el CLI escuchando otra cuenta, el
+  pago se cobró y el webhook nunca llegó — el dinero entra y el sistema no se
+  entera, idéntico a un webhook roto.
+- **WhatsApp no se ha ejecutado contra el servicio real.** El correo
   sí: el 2026-09-04 se mandó el primero de verdad y llegó. La sonda es
   `npm run probar:correo -- alguien@ejemplo.com`, que arma el mensaje con las
   mismas funciones del worker y **se niega a correr con el transporte local**,
