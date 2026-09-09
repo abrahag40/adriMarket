@@ -13,9 +13,17 @@ reales. Lo que impide vender son tres cuentas que el cliente todavía no entreg�
 
 | # | Qué | De quién | Estado |
 |---|---|---|---|
-| 1 | Cuenta de Stripe con llaves de producción | Cliente | **pendiente desde el Sprint 3** |
+| 1 | Cuenta de Stripe con llaves de producción | Cliente | **bloqueado: falta su información fiscal** — ver [decisión 0016](decisiones/0016-stripe-se-queda-en-sandbox-hasta-tener-la-fiscal-del-cliente.md) |
 | 2 | Dominio propio, verificado en Resend con SPF, DKIM y DMARC | Cliente | pendiente — **no hay dominio todavía**; la cuenta de Resend existe y no tiene ninguno |
 | 3 | Número de empresa y plantillas aprobadas en Meta | Cliente | pendiente |
+
+El 1 dejó de ser "pendiente" y pasó a **bloqueado**: la integración está
+verificada de punta a punta contra la API real —incluido el cobro con tarjeta,
+el webhook firmado por Stripe y el reembolso—, pero en una cuenta **sandbox**,
+que no emite llaves de producción. Salir de ahí exige razón social, RFC,
+domicilio fiscal, identificación del representante y CLABE de depósito: datos
+oficiales del cliente que no se pueden adelantar desde aquí. **Del lado del
+código no falta nada para cobrar.**
 
 Los tres son trámites, no desarrollo. El 3 es el más lento: la aprobación de
 plantillas tarda de horas a días y **hay que iniciarla antes** de necesitarla.
@@ -185,8 +193,14 @@ tampoco. Nada da error; simplemente deja de pasar.
 - [ ] **Ejercitar la integración con llaves de prueba antes que con las reales.**
       Son gratis, inmediatas y no exigen cuenta verificada:
       ```bash
-      STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… npm run probar:stripe
+      ./scripts/llaves-stripe.sh    # pide la llave con el prompt tapado
+      npm run probar:stripe
       ```
+      El guion valida el formato, **rechaza una llave de producción** —la sonda
+      crea sesiones de cobro reales— y guarda en `.env.stripe` con permisos de
+      solo dueño. El secreto del webhook **no sale del panel**: el panel da uno
+      distinto, para un endpoint desplegado; el de pruebas locales lo genera
+      `stripe listen` y el guion se lo pide al CLI sin imprimirlo.
       Comprueba la creación de la sesión, que `expires_at` sea el del apartado,
       y la firma del webhook con vectores legítimo, alterado y vencido.
 - [ ] Llaves de producción configuradas.
@@ -221,6 +235,30 @@ Estado a esa fecha:
 O sea: el mecanismo funciona y el equipo recibe sus correos, pero **un huésped
 real todavía no.** Y ahora falla ruidosamente —seis intentos, `dead`, salud
 degradada— en vez de guardarse en silencio, que es mejor pero sigue sin llegar.
+
+### Un solo comando
+
+Desde el 2026-09-09 esto no se configura a mano:
+
+```bash
+./scripts/correo.sh
+```
+
+Pide las credenciales una vez, **comprueba que autentican contra el proveedor**
+—sin mandar nada— y solo entonces las carga en Vercel. Si no sirven, se detiene
+y producción no se toca.
+
+Ese orden no es prolijidad: el 2026-09-07 se cargó una contraseña de aplicación
+sin comprobarla, Gmail la rechazó con `535-5.7.8 BadCredentials`, y el síntoma
+fueron cuatro confirmaciones muriendo en silencio tras seis intentos cada una.
+**En producción una credencial mala no da error: deja de entregar.**
+
+Con Resend además exige que el dominio de `MAIL_FROM` esté **verificado**, que
+es la diferencia entre escribirle a cualquiera y escribirle solo al dueño de la
+cuenta. Y al elegir SMTP quita `RESEND_API_KEY` de producción, porque
+`transport()` prefiere Resend en cuanto su llave está presente.
+
+Para comprobar sin tocar nada: `npm run verificar:correo`.
 
 ### Mientras no haya dominio
 

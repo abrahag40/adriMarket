@@ -28,7 +28,8 @@
     "prod:migrate": "./scripts/produccion.sh migrate",
     "prod:sql": "./scripts/produccion.sh sql",
     "correo:vista": "tsx --env-file-if-exists=.env scripts/vista-correo.ts",
-    "probar:stripe": "tsx --env-file-if-exists=.env scripts/probar-stripe.ts"
+    "probar:stripe": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.stripe scripts/probar-stripe.ts",
+    "verificar:correo": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.correo scripts/verificar-correo.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
