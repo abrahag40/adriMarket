@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { otherLocale, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
+
+import { NavLinks } from "./nav-links";
 
 /**
  * Panel móvil con `<details>/<summary>`: el navegador ya sabe abrir y cerrar
@@ -11,15 +14,12 @@ import { getMessages } from "@/i18n/messages";
 export function MobileNav({
   locale,
   alternate,
-  currentPath,
 }: {
   locale: Locale;
   alternate: string;
-  currentPath: string;
 }) {
   const t = getMessages(locale);
   const other = otherLocale(locale);
-  const isActive = (href: string) => href === currentPath;
 
   return (
     <details className="mobile-nav">
@@ -29,27 +29,14 @@ export function MobileNav({
         <span className="mobile-nav-bar" />
       </summary>
       <nav className="mobile-nav-panel" aria-label={t.navTours}>
-        <Link href={`/${locale}`} aria-current={isActive(`/${locale}`) ? "page" : undefined}>
-          {t.navHome}
-        </Link>
-        <Link
-          href={`/${locale}?kind=tour`}
-          aria-current={isActive(`/${locale}?kind=tour`) ? "page" : undefined}
-        >
-          {t.navTours}
-        </Link>
-        <Link
-          href={`/${locale}?kind=stay`}
-          aria-current={isActive(`/${locale}?kind=stay`) ? "page" : undefined}
-        >
-          {t.navStays}
-        </Link>
-        <Link
-          href={`/${locale}?kind=vehicle`}
-          aria-current={isActive(`/${locale}?kind=vehicle`) ? "page" : undefined}
-        >
-          {t.navVehicles}
-        </Link>
+        {/* Los mismos enlaces que el menú de escritorio, y por la misma
+            razón: el activo se decide en el cliente. Aquí el defecto era peor,
+            porque comparaba la cadena entera —`/es?kind=stay&location=&guests=`
+            no coincide con `/es?kind=stay`—, así que ni siquiera en la primera
+            carga marcaba bien lo que venía del buscador. */}
+        <Suspense fallback={null}>
+          <NavLinks locale={locale} />
+        </Suspense>
 
 
         <Link href={alternate} hrefLang={other} lang={other}>

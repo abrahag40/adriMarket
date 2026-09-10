@@ -120,8 +120,44 @@ expect_contains "/es?kind=vehicle" "price-amount" "los vehículos muestran su pr
 expect_contains "/es?kind=vehicle&guests=4" "SUV familiar" "un vehículo entra en un filtro por plazas"
 expect_absent "/es?kind=vehicle&guests=4" "Scooter 125" "y el de dos plazas se queda fuera"
 expect_contains "/es?kind=vehicle" "facet-price" "la sección de vehículos conserva su filtro de precio"
+
+# ── La tarjeta de renta dice a qué destino pertenece ────────────────────────
+#
+# Sin esto, una cuadrícula de casas y camionetas no decía dónde está ninguna:
+# el nombre no siempre lo lleva ("Casa Akumal" está en Tulum, "SUV familiar" en
+# Playa del Carmen) y el destino es justo lo primero que se pregunta quien
+# busca dónde quedarse.
+expect_contains "/es" "room-card-location" "la tarjeta de renta lleva su destino"
+expect_contains "/es" "Playa del Carmen" "y dice cuál es, no solo que lo tiene"
 expect_contains "/es?guests=49" "Nada coincide con esos filtros" "sin resultados se explica, no se deja vacío"
 expect_contains "/es?guests=49" "Quitar filtros" "sin resultados se ofrece la salida"
+
+# ── Quitar el último filtro no puede devolver a la portada ──────────────────
+#
+# `/es` significaba dos cosas —la portada y "sin filtros"—, así que al quitar
+# el último filtro el huésped que estaba viendo resultados aterrizaba arriba
+# del hero, sin listado. No era un enlace mal puesto: no existía ninguna
+# dirección con el significado "listado completo", así que no había a dónde
+# caer. `?kind=all` es esa dirección.
+expect_contains "/es?kind=all" "id=\"resultados\"" "el listado completo es un listado, no la portada"
+expect_absent   "/es?kind=all" "hero-copy" "y no trae la portada encima"
+# Que abarca los tres tipos se comprueba en la faceta y **no en las tarjetas**.
+#
+# La primera versión buscaba tres productos por nombre y se cayó en cuanto la
+# base tuvo más de seis publicados: la lista pagina de seis en seis, así que un
+# nombre concreto puede estar legítimamente en la página 2. El criterio medía
+# la posición dentro de la paginación, no lo que decía comprobar.
+#
+# La faceta de tipo sí lo dice sin depender de eso: enseña los tres con su
+# cuenta, y esa cuenta sale del catálogo entero.
+expect_contains "/es?kind=all" "facet-kind" "el listado completo ofrece filtrar por tipo"
+expect_matches  "/es?kind=all" "[0-9]+ resultados" "y trae resultados dentro"
+expect_contains "/es?kind=all" "kind=tour" "con salida a tours"
+expect_contains "/es?kind=all" "kind=stay" "a estancias"
+expect_contains "/es?kind=all" "kind=vehicle" "y a vehículos"
+# La salida desde una vista filtrada tiene que llevar ahí, no a `/es`.
+expect_contains "/es?kind=stay" "kind=all" "desde un filtro, la salida lleva al listado completo"
+expect_absent   "/es?kind=stay" "clearHref=\"/es\"" "y nunca a la portada pelada"
 expect_status "/es?guests=abc&kind=inventado" 200 "un filtro inválido se ignora en lugar de reventar"
 expect_status "/es?guests=-5" 200 "un número negativo se ignora"
 # Un producto sin fotos no reserva el hueco de la imagen: un rectángulo gris se

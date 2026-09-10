@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { otherLocale, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 
 import { CurrencyBadge } from "./currency-badge";
 import { MobileNav } from "./mobile-nav";
+import { NavLinks } from "./nav-links";
 
 /**
  * Cabecera del sitio: marca, menú horizontal con un submenú desplegable de
@@ -14,28 +16,12 @@ import { MobileNav } from "./mobile-nav";
 export function SiteHeader({
   locale,
   alternate,
-  currentPath,
 }: {
   locale: Locale;
   alternate: string;
-  currentPath: string;
 }) {
   const t = getMessages(locale);
   const other = otherLocale(locale);
-  /* `aria-current="page"` marca el enlace activo en oscuro con su punto.
-     "Inicio", "Tours" y "Estancias" comparten `pathname` y solo se
-     distinguen por `?kind=`, así que se compara **ese parámetro**, no la
-     cadena entera.
-     Comparar cadenas fallaba con la URL que produce el buscador: un
-     formulario GET manda todos sus campos, incluidos los vacíos, así que
-     "Estancias" llegaba como `?kind=stay&location=&guests=` y no coincidía
-     con `?kind=stay`. Resultado: ningún enlace marcado, y el punto parecía
-     quedarse donde estaba. */
-  const [rutaActual, busqueda = ""] = currentPath.split("?");
-  const kindActual = new URLSearchParams(busqueda).get("kind") ?? "";
-  const enCatalogo = rutaActual === `/${locale}`;
-  const isActive = (kind: string) => enCatalogo && kindActual === kind;
-
   return (
     <header className="site-header">
       <div className="wrap site-header-inner">
@@ -54,27 +40,14 @@ export function SiteHeader({
         </Link>
 
         <nav className="site-nav" aria-label={t.navTours}>
-          <Link href={`/${locale}`} aria-current={isActive("") ? "page" : undefined}>
-            {t.navHome}
-          </Link>
-          <Link
-            href={`/${locale}?kind=tour`}
-            aria-current={isActive("tour") ? "page" : undefined}
-          >
-            {t.navTours}
-          </Link>
-          <Link
-            href={`/${locale}?kind=stay`}
-            aria-current={isActive("stay") ? "page" : undefined}
-          >
-            {t.navStays}
-          </Link>
-          <Link
-            href={`/${locale}?kind=vehicle`}
-            aria-current={isActive("vehicle") ? "page" : undefined}
-          >
-            {t.navVehicles}
-          </Link>
+          {/* `useSearchParams` obliga a una frontera de Suspense: sin ella,
+              cualquier ruta que Next quiera renderizar de forma estática falla
+              al construir. El respaldo son los mismos enlaces sin marcar —el
+              menú nunca desaparece, solo tarda un instante en saber cuál está
+              activo—. */}
+          <Suspense fallback={null}>
+            <NavLinks locale={locale} />
+          </Suspense>
 
           {/* Sin "Destinos" en el menú: los seis destinos viven en el inicio,
               con su foto y su conteo, que es donde se eligen mirando. Un
@@ -92,7 +65,7 @@ export function SiteHeader({
           </Link>
         </div>
 
-        <MobileNav locale={locale} alternate={alternate} currentPath={currentPath} />
+        <MobileNav locale={locale} alternate={alternate} />
       </div>
     </header>
   );

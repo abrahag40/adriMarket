@@ -369,4 +369,22 @@ else fail("la bitácora no dice quién hizo los cambios");
 await page.screenshot({ path: `${out}/p6-bitacora.png`, fullPage: true });
 
 console.log(`\nPRODUCTO=${slug}`);
+
+/* El producto de esta corrida vuelve a borrador.
+ 
+   Publicarlo es el punto del recorrido y ya quedó comprobado más arriba; lo que
+   no puede quedarse es **en la vitrina**. Cada corrida sumaba un catamarán al
+   catálogo del sitio de desarrollo, y como el listado pagina de seis en seis,
+   eso empuja productos de verdad a la página 2: un criterio de `smoke.sh` que
+   buscaba "SUV familiar" en el listado completo empezó a fallar sin que nadie
+   tocara el código.
+ 
+   Se devuelve a borrador en vez de borrarse: el recorrido le colgó fotos,
+   salidas y una reserva, y eso es evidencia de la corrida. Un borrador no
+   aparece en el catálogo, que es todo lo que hacía falta. */
+query(`update products set status = 'draft' where slug = '${slug}'`);
+const recogido = query(`select status::text from products where slug = '${slug}'`);
+if (recogido === "draft") ok("y el producto de la prueba vuelve a borrador al salir");
+else fail(`el producto quedó en "${recogido}" y ensucia la vitrina`);
+
 await browser.close();
