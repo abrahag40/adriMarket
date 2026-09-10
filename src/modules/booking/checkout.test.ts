@@ -164,6 +164,26 @@ before(async () => {
 });
 
 after(async () => {
+  /* Los productos de esta corrida vuelven a borrador.
+  
+     Tienen que nacer **publicados** —el checkout solo vende lo publicado, así
+     que no hay forma de ejercitarlo con un borrador—, pero quedarse así los
+     mete en la vitrina y en el listado del sitio de desarrollo. Cada corrida de
+     `test:integration` sumaba dos, y con seis por página eso empuja productos
+     de verdad a la página 2: un criterio de `smoke.sh` que buscaba "SUV
+     familiar" en el listado completo empezó a fallar sin que nadie tocara el
+     código. `cancel.test.ts` no tiene este problema porque los suyos nacen en
+     borrador; aquí no se puede, así que se recogen al salir.
+
+     Se devuelven a borrador en vez de borrarse: `booking_items` los referencia
+     y las reservas de esta misma corrida son evidencia legítima. Un borrador no
+     aparece en el catálogo, que es todo lo que hacía falta. */
+  if (CASA && TOUR) {
+    await db.execute(sql`
+      update products set status = 'draft'
+       where id in (${CASA}::uuid, ${TOUR}::uuid)
+    `);
+  }
   await sqlClient.end();
 });
 

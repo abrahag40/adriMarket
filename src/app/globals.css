@@ -3967,6 +3967,51 @@ fieldset.field legend {
   font-weight: 650;
 }
 
+/* El destino, abajo a la izquierda, apilado bajo el precio.
+   
+   Fondo claro y texto oscuro, al revés que el precio: son dos insignias sobre
+   la misma foto y con el mismo tratamiento competirían. El precio es el dato
+   que decide la compra y se queda con el contraste fuerte; el destino informa.
+
+   `max-inline-size` con `ellipsis` es una red, no el plan: la medida se eligió
+   para que "Playa del Carmen" quepa entero en la columna más estrecha (dos por
+   fila en un teléfono de 360px). Está por si algún día entra un destino con un
+   nombre mucho más largo — antes que desbordar la tarjeta. */
+.room-card-location {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 1;
+  max-inline-size: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--step--1);
+  color: var(--text);
+  background: rgb(255 255 255 / 92%);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+}
+
+@media (max-width: 640px) {
+  .room-card-location {
+    bottom: 8px;
+    left: 8px;
+    font-size: 0.7rem;
+    padding: 3px 9px;
+  }
+
+  /* El precio acompaña al destino: con la insignia de abajo encogida, dejar la
+     de arriba en su medida grande descuadraba la pareja. Es el mismo ajuste
+     que ya hace `.destination-card-count` en este ancho. */
+  .room-card-price {
+    top: 8px;
+    left: 8px;
+    font-size: 0.7rem;
+    padding: 3px 9px;
+  }
+}
+
 .room-card-body {
   display: flex;
   flex-direction: column;
