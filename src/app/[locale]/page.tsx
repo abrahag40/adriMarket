@@ -60,10 +60,21 @@ function single(value: string | string[] | undefined): string {
 function parseFilters(searchParams: Record<string, string | string[] | undefined>): {
   filters: Facets;
   selected: { kind: string; location: string; guests: string };
+  /** `?kind=all`: el listado completo, sin filtrar por tipo. */
+  todoElCatalogo: boolean;
 } {
   const rawKind = single(searchParams.kind);
   const kind: ProductKind | undefined =
     rawKind === "tour" || rawKind === "stay" || rawKind === "vehicle" ? rawKind : undefined;
+
+  /* `kind=all` **no es un filtro**: es la forma de decir "estoy en el listado y
+     no quiero filtrar por tipo".
+     
+     Hacía falta porque `/es` significaba dos cosas a la vez —la portada y "sin
+     filtros"—, y al quitar el último filtro el huésped caía en la portada. No
+     era un enlace mal puesto: no existía ninguna dirección que significara
+     "listado completo", así que no había a dónde caer. */
+  const todoElCatalogo = rawKind === "all";
 
   const rawLocation = single(searchParams.location);
   const locationSlug = /^[a-z0-9-]{1,64}$/.test(rawLocation) ? rawLocation : undefined;
@@ -84,6 +95,7 @@ function parseFilters(searchParams: Record<string, string | string[] | undefined
       location: locationSlug ?? "",
       guests: guests === undefined ? "" : String(guests),
     },
+    todoElCatalogo,
   };
 }
 
@@ -106,7 +118,17 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getMessages(locale);
-  const { filters } = parseFilters(await searchParams);
+  const { filters, todoElCatalogo } = parseFilters(await searchParams);
+
+  /* El listado completo es una vista útil para el huésped, pero **no una
+     página que deba competir en el buscador**: su contenido es el mismo que la
+     portada resume. Título propio para la pestaña, canonical a la portada. */
+  if (todoElCatalogo) {
+    return {
+      title: t.filterKindAll,
+      alternates: { canonical: `/${locale}`, languages: { es: "/es", en: "/en" } },
+    };
+  }
 
   const soloTipo =
     filters.kind !== undefined &&
@@ -144,15 +166,20 @@ export default async function CatalogPage({
   if (!isLocale(locale)) notFound();
 
   const t = getMessages(locale);
-  const { filters, selected } = parseFilters(await searchParams);
+  const { filters, selected, todoElCatalogo } = parseFilters(await searchParams);
 
   /* Las vitrinas del inicio no son el resultado del buscador: solo tienen
      sentido en el inicio sin filtros. Con un filtro activo, el huésped ya
      pidió ver un subconjunto, y estas vitrinas seguirían mostrando todo lo
      demás junto a ese resultado, contradiciéndolo (una estancia de Tulum
      aparecería igual con `?location=playa-del-carmen`). */
-  const noFilters =
+  const sinFiltros =
     !filters.kind && !filters.locationSlug && !filters.guests && !filters.price;
+
+  /* La portada es "sin filtros **y** sin haber pedido el listado". Antes las
+     dos cosas eran la misma, que es de donde salía el defecto: quitar el último
+     filtro devolvía al huésped a la portada en vez de enseñarle todo. */
+  const noFilters = sinFiltros && !todoElCatalogo;
 
   /* **Una sola consulta, sin filtrar.** Antes eran dos —el catálogo entero
      para las vitrinas y el filtrado para el listado— y el listado filtraba en
@@ -243,6 +270,12 @@ export default async function CatalogPage({
     if (guests) next.set("guests", String(guests));
     if (price) next.set("price", serializePriceRange(price));
     if (override.page !== undefined && override.page > 1) next.set("page", String(override.page));
+
+    /* Si al quitar facetas no queda ninguna, el enlace **no** puede ser `/es`:
+       eso es la portada, y el huésped que estaba viendo resultados aterrizaba
+       arriba del hero, sin listado y sin el ancla `#resultados` —que en la
+       portada ni siquiera existe—. `kind=all` mantiene el modo listado. */
+    if (![...next.keys()].some((clave) => clave !== "page")) next.set("kind", "all");
 
     const query = next.toString();
     /* El ancla no es decorativa: sin ella, cambiar de página o de faceta
@@ -338,12 +371,16 @@ export default async function CatalogPage({
    * lleva catálogo dentro. La opción prometía "48" y entregaba el hero, los
    * destinos y las cuatro vitrinas, sin una sola de esas 48 tarjetas.
    *
-   * Se quita la fila en vez de quitarle la cuenta: relabelar el problema lo
-   * deja ahí. Desde una vista con dos filtros la fila sigue —"Todo" desde
-   * `?kind=tour&location=tulum` lleva a `?location=tulum`, que sí es un
-   * listado y sí tiene esas cuentas—; vaciarlo todo es lo que hacen las
-   * fichas de arriba y su "Quitar filtros", que están junto a los resultados
-   * y dicen exactamente eso.
+   * El primer arreglo escondió la fila cuando su destino no era un listado, y
+   * eso **dejó el problema en pie donde de verdad molestaba**: los chips de
+   * arriba y "Quitar filtros" seguían llevando a `/es`, así que quitar el
+   * último filtro devolvía al huésped a la portada. La causa no era el enlace
+   * sino que no existía ninguna dirección con el significado "listado
+   * completo".
+   *
+   * Ahora existe —`?kind=all`— y la guarda se sostiene sola: cuando el destino
+   * se queda sin facetas, `hrefCon` pone `kind=all` y la fila vuelve a
+   * aparecer, porque su enlace sí lleva a un listado.
    */
   function agregarGrupo(
     id: string,
@@ -695,7 +732,7 @@ export default async function CatalogPage({
             locale={locale}
             groups={facetGroups}
             activeCount={chips.length}
-            clearHref={`/${locale}`}
+            clearHref={`/${locale}?kind=all#resultados`}
           />
 
           <div className="listing-results">
@@ -707,7 +744,11 @@ export default async function CatalogPage({
               <p className="muted">{t.resultsCount(items.length)}</p>
             </div>
 
-            <ActiveFacets locale={locale} chips={chips} clearHref={`/${locale}`} />
+            <ActiveFacets
+              locale={locale}
+              chips={chips}
+              clearHref={`/${locale}?kind=all#resultados`}
+            />
 
             {items.length === 0 ? (
               <div className="empty">

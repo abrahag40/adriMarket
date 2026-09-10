@@ -40,6 +40,48 @@ const page = await ctx.newPage();
 function ok(label) { console.log(`  ✔ ${label}`); }
 function fail(label) { console.log(`  ✘ ${label}`); process.exitCode = 1; }
 
+// 0. El menú marca dónde estoy, **después de navegar**
+//
+// Va aquí y no en `smoke.sh` porque el defecto no se ve en el HTML del
+// servidor: aparecía solo al navegar sin recargar. El enlace activo se
+// calculaba en el layout con las cabeceras de la petición, y en el App Router
+// un layout no se vuelve a renderizar en una navegación de cliente — así que
+// el valor se congelaba. La URL cambiaba, el título de la pestaña cambiaba, el
+// listado cambiaba, y el punto se quedaba en "Inicio". Recargar lo arreglaba,
+// que es lo que lo hacía tan difícil de creer.
+await page.goto(`${base}/es`, { waitUntil: "networkidle" });
+
+const activoAlLlegar = await page.locator(".site-nav a[aria-current]").innerText();
+if (activoAlLlegar.trim() === "Inicio") ok("al llegar al inicio, el menú marca Inicio");
+else fail(`al llegar marcaba "${activoAlLlegar.trim()}"`);
+
+// Se navega por el menú desplegable, que es el camino real en un teléfono, y
+// **sin recargar**: es la única forma de reproducir el defecto.
+await page.locator(".mobile-nav-toggle").click();
+await page.locator('.mobile-nav-panel a[href$="kind=stay"]').click();
+await page.waitForURL(/kind=stay/);
+await page.waitForTimeout(500);
+
+const activoTrasNavegar = await page.locator(".site-nav a[aria-current]").innerText();
+if (activoTrasNavegar.trim() === "Estancias") ok("y tras navegar sin recargar, marca Estancias");
+else fail(`tras navegar el menú seguía en "${activoTrasNavegar.trim()}"`);
+
+// Y al quitar el filtro no se cae en la portada: se ve el catálogo entero.
+//
+// Se pulsa el chip y no el "Quitar filtros" de la barra lateral: en el teléfono
+// esa barra está cerrada —por eso existen los chips, y su propio comentario lo
+// dice—, así que el enlace de la barra resuelve pero nunca llega a ser visible
+// y Playwright se queda esperando treinta segundos.
+await page.locator('.active-facet').first().click();
+await page.waitForURL(/kind=all/);
+await page.waitForTimeout(500);
+
+if ((await page.locator("#resultados").count()) > 0) {
+  ok("quitar el último filtro deja el listado completo, no la portada");
+} else {
+  fail("quitar el último filtro devolvió a la portada");
+}
+
 // 1. Ficha → cotización → reservar
 //
 // El rango no se escribe a mano: este recorrido **vende** esas noches, así que

@@ -122,6 +122,22 @@ expect_absent "/es?kind=vehicle&guests=4" "Scooter 125" "y el de dos plazas se q
 expect_contains "/es?kind=vehicle" "facet-price" "la sección de vehículos conserva su filtro de precio"
 expect_contains "/es?guests=49" "Nada coincide con esos filtros" "sin resultados se explica, no se deja vacío"
 expect_contains "/es?guests=49" "Quitar filtros" "sin resultados se ofrece la salida"
+
+# ── Quitar el último filtro no puede devolver a la portada ──────────────────
+#
+# `/es` significaba dos cosas —la portada y "sin filtros"—, así que al quitar
+# el último filtro el huésped que estaba viendo resultados aterrizaba arriba
+# del hero, sin listado. No era un enlace mal puesto: no existía ninguna
+# dirección con el significado "listado completo", así que no había a dónde
+# caer. `?kind=all` es esa dirección.
+expect_contains "/es?kind=all" "id=\"resultados\"" "el listado completo es un listado, no la portada"
+expect_absent   "/es?kind=all" "hero-copy" "y no trae la portada encima"
+expect_contains "/es?kind=all" "Casa Akumal" "con los tres tipos dentro: estancias"
+expect_contains "/es?kind=all" "Snorkel en cenotes de Tulum" "tours"
+expect_contains "/es?kind=all" "SUV familiar" "y vehículos"
+# La salida desde una vista filtrada tiene que llevar ahí, no a `/es`.
+expect_contains "/es?kind=stay" "kind=all" "desde un filtro, la salida lleva al listado completo"
+expect_absent   "/es?kind=stay" "clearHref=\"/es\"" "y nunca a la portada pelada"
 expect_status "/es?guests=abc&kind=inventado" 200 "un filtro inválido se ignora en lugar de reventar"
 expect_status "/es?guests=-5" 200 "un número negativo se ignora"
 # Un producto sin fotos no reserva el hueco de la imagen: un rectángulo gris se

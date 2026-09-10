@@ -73,11 +73,16 @@ export default async function LocaleLayout({
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-pathname") ?? `/${locale}`;
   const alternate = alternateForPathname(locale, pathname);
-  // El menú necesita saber en qué página está el visitante para marcar el
-  // enlace activo, igual que la referencia. `x-pathname` no lleva la
-  // búsqueda (Tours/Estancias se distinguen solo por `?kind=`), así que se
-  // reconstruye con `x-search`, puesto por el mismo middleware.
-  const currentPath = `${pathname}${requestHeaders.get("x-search") ?? ""}`;
+
+  // `x-pathname` sigue haciendo falta para el enlace de idioma, que **sí** es
+  // cosa del servidor: depende de la ruta y no cambia con la búsqueda.
+  //
+  // Lo que ya no se calcula aquí es cuál enlace del menú va marcado. Se hacía
+  // con `x-pathname` + `x-search`, y funcionaba solo en la primera carga: en el
+  // App Router un layout no se vuelve a renderizar en una navegación de
+  // cliente, así que el valor se congelaba y el punto se quedaba en "Inicio"
+  // mientras el listado ya mostraba otra cosa. Ahora lo decide `NavLinks` con
+  // `usePathname` y `useSearchParams`, que sí se actualizan.
 
   return (
     <html lang={locale} className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
@@ -86,11 +91,7 @@ export default async function LocaleLayout({
           {t.skipToContent}
         </a>
 
-        <SiteHeader
-          locale={locale}
-          alternate={alternate}
-          currentPath={currentPath}
-        />
+        <SiteHeader locale={locale} alternate={alternate} />
 
         <main id="content" className="wrap">
           {children}

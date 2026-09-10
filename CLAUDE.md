@@ -77,8 +77,8 @@ npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
 npx next start -p 3100 &
-BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 129 criterios
-BASE_URL=http://127.0.0.1:3100 npm run test:e2e            #  8 · el checkout
+BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 136 criterios
+BASE_URL=http://127.0.0.1:3100 npm run test:e2e            # 11 · el checkout
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin      # 18 · un día de recepción
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme        # 25 · cierran el puerto
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:publicar   # 29 · publicar un tour
@@ -388,6 +388,30 @@ Están aquí porque cada una se pagó una vez.
   [decisión 0015](docs/decisiones/0015-el-apartado-tiene-que-sobrevivir-a-la-sesion-de-pago.md).
   **En producción hay que correr `db/arreglos/apartado-35-minutos.sql`**: el
   seed no se corre allá.
+- **Un layout no se vuelve a renderizar en una navegación de cliente, así que
+  no puede decidir nada que dependa de la URL.** El enlace activo del menú se
+  calculaba en `layout.tsx` con `x-pathname` + `x-search` de las cabeceras, y
+  se congelaba en el primer render: la URL cambiaba a `?kind=stay`, el título
+  de la pestaña cambiaba, el listado cambiaba, **y el punto se quedaba en
+  "Inicio"**. Recargar lo arreglaba, que es lo que lo volvía difícil de creer.
+  Y **`smoke.sh` no podía verlo nunca**: pide con `curl`, y una petición nueva
+  siempre acierta — el defecto solo existe entre dos renders. Ahora lo decide
+  `NavLinks` con `usePathname`/`useSearchParams`, envuelto en `<Suspense>`
+  porque `useSearchParams` lo exige o falla el build. El criterio vive en
+  `e2e.mjs`, que navega sin recargar. Ver
+  [decisión 0018](docs/decisiones/0018-el-enlace-activo-se-decide-en-el-cliente.md).
+- **`/es` significaba "la portada" y "sin filtros" a la vez.** Quitar el último
+  filtro devolvía al huésped a la portada —arriba del hero, sin listado— porque
+  el listado solo se renderiza cuando hay filtros y **no existía ninguna
+  dirección con el significado "listado completo"**. Ni el ancla: los enlaces
+  iban a `/es#resultados` y ese `id` no se renderiza en la portada. Ahora es
+  `?kind=all`, que no es un filtro sino "estoy en el listado y no filtro por
+  tipo". La lección de fondo es otra: **el código ya conocía la mitad del
+  defecto** —hay un comentario que lo explica— y el arreglo anterior escondió
+  la fila del panel lateral dejando intactos los chips y "Quitar filtros", que
+  son los que se usan en el teléfono, donde la barra está cerrada. Tratar el
+  sitio donde se vio el problema no es tratarlo. Ver
+  [decisión 0017](docs/decisiones/0017-todo-el-catalogo-necesita-su-propia-direccion.md).
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 
