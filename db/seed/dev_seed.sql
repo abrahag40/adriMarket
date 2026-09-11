@@ -241,6 +241,13 @@ insert into product_media (product_id, url, alt_es, alt_en, width, height, posit
    'Recámara principal con ventanal', 'Main bedroom with large window', 1200, 800, 1),
   ('55555555-5555-5555-5555-555555555555', '/media/akumal-3.svg',
    'Cocina abierta hacia la terraza', 'Kitchen open to the terrace', 1200, 800, 2),
+  -- Vertical a propósito. Las fotos de verdad no son todas apaisadas —una
+  -- recámara o un baño se fotografían de pie— y una miniatura vertical es lo
+  -- que hacía que la principal se saliera de su columna en la ficha. El
+  -- criterio "Composición en escritorio" de audit.mjs la necesita: sin ella,
+  -- pasaría con el defecto puesto.
+  ('55555555-5555-5555-5555-555555555555', '/media/akumal-4.svg',
+   'Baño principal con tina y ventana al jardín', 'Main bathroom with tub and garden window', 800, 1200, 3),
 
   ('99999999-9999-9999-9999-999999999999', '/media/catamaran-1.svg',
    'Catamarán navegando frente a la costa', 'Catamaran sailing off the coast', 1200, 800, 0),

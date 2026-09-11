@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200" width="800" height="1200" role="img" aria-label="Casa Akumal">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c5f7a"/>
+      <stop offset="1" stop-color="#4fb3a6"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1200" fill="url(#g)"/>
+  <g fill="#ffffff" opacity="0.22">
+    <circle cx="640" cy="180" r="90"/>
+    <path d="M0 980 C 140 930 260 1030 400 980 C 540 930 660 1030 800 980 L800 1200 L0 1200 Z"/>
+    <path d="M0 1060 C 160 1020 300 1100 440 1060 C 580 1020 700 1100 800 1060 L800 1200 L0 1200 Z" opacity="0.6"/>
+  </g>
+  <text x="60" y="120" font-family="Georgia, serif" font-size="52" fill="#ffffff">Casa Akumal</text>
+  <text x="60" y="170" font-family="system-ui, sans-serif" font-size="26" fill="#ffffff" opacity="0.85">Baño principal · 4 de 4 · vertical</text>
+  <text x="60" y="1150" font-family="ui-monospace, monospace" font-size="20" fill="#ffffff" opacity="0.7">CONTENIDO DE RELLENO · PENDIENTE FOTO REAL</text>
+</svg>

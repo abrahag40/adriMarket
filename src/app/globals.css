@@ -1442,10 +1442,40 @@ main {
   }
 }
 
+/* Las fotos LLENAN su caja; no la definen.
+
+   Antes el <img> iba en flujo con `height: 100%`, y ese porcentaje no
+   siempre resuelve: en una miniatura sin alto definido cae a `auto` y la
+   imagen mide lo que su forma real le dicte. Con una miniatura VERTICAL —una
+   recámara fotografiada de pie— la fila de miniaturas crecía, la fila de la
+   galería con ella, `align-items: stretch` estiraba la principal a esa
+   altura y `aspect-ratio: 9/5` convertía la altura extra en ANCHURA extra:
+   la principal se salía de su columna y quedaba debajo de las miniaturas.
+   Se vio en producción el 2026-09-11 a ~1000 px de ancho; a 1280 no se
+   veía, porque las miniaturas diferidas aún no habían cargado y su forma
+   real todavía no mandaba. Lo mide "Composición en escritorio" en audit.mjs.
+
+   Fuera del flujo, una imagen no puede empujar nada: la fila la decide la
+   principal (9:5 de su columna) y las miniaturas se reparten esa altura.
+   `.gallery figure a` ya es `position: relative`. */
 .gallery img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Y por si otra regla vuelve a darle altura de más a la fila: la principal
+   no puede pasar de su columna, diga lo que diga su relación de aspecto.
+   `min-width: 0` quita el mínimo automático de los elementos de rejilla,
+   que es la otra puerta por la que una foto se sale de su columna. */
+.gallery > * {
+  min-width: 0;
+}
+
+.gallery-main {
+  max-width: 100%;
 }
 
 /* ---------- carrusel de fotos ---------- */

@@ -373,6 +373,75 @@ if ((await page.locator("#fullName").count()) > 0) ok("el checkout renderiza sus
 else no("el checkout no renderiza sin JavaScript");
 
 await sinJs.close();
+
+// ---------------------------------------------------------------------------
+// 4. Composición en escritorio · la galería no se desborda
+// ---------------------------------------------------------------------------
+//
+// Todo lo demás de esta auditoría corre a 390 px, y a ese ancho la galería es
+// una sola columna: el defecto que esto atrapa **no existe en el teléfono**.
+// A partir de 720 px la principal y las miniaturas comparten fila, y ahí una
+// miniatura VERTICAL hacía crecer la fila, `align-items: stretch` estiraba la
+// principal a esa altura y `aspect-ratio: 9/5` convertía la altura extra en
+// anchura extra: la principal se salía de su columna y quedaba debajo de las
+// miniaturas. Se vio en producción el 2026-09-11, a ~1000 px.
+//
+// Por eso la foto 4 de casa-akumal en el seed es vertical a propósito: sin
+// una miniatura vertical, este criterio pasaría con el defecto puesto.
+console.log("\nComposición en escritorio");
+
+const escritorio = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+const pagina = await escritorio.newPage();
+await pagina.goto(`${base}/es/estancias/casa-akumal?${RANGO}`, { waitUntil: "networkidle" });
+await pagina.locator(".gallery-thumbs").scrollIntoViewIfNeeded();
+// Las miniaturas cargan diferidas; la medida solo vale con las fotos ya
+// dentro, porque es su tamaño real el que movía la fila. Con tope: una foto
+// que nunca carga no debe colgar la auditoría treinta segundos.
+await pagina
+  .waitForFunction(() => [...document.querySelectorAll(".gallery img")].every((i) => i.complete), null, {
+    timeout: 8000,
+  })
+  .catch(() => {});
+const medidas = await pagina.evaluate(() => {
+  const g = document.querySelector(".gallery");
+  const m = document.querySelector(".gallery-main");
+  const t = document.querySelector(".gallery-thumbs");
+  if (!g || !m || !t) return null;
+  const mb = m.getBoundingClientRect();
+  const tb = t.getBoundingClientRect();
+  const columna = Number.parseFloat(getComputedStyle(g).gridTemplateColumns);
+  return {
+    solape: Math.round(mb.right - tb.left),
+    principal: Math.round(mb.width),
+    columna: Math.round(columna),
+    // 9:5 sobre la columna, con un par de píxeles de tolerancia por redondeo.
+    altura: Math.round(mb.height),
+    esperada: Math.round((columna * 5) / 9),
+    desbordaPagina: document.documentElement.scrollWidth > window.innerWidth,
+    verticales: [...t.querySelectorAll("img")].filter((i) => i.naturalHeight > i.naturalWidth).length,
+  };
+});
+if (!medidas) {
+  no("la ficha de estancia no tiene galería con miniaturas");
+} else {
+  if (medidas.verticales === 0) {
+    no("el seed no tiene una miniatura vertical: este criterio no comprueba nada");
+  }
+  if (medidas.solape <= 0 && medidas.principal <= medidas.columna) {
+    ok(`la foto principal se queda en su columna (${medidas.principal} de ${medidas.columna} px)`);
+  } else {
+    no(`la foto principal se desborda ${medidas.solape} px por debajo de las miniaturas (${medidas.principal} de ${medidas.columna} px)`);
+  }
+  if (Math.abs(medidas.altura - medidas.esperada) <= 2) {
+    ok(`y conserva su 9:5 (${medidas.altura} px)`);
+  } else {
+    no(`la principal mide ${medidas.altura} px de alto; a 9:5 serían ${medidas.esperada}`);
+  }
+  if (!medidas.desbordaPagina) ok("la página no se desplaza a lo ancho");
+  else no("la página se desplaza a lo ancho");
+}
+await escritorio.close();
+
 await browser.close();
 
 console.log("\n----------------------------------------");
