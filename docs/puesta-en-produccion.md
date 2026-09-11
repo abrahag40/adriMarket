@@ -357,6 +357,18 @@ verdad**, y se niega si es el local.
 
 Se dice aquí para que nadie lo descubra después:
 
+- **Producción corre con contenido de DEMOSTRACIÓN, no con datos del cliente.**
+  El 2026-09-11 se cargó `db/seed/demo_extras_y_cupones.sql` para poder
+  presentar la plataforma mientras no llega la información real: 47 extras de
+  tour repartidos en 23 de los 27 tours, 120 salidas para los dos tours que
+  nunca tuvieron ninguna, y tres cupones (`BIENVENIDA10`, `CARIBE15`,
+  `TODOINCLUIDO`). **El catálogo de 41 productos ya estaba y no se tocó.**
+  Nombres, precios y textos son inventados y plausibles; ninguno viene del
+  cliente. El archivo lleva en su cabecera el guion de la presentación y, al
+  final, cómo retirarlo el día que lleguen los datos de verdad — los extras y
+  los cupones se borran por código, las salidas **se cierran, no se borran**,
+  porque una que se haya vendido está referenciada por `booking_items`.
+
 - ~~Los reembolsos se registran, no se ejecutan.~~ **Cerrada en lo que era
   urgente.** El movimiento lo hace la agencia en su banco y el panel lo registra
   desde `/admin/reembolsos` —cómo, cuándo, quién, clave de rastreo y
