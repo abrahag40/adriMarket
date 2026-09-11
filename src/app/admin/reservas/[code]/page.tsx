@@ -117,6 +117,21 @@ export default async function ReservaPage({ params }: { params: Promise<{ code: 
             </ul>
           </>
         ) : null}
+
+        {/* Lo que el guía tiene que llevar además del tour. Mismo trato que
+            los pasajeros: el encabezado solo aparece si hay algo que listar. */}
+        {booking.extras.length > 0 ? (
+          <>
+            <h3>Extras</h3>
+            <ul className="check-list">
+              {booking.extras.map((extra, index) => (
+                <li key={index}>
+                  {extra.name} × {extra.qty} · {money(extra.subtotalCents)}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </section>
 
       <section className="admin-panel">

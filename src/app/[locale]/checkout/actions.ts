@@ -91,6 +91,13 @@ export async function startCheckout(
         infant: count(form, "infants"),
       },
       couponCode,
+      // Casillas del paso de extras. Llegan como campos repetidos, igual que
+      // los pasajeros, y aquí solo se acarrean códigos: lo que vale cada uno
+      // lo decide el catálogo dentro de createBookingWithHold.
+      extraCodes: form
+        .getAll("extras")
+        .filter((value): value is string => typeof value === "string" && value.trim() !== "")
+        .map((value) => value.trim()),
     };
   }
 

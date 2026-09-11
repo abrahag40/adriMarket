@@ -12,6 +12,7 @@ declarar por sí solo.
 | Catálogo | `products`, `product_translations`, `product_media`, `locations`, `tags`, `product_tags`, `cancellation_policies`, `tax_rates` | `products.kind` distingue `tour` de `stay`; el texto vive aparte para dos idiomas |
 | Inventario · estancias | `stay_units`, `stay_rate_plans`, `stay_rates`, `stay_blocks` | `stay_blocks` es la tabla crítica: lleva la restricción de exclusión |
 | Inventario · tours | `tour_options`, `tour_pax_prices`, `tour_departures`, `tour_seat_holds` | `tour_departures.seats_taken` solo se toca dentro de funciones que bloquean la fila |
+| Extras de tour | `tour_extras`, `booking_extras` | **no se agotan**: sin cupo, sin apartado y sin nada que serializar |
 | Reserva | `customers`, `bookings`, `booking_items`, `booking_guests`, `booking_events` | una reserva puede llevar un tour y dos noches |
 | Dinero | `payments`, `payment_events`, `refunds`, `coupons` | el saldo en destino es un pago `pending`, no un dato faltante |
 | Avisos | `outbox` | bandeja de salida transaccional |
@@ -19,6 +20,37 @@ declarar por sí solo.
 Vistas: `booking_payment_status` (estado real del dinero por reserva) y
 `tour_departure_seat_audit` (delata desalineación del contador de lugares; en
 operación normal `drift` siempre es 0 y vale la pena alertar si no lo es).
+
+## Extras de tour
+
+`tour_extras` cuelga del **producto**, no de la opción: la misma tirolesa la
+venda el horario de las 9:00 o el de las 14:00. El precio es **por lugar
+ocupado** —la cantidad sale de `counts_toward_capacity`, igual que el cupo, así
+que un infante en brazos no paga tirolesa— y eso hace que no exista una segunda
+definición de "cuántos son" que pueda separarse de la primera.
+
+`booking_extras` guarda lo comprado con el **nombre y el precio congelados**,
+por la misma razón por la que `bookings` guarda `coupon_code` además de
+`coupon_id`: si mañana sube la tirolesa o se borra del catálogo, la reserva
+sigue diciendo qué se vendió y en cuánto. Dos garantías lo sostienen desde la
+base, no desde la aplicación:
+
+- `booking_extras_subtotal_cuadra` — `subtotal = precio unitario × cantidad`,
+  aunque el renglón lo meta alguien con SQL a mano;
+- `unique (booking_item_id, code)` — marcar dos veces la misma casilla no es
+  comprar dos veces.
+
+Existe además de las líneas `extra` que ya van en el desglose congelado de
+`bookings.quote`, y no en lugar de ellas: ese jsonb sirve para releer un
+comprobante, no para preguntarle a la base cuántos kayaks salen el sábado. Es
+el mismo reparto que hay entre `booking_items.pax_breakdown` y
+`booking_guests`.
+
+Lo que **no** son: inventario. No tienen cupo, así que no hay bloqueo de fila,
+ni contador, ni carrera. Si algún día hay ocho kayaks y no nueve, apartarlos
+exige el mismo aparato que los lugares de una salida — y eso es otra migración,
+no una columna. Ver
+[decisión 0019](decisiones/0019-el-cupon-no-descuenta-los-extras.md).
 
 ## Ocupación de una unidad
 

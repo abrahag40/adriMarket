@@ -156,6 +156,16 @@ const browser = await chromium.launch(
 );
 
 const RANGO = "from=2026-09-17&to=2026-09-20&guests=5";
+
+/* El paso de extras necesita una salida real, y la toma de la ficha igual que
+   la tomaría un huésped. Se audita porque es una pantalla pública llena de
+   controles de formulario: casillas, etiquetas y objetivos de toque son
+   exactamente donde se rompe la accesibilidad, y darla por buena sin pasarla
+   por axe sería marcar una casilla por confianza. */
+const fichaTour = await (await fetch(`${base}/es/tours/snorkel-cenotes-tulum`)).text();
+const salidaTour = (fichaTour.match(/value="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"/) ?? [])[1];
+const EXTRAS = `kind=tour&slug=snorkel-cenotes-tulum&departure=${salidaTour}&adults=2&children=1&infants=0`;
+
 const publicas = [
   ["/es", "portada"],
   ["/en", "portada en inglés"],
@@ -163,6 +173,7 @@ const publicas = [
   ["/es?kind=tour", "listado con filtro lateral"],
   [`/es/estancias/casa-akumal?${RANGO}`, "ficha de estancia"],
   ["/es/tours/snorkel-cenotes-tulum", "ficha de tour"],
+  [`/es/extras?${EXTRAS}&extras=tirolesa`, "paso de extras"],
   [`/es/checkout?kind=stay&slug=casa-akumal&${RANGO}`, "checkout"],
 ];
 
@@ -337,6 +348,23 @@ else no("la cotización no se ve sin JavaScript");
 if ((await page.locator("#reservar").getByRole("link", { name: "Reservar" }).count()) > 0)
   ok("y se puede reservar");
 else no("no se puede llegar al checkout sin JavaScript");
+
+/* El paso de extras sin JavaScript. Es donde más fácil se rompe la promesa:
+   la afirmación "el total sube solo al marcar" se cumple con un componente de
+   cliente, y sin él tiene que quedar el camino de siempre —un `form` GET y su
+   botón—. Se comprueba marcando la casilla y enviando, que es lo que haría
+   alguien con una conexión que cargó el HTML y no el JavaScript. */
+await page.goto(`${base}/es/extras?${EXTRAS}`, { waitUntil: "domcontentloaded" });
+const antesSinJs = await page.locator(".quote-total td").innerText();
+await page.locator('input[name="extras"][value="tirolesa"]').check();
+await page.getByRole("button", { name: "Actualizar total" }).click();
+await page.waitForLoadState("domcontentloaded");
+const despuesSinJs = await page.locator(".quote-total td").innerText();
+if (antesSinJs !== despuesSinJs && page.url().includes("extras=tirolesa")) {
+  ok(`los extras se pueden agregar sin JavaScript: ${antesSinJs.trim()} → ${despuesSinJs.trim()}`);
+} else {
+  no("sin JavaScript no se puede agregar un extra");
+}
 
 await page.goto(`${base}/es/checkout?kind=stay&slug=casa-akumal&${RANGO}`, {
   waitUntil: "domcontentloaded",

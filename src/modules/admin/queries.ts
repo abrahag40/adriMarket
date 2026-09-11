@@ -130,6 +130,8 @@ export type BookingDetail = BookingRow & {
   checkOut: string | null;
   timezone: string;
   guests: { fullName: string; paxType: string; age: number | null; isLead: boolean }[];
+  /** Complementos comprados, con el nombre y el precio congelados al reservar. */
+  extras: { name: string; qty: number; subtotalCents: number }[];
   events: { type: string; createdAt: string; actor: string }[];
 };
 
@@ -180,6 +182,19 @@ export async function bookingDetail(code: string): Promise<BookingDetail | null>
      order by is_lead desc, full_name
   `);
 
+  /* Los extras salen de su tabla y no del jsonb del desglose: recepción y el
+     guía necesitan saber cuántos kayaks lleva este grupo, y eso es una
+     pregunta que se le hace a la base, no un texto que se lee. */
+  const extras = await db.execute<{
+    name: string;
+    qty: number;
+    subtotal_cents: string;
+  }>(sql`
+    select name, qty, subtotal_cents::text
+      from booking_extras where booking_id = ${row.id}::uuid
+     order by name
+  `);
+
   const events = await db.execute<{ type: string; created_at: string; actor: string }>(sql`
     select type, created_at::text as created_at,
            coalesce(actor_id, actor_type) as actor
@@ -214,6 +229,11 @@ export async function bookingDetail(code: string): Promise<BookingDetail | null>
       paxType: guest.pax_type,
       age: guest.age === null ? null : Number(guest.age),
       isLead: guest.is_lead,
+    })),
+    extras: extras.map((extra) => ({
+      name: extra.name,
+      qty: Number(extra.qty),
+      subtotalCents: Number(extra.subtotal_cents),
     })),
     events: events.map((event) => ({
       type: event.type,

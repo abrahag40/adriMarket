@@ -4400,3 +4400,89 @@ fieldset.field legend {
   text-wrap: pretty;
 }
 
+
+/* ---------- paso de extras · S8 ----------
+
+   Casillas grandes, precio alineado a la derecha y la fila entera cliqueable:
+   el `<label>` envuelve al `<input>`, así que no hace falta ni `for` ni
+   acertarle al cuadrito de 13 px en un teléfono.
+
+   El objetivo de toque es la fila completa y no solo la casilla, que es lo que
+   pide el criterio de 44 px de la auditoría. */
+
+.extras-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 52ch;
+}
+
+.extras-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.extra-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: var(--bg);
+}
+
+/* El estado marcado se ve sin depender solo del color del cuadrito, que en
+   pantallas chicas es casi invisible: cambia el fondo y el borde de la fila. */
+.extra-option:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.extra-option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.extra-option input[type="checkbox"] {
+  inline-size: 20px;
+  block-size: 20px;
+  flex: 0 0 20px;
+  accent-color: var(--accent);
+}
+
+.extra-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.extra-name {
+  font-weight: 600;
+}
+
+.extra-note {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+
+.extra-price {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.extras-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 52ch;
+}

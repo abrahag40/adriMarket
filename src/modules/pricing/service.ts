@@ -1,4 +1,4 @@
-import type { ProductKind } from "@/i18n/config";
+import type { Locale, ProductKind } from "@/i18n/config";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
@@ -15,6 +15,7 @@ import {
   type Quote,
   type StayUnitPricing,
   type TaxRule,
+  type TourExtra,
   type TourPricing,
 } from "./types";
 
@@ -123,10 +124,12 @@ async function resolveCoupon(
     valid_from: string | null;
     valid_to: string | null;
     applies_to: { kind?: string; product_ids?: string[] } | null;
+    applies_to_extras: boolean;
     active: boolean;
   }>(sql`
     select id, kind::text as kind, value::text, currency, min_total_cents::text,
-           max_redemptions, redemptions, valid_from::text, valid_to::text, applies_to, active
+           max_redemptions, redemptions, valid_from::text, valid_to::text, applies_to,
+           applies_to_extras, active
       from coupons
      where code = ${code}
   `);
@@ -158,8 +161,66 @@ async function resolveCoupon(
       kind: row.kind,
       value: Number(row.value),
       minTotalCents: Number(row.min_total_cents),
+      appliesToExtras: row.applies_to_extras,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Extras de tour
+// ---------------------------------------------------------------------------
+
+/**
+ * Los complementos vendibles de un tour, en el idioma del huésped.
+ *
+ * `name_en` puede faltar —el catálogo se carga primero en español— y entonces
+ * se cae al español en lugar de mostrar un renglón vacío en el desglose.
+ */
+export async function listTourExtras(productId: string, locale: Locale): Promise<TourExtra[]> {
+  if (!UUID_RE.test(productId)) return [];
+
+  const rows = await db.execute<{
+    id: string;
+    code: string;
+    name: string;
+    note: string | null;
+    price_cents: string;
+  }>(sql`
+    select id, code,
+           ${locale === "en" ? sql`coalesce(name_en, name_es)` : sql`name_es`} as name,
+           ${locale === "en" ? sql`coalesce(note_en, note_es)` : sql`note_es`} as note,
+           price_cents::text
+      from tour_extras
+     where product_id = ${productId}::uuid
+       and active
+     order by position, name_es
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    note: row.note,
+    priceCents: Number(row.price_cents),
+  }));
+}
+
+/**
+ * Resuelve los códigos que vienen de la URL contra el catálogo del producto.
+ *
+ * **Un código que no existe se ignora en silencio**, y aquí sí es lo correcto,
+ * al revés que con los cupones: el huésped no escribió esto —lo marcó de una
+ * lista que le dimos nosotros—, así que un código inválido solo puede venir de
+ * una URL vieja o manipulada. No hay nada que explicarle y no hay nada que
+ * cobrarle de más: lo que no se resuelve, no se suma. El cupón es el caso
+ * contrario porque ahí el huésped sí pidió algo que espera ver.
+ *
+ * El orden lo pone el catálogo, no la URL: así dos enlaces con las mismas
+ * casillas producen el mismo desglose.
+ */
+function pickExtras(catalogo: readonly TourExtra[], codes: readonly string[]): TourExtra[] {
+  const pedidos = new Set(codes.map((code) => code.trim()).filter(Boolean));
+  return catalogo.filter((extra) => pedidos.has(extra.code));
 }
 
 // ---------------------------------------------------------------------------
@@ -348,6 +409,14 @@ export type TourQuoteResult = {
   seatsNeeded: number;
   /** Id del cupón aplicado, para poder canjearlo si la reserva se confirma. */
   couponId: string | null;
+  /**
+   * Extras que de verdad entraron en la cotización, con su precio unitario.
+   *
+   * Se devuelven resueltos —no los códigos que llegaron— porque es lo que la
+   * reserva guarda renglón por renglón en `booking_extras`. Un código que no
+   * existe no llega hasta aquí.
+   */
+  extras: TourExtra[];
 };
 
 /**
@@ -363,6 +432,8 @@ export async function quoteTour(
   pax: PaxCounts,
   now: Date = new Date(),
   couponCode?: string,
+  /** Casillas marcadas en el paso de extras. Los precios los pone el servidor. */
+  extras?: { codes: readonly string[]; locale: Locale },
 ): Promise<TourQuoteResult> {
   // El checkout llega desde una URL con `departure` como parámetro: un
   // enlace manipulado o incompleto lo manda vacío o con basura. Sin este
@@ -421,11 +492,14 @@ export async function quoteTour(
     countsTowardCapacity: row.counts_toward_capacity,
   }));
 
-  const couponLookup = await resolveCoupon(
-    couponCode,
-    { productId, kind: "tour", currency: departure.currency },
-    now,
-  );
+  const [couponLookup, elegidos] = await Promise.all([
+    resolveCoupon(couponCode, { productId, kind: "tour", currency: departure.currency }, now),
+    extras?.codes.length
+      ? listTourExtras(productId, extras.locale).then((catalogo) =>
+          pickExtras(catalogo, extras.codes),
+        )
+      : Promise.resolve<TourExtra[]>([]),
+  ]);
 
   const quote = buildTourQuote({
     currency: departure.currency,
@@ -438,6 +512,7 @@ export async function quoteTour(
     depositPct: Number(departure.deposit_pct),
     now,
     coupon: couponLookup?.ok ? couponLookup.input : null,
+    extras: elegidos,
   });
   if (couponLookup && !couponLookup.ok) {
     quote.coupon = { code: couponLookup.code, applied: false, reason: couponLookup.reason };
@@ -455,5 +530,6 @@ export async function quoteTour(
     seatsLeft: Number(departure.seats_left),
     seatsNeeded,
     couponId: couponLookup?.ok ? couponLookup.id : null,
+    extras: elegidos,
   };
 }

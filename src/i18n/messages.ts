@@ -213,6 +213,7 @@ export type Messages = {
   couponLabel: string;
   couponApply: string;
   couponDiscount: (code: string) => string;
+  couponDiscountBase: (code: string) => string;
   couponNotFound: string;
   couponExpired: string;
   couponNotYetValid: string;
@@ -220,6 +221,17 @@ export type Messages = {
   couponRedeemedOut: string;
   couponCurrencyMismatch: string;
   couponMinTotal: string;
+
+  // Paso de extras del tour
+  extrasTitle: string;
+  extrasIntro: string;
+  extrasPerPerson: (price: string) => string;
+  extrasNoCoupon: string;
+  extrasUpdate: string;
+  extrasContinue: string;
+  extrasSkip: string;
+  extrasChosen: (count: number) => string;
+  extrasSummary: string;
 };
 
 const es: Messages = {
@@ -433,6 +445,7 @@ const es: Messages = {
   couponLabel: "Código de cupón",
   couponApply: "Aplicar cupón",
   couponDiscount: (code) => `Cupón ${code}`,
+  couponDiscountBase: (code) => `Cupón ${code} · solo el tour`,
   couponNotFound: "Ese código no existe o ya no está activo.",
   couponExpired: "Ese cupón ya venció.",
   couponNotYetValid: "Ese cupón todavía no está vigente.",
@@ -440,6 +453,17 @@ const es: Messages = {
   couponRedeemedOut: "Ese cupón ya se agotó.",
   couponCurrencyMismatch: "Ese cupón no aplica en esta moneda.",
   couponMinTotal: "Tu compra no alcanza el mínimo que pide ese cupón.",
+
+  extrasTitle: "¿Le agregamos algo?",
+  extrasIntro: "Se paga igual que el tour: anticipo en línea y el saldo en destino.",
+  extrasPerPerson: (price) => `${price} por persona`,
+  extrasNoCoupon: "Los extras no entran en el descuento del cupón.",
+  extrasUpdate: "Actualizar total",
+  extrasContinue: "Continuar",
+  extrasSkip: "No, gracias",
+  extrasChosen: (count) =>
+    count === 1 ? "1 extra agregado" : `${count} extras agregados`,
+  extrasSummary: "Extras",
 };
 
 const en: Messages = {
@@ -651,6 +675,7 @@ const en: Messages = {
   couponLabel: "Coupon code",
   couponApply: "Apply coupon",
   couponDiscount: (code) => `Coupon ${code}`,
+  couponDiscountBase: (code) => `Coupon ${code} · tour only`,
   couponNotFound: "That code does not exist or is no longer active.",
   couponExpired: "That coupon has expired.",
   couponNotYetValid: "That coupon is not active yet.",
@@ -658,6 +683,16 @@ const en: Messages = {
   couponRedeemedOut: "That coupon has already run out.",
   couponCurrencyMismatch: "That coupon does not apply in this currency.",
   couponMinTotal: "Your purchase does not reach that coupon's minimum.",
+
+  extrasTitle: "Anything else?",
+  extrasIntro: "Paid like the tour: deposit online, balance on arrival.",
+  extrasPerPerson: (price) => `${price} per person`,
+  extrasNoCoupon: "Add-ons are not covered by the coupon discount.",
+  extrasUpdate: "Update total",
+  extrasContinue: "Continue",
+  extrasSkip: "No, thanks",
+  extrasChosen: (count) => (count === 1 ? "1 add-on selected" : `${count} add-ons selected`),
+  extrasSummary: "Add-ons",
 };
 
 const MESSAGES: Record<Locale, Messages> = { es, en };

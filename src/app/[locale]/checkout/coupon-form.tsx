@@ -16,16 +16,21 @@ export function CouponForm({
   current,
 }: {
   locale: Locale;
-  hidden: Record<string, string>;
+  /** Un arreglo se pinta como campos repetidos: así viajan los extras. */
+  hidden: Record<string, string | readonly string[]>;
   current: string;
 }) {
   const t = getMessages(locale);
 
   return (
     <form className="filters" method="get" action={`/${locale}/checkout`}>
-      {Object.entries(hidden).map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={value} />
-      ))}
+      {Object.entries(hidden).flatMap(([name, value]) =>
+        Array.isArray(value)
+          ? value.map((one, index) => (
+              <input key={`${name}-${index}`} type="hidden" name={name} value={one} />
+            ))
+          : [<input key={name} type="hidden" name={name} value={value as string} />],
+      )}
       <div className="filters-row">
         <div className="field field-wide">
           <label htmlFor="coupon">{t.couponLabel}</label>

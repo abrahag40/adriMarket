@@ -6,7 +6,7 @@ import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown
 import { LOCALE_TAG, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 import { tourDepartures } from "@/modules/availability/calendar";
-import { quoteTour } from "@/modules/pricing/service";
+import { listTourExtras, quoteTour } from "@/modules/pricing/service";
 import { QuoteError } from "@/modules/pricing/types";
 import { startOfMonth, todayIn } from "@/time";
 
@@ -69,8 +69,14 @@ export async function TourBooking({
         child: children,
         infant: infants,
       });
+      /* Si el tour tiene algo que ofrecer, el botón pasa primero por el paso
+         de extras; si no, va derecho al checkout. Un paso intermedio vacío es
+         un clic de más en el peor momento, así que no se muestra jamás: la
+         página de extras también redirige sola si alguien llega a mano. */
+      const tieneExtras = (await listTourExtras(productId, locale)).length > 0;
+      const destino = tieneExtras ? "extras" : "checkout";
       const checkoutHref =
-        `/${locale}/checkout?kind=tour&slug=${encodeURIComponent(slug)}` +
+        `/${locale}/${destino}?kind=tour&slug=${encodeURIComponent(slug)}` +
         `&departure=${selected.departureId}&adults=${adults}&children=${children}&infants=${infants}`;
       quoteNode = (
         <>
