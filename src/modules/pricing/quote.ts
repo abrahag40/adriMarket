@@ -11,6 +11,7 @@ import {
   type QuoteLine,
   type StayUnitPricing,
   type TaxRule,
+  type TourExtra,
   type TourPricing,
 } from "./types";
 
@@ -121,23 +122,42 @@ function close(
  * un subtotal. Todo lo demás del cupón (vigencia, a qué producto aplica, si ya
  * se agotó) se resuelve en `service.ts` antes de llegar hasta acá — por eso,
  * si `coupon` no es null en este punto, ya pasó esas pruebas.
+ *
+ * **`descontables` y `minimoSobre` pueden ser conjuntos distintos**, y esa
+ * separación es la decisión 0019 hecha código. Los extras de un tour cuentan
+ * para alcanzar el mínimo —así el mínimo del cupón empuja el upsell en vez de
+ * estorbarlo— pero no reciben el descuento, porque un extra revendido deja
+ * margen delgado y descontarlo lo vende a pérdida. Estaban pegados en el mismo
+ * argumento y no se podían separar sin esto.
+ *
+ * `minimoSobre` cae por omisión en `descontables`: el camino de las estancias,
+ * que no tiene extras, se comporta exactamente igual que antes.
  */
 function applyCoupon(
-  lines: readonly QuoteLine[],
+  descontables: readonly QuoteLine[],
   coupon: CouponInput | null | undefined,
+  opciones: { minimoSobre?: readonly QuoteLine[]; alcanceParcial?: boolean } = {},
 ): { discountLine: QuoteLine | null; result: CouponResult | undefined } {
   if (!coupon) return { discountLine: null, result: undefined };
 
-  const subtotal = sumCents(lines.map((line) => line.cents));
+  const base = sumCents(descontables.map((line) => line.cents));
+  const paraElMinimo = sumCents((opciones.minimoSobre ?? descontables).map((line) => line.cents));
   const discount =
-    coupon.kind === "percent" ? percentOf(subtotal, coupon.value) : Math.min(coupon.value, subtotal);
+    coupon.kind === "percent" ? percentOf(base, coupon.value) : Math.min(coupon.value, base);
 
-  if (subtotal < coupon.minTotalCents || discount <= 0) {
+  if (paraElMinimo < coupon.minTotalCents || discount <= 0) {
     return { discountLine: null, result: { code: coupon.code, applied: false, reason: "min_total" } };
   }
 
+  /* El alcance viaja en el concepto, no en la vista, por dos razones: el
+     desglose se congela en la reserva y se relee años después, y quien pinta
+     la pantalla no tiene por qué volver a deducir qué descontó el motor. Solo
+     se marca cuando hay algo que aclarar — en una reserva sin extras el
+     renglón se lee como siempre, y una aclaración que sobra es ruido. */
+  const concept = opciones.alcanceParcial ? `coupon:${coupon.code}:base` : `coupon:${coupon.code}`;
+
   return {
-    discountLine: { concept: `coupon:${coupon.code}`, cents: -discount, kind: "discount" },
+    discountLine: { concept, cents: -discount, kind: "discount" },
     result: { code: coupon.code, applied: true },
   };
 }
@@ -272,6 +292,11 @@ export type TourQuoteInput = {
   depositPct: number;
   now: Date;
   coupon?: CouponInput | null;
+  /**
+   * Complementos elegidos, ya resueltos contra el catálogo del producto. Lo
+   * que llega del navegador son códigos; el precio lo pone `service.ts`.
+   */
+  extras?: readonly TourExtra[];
 };
 
 export function buildTourQuote(input: TourQuoteInput): Quote {
@@ -322,7 +347,35 @@ export function buildTourQuote(input: TourQuoteInput): Quote {
     });
   }
 
-  const { discountLine, result: couponResult } = applyCoupon(lines, input.coupon);
+  /* El servicio base: lo único de lo que sale el descuento cuando el cupón no
+     alcanza a los extras. Se separa aquí, antes de agregar nada más, porque
+     después ya no se distinguen por su `kind` sin recorrer la lista. */
+  const servicio = [...lines];
+
+  // Los extras se cobran por lugar ocupado, nunca por persona a secas: el
+  // infante en brazos no sube a la tirolesa. Es el mismo número que ya decidió
+  // el cupo, así que no hay una segunda definición de "cuántos son" que pueda
+  // desalinearse de la primera.
+  for (const extra of input.extras ?? []) {
+    if (extra.priceCents <= 0 || seatsNeeded <= 0) continue;
+    lines.push({
+      concept: `extra:${seatsNeeded}:${extra.name}`,
+      cents: roundCents(extra.priceCents * seatsNeeded),
+      kind: "extra",
+    });
+  }
+
+  /* Aquí vive la asimetría de la decisión 0019: el descuento sale del servicio
+     base, pero el mínimo del cupón se mide sobre TODO lo que lleva el huésped.
+     Alcanzar el mínimo con un kayak es una razón para agregarlo; descontar ese
+     kayak sería venderlo a pérdida. */
+  const cuponAlcanzaLosExtras = input.coupon?.appliesToExtras ?? false;
+  const hayExtras = lines.length > servicio.length;
+  const { discountLine, result: couponResult } = applyCoupon(
+    cuponAlcanzaLosExtras ? lines : servicio,
+    input.coupon,
+    { minimoSobre: lines, alcanceParcial: hayExtras && !cuponAlcanzaLosExtras },
+  );
   if (discountLine) lines.push(discountLine);
 
   const taxable = sumCents(lines.map((line) => line.cents));

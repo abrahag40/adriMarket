@@ -26,7 +26,8 @@ export function CheckoutForm({
   policyText,
 }: {
   locale: Locale;
-  hidden: Record<string, string>;
+  /** Un arreglo se pinta como campos repetidos: así viajan los extras. */
+  hidden: Record<string, string | readonly string[]>;
   paxSlots: { paxType: "adult" | "child" | "infant"; label: string }[];
   depositLabel: string;
   holdMinutes: number;
@@ -62,9 +63,13 @@ export function CheckoutForm({
 
   return (
     <form action={action} className="checkout-form">
-      {Object.entries(hidden).map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={value} />
-      ))}
+      {Object.entries(hidden).flatMap(([name, value]) =>
+        Array.isArray(value)
+          ? value.map((one, index) => (
+              <input key={`${name}-${index}`} type="hidden" name={name} value={one} />
+            ))
+          : [<input key={name} type="hidden" name={name} value={value as string} />],
+      )}
       <input type="hidden" name="locale" value={locale} />
 
       {errorMessage ? (

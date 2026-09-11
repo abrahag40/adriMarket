@@ -48,6 +48,14 @@ expect_absent() {
   if body "$path" | grep -qF -- "$needle"; then no "$label — apareció: $needle"; else ok "$label"; fi
 }
 
+# Un 307 solo dice "me voy"; un criterio que se conforma con eso pasa igual si
+# el destino es el equivocado. Este comprueba la cabecera Location.
+expect_redirect_to() {
+  local path="$1" want="$2" label="$3" got
+  got="$(curl -s -o /dev/null -D - "$BASE_URL$path" | grep -i '^location:' | tr -d '\r' | sed 's/^[Ll]ocation: *//')"
+  if [[ "$got" == "$want"* ]]; then ok "$label"; else no "$label — fue a: ${got:-ningún lado}"; fi
+}
+
 expect_matches() {
   local path="$1" pattern="$2" label="$3"
   if body "$path" | grep -qiE -- "$pattern"; then ok "$label"; else no "$label — no coincidió: $pattern"; fi
@@ -274,8 +282,47 @@ if [[ -n "$DEPARTURE" ]]; then
   expect_absent "$TOURCHK" "Documento" "y nunca un documento de identidad"
   expect_contains "$TOURCHK" 'name="paxName"' "cada pasajero se captura por separado"
   expect_contains "$TOURCHK" 'name="paxAge"' "y el menor lleva campo de edad"
+  # S8 · el paso de extras
+  #
+  # Lo que sí se puede comprobar con `curl`: que la página existe, que ofrece
+  # el catálogo con su precio por persona, y que **funciona sin JavaScript**
+  # —es un `form method="get"` con casillas—. Que el total se actualice solo al
+  # marcar una casilla NO se puede ver desde aquí: una petición nueva siempre
+  # trae el total correcto. Ese criterio vive en `e2e.mjs`, que navega sin
+  # recargar, por la misma razón que el enlace activo del menú.
+  EXTRAS="/es/extras?kind=tour&slug=snorkel-cenotes-tulum&departure=$DEPARTURE&adults=2&children=1&infants=0"
+  expect_contains "$EXTRAS" "Tirolesa sobre el cenote" "el paso de extras ofrece el catálogo del tour"
+  expect_contains "$EXTRAS" "por persona" "y dice que el precio es por persona"
+  expect_contains "$EXTRAS" 'method="get"' "el paso de extras funciona sin JavaScript"
+  expect_contains "$EXTRAS" 'name="extras"' "las casillas mandan su código"
+  expect_contains "$EXTRAS" "noindex" "el paso de extras no se indexa"
+
+  # Marcado desde la URL: el servidor cobra por LUGAR OCUPADO. El grupo son
+  # tres personas —2 adultos y 1 menor— y las tres ocupan asiento.
+  expect_contains "$EXTRAS&extras=tirolesa" "Tirolesa sobre el cenote × 3" \
+    "un extra marcado se cotiza por lugar ocupado"
+  # Y llega al checkout por su cuenta, sin pasar por el paso anterior.
+  expect_contains "$TOURCHK&extras=tirolesa" "Tirolesa sobre el cenote × 3" \
+    "el checkout cotiza el extra que trae la URL"
+  expect_absent "$TOURCHK" "Tirolesa" "sin extras en la URL, el checkout no inventa ninguno"
 else
   no "no se pudo extraer una salida de la ficha del tour"
+fi
+
+# Un tour sin extras no enseña un paso vacío: redirige al checkout. Pasa con
+# una dirección escrita a mano o guardada de cuando el tour sí los tenía.
+CATAMARAN="$(body "/es/tours/catamaran-arrecife-playa" | grep -oE 'value="[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"' | head -1 | cut -d'"' -f2)"
+if [[ -n "$CATAMARAN" ]]; then
+  expect_redirect_to "/es/extras?kind=tour&slug=catamaran-arrecife-playa&departure=$CATAMARAN&adults=2" \
+    "/es/checkout?kind=tour&slug=catamaran-arrecife-playa" \
+    "un tour sin extras no enseña un paso vacío: manda al checkout, con todo"
+  # Y su botón "Reservar" ni siquiera pasa por ahí.
+  expect_contains "/es/tours/catamaran-arrecife-playa" 'href="/es/checkout?kind=tour&amp;slug=catamaran' \
+    "el botón de un tour sin extras va derecho al checkout"
+  expect_contains "/es/tours/snorkel-cenotes-tulum" 'href="/es/extras?kind=tour&amp;slug=snorkel' \
+    "y el de un tour con extras pasa primero por el paso"
+else
+  no "no se pudo extraer una salida del catamarán"
 fi
 
 echo

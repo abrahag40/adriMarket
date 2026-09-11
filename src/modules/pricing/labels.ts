@@ -41,12 +41,26 @@ export function describeLine(line: QuoteLine, locale: Locale, t: Messages): stri
       return `${label} × ${count}`;
     }
 
+    case "extra": {
+      /* `extra:<cantidad>:<nombre>`. El nombre viene del catálogo y ya está en
+         el idioma del huésped —igual que el de un impuesto—, así que aquí no
+         se traduce: se acomoda. Se parte con límite porque un nombre puede
+         llevar dos puntos ("Buffet: tacos al pastor") y partirlo entero lo
+         cortaría a la mitad. */
+      const [, qty = "1", ...resto] = line.concept.split(":");
+      return `${resto.join(":")} × ${qty}`;
+    }
+
     case "fee":
       return line.concept === "cleaning" ? t.quoteCleaning : line.concept;
 
     case "discount": {
-      const [, code = ""] = line.concept.split(":");
-      return t.couponDiscount(code);
+      /* `coupon:<código>` o `coupon:<código>:base`. El sufijo lo pone el motor
+         cuando el descuento salió solo del servicio base porque la reserva
+         lleva extras que el cupón no alcanza: el huésped lee POR QUÉ el total
+         bajó menos de lo que esperaba, en vez de descubrirlo restando. */
+      const [, code = "", alcance] = line.concept.split(":");
+      return alcance === "base" ? t.couponDiscountBase(code) : t.couponDiscount(code);
     }
 
     case "tax":

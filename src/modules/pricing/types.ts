@@ -11,6 +11,7 @@ export type QuoteLineKind =
   | "nightly" // una noche de hospedaje
   | "occupancy" // huéspedes por encima de la base
   | "pax" // pasajeros de un tour, por tipo
+  | "extra" // complementos de un tour: tirolesa, kayak, buffet
   | "fee" // cargos fijos: limpieza, etc.
   | "discount" // siempre negativo
   | "tax";
@@ -67,6 +68,15 @@ export type CouponInput = {
   /** Porcentaje (0–100) si `kind` es "percent"; centavos si es "fixed". */
   value: number;
   minTotalCents: number;
+  /**
+   * Si el descuento alcanza a los extras del tour. Falso por omisión.
+   *
+   * Ojo con la asimetría, que es deliberada: los extras **siempre** cuentan
+   * para `minTotalCents` —alcanzar el mínimo con un kayak es una razón para
+   * agregarlo— pero solo reciben el descuento si esto es verdadero. Ver
+   * docs/decisiones/0019-el-cupon-no-descuenta-los-extras.md.
+   */
+  appliesToExtras: boolean;
 };
 
 /**
@@ -151,4 +161,22 @@ export type TourPricing = {
   paxType: keyof PaxCounts;
   priceCents: number;
   countsTowardCapacity: boolean;
+};
+
+/**
+ * Un complemento del tour, ya resuelto contra el catálogo y con el nombre en
+ * el idioma del huésped.
+ *
+ * `priceCents` es **por lugar ocupado**: la cantidad la pone el motor a partir
+ * de `counts_toward_capacity`, no el navegador. Una casilla marcada significa
+ * "para todo el grupo que ocupa asiento", que es lo que una casilla puede
+ * significar sin pedir una cantidad.
+ */
+export type TourExtra = {
+  id: string;
+  code: string;
+  name: string;
+  /** Una línea de apoyo bajo el nombre, si el catálogo la trae. */
+  note: string | null;
+  priceCents: number;
 };

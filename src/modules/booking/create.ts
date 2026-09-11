@@ -4,7 +4,7 @@ import { db, toDateRangeLiteral, type DateRange } from "@/db/index";
 import { rethrowDomainError } from "@/modules/availability/holds";
 import { freezeQuoteLabels } from "@/modules/pricing/labels";
 import { quoteRental, quoteTour } from "@/modules/pricing/service";
-import { QuoteError, type PaxCounts, type Quote } from "@/modules/pricing/types";
+import { QuoteError, type PaxCounts, type Quote, type TourExtra } from "@/modules/pricing/types";
 import type { Locale } from "@/i18n/config";
 
 /**
@@ -53,6 +53,8 @@ export type TourBookingInput = {
   departureId: string;
   pax: PaxCounts;
   couponCode?: string;
+  /** Códigos de los extras marcados. Los precios los vuelve a poner el servidor. */
+  extraCodes?: readonly string[];
 };
 
 export type BookingInput = RentalBookingInput | TourBookingInput;
@@ -140,6 +142,7 @@ export async function createBookingWithHold(
   let unitId: string | null = null;
   let seatsNeeded = 0;
   let couponId: string | null = null;
+  let extras: TourExtra[] = [];
 
   /* `input.kind !== "tour"` y no `isRental(input.kind)` a propósito: un
      predicado de tipo estrecha el *campo*, no el objeto que lo contiene, así
@@ -164,8 +167,13 @@ export async function createBookingWithHold(
       input.pax,
       new Date(),
       input.couponCode,
+      // Lo que llega del navegador son códigos. El precio de cada extra sale
+      // del catálogo, aquí, igual que el del tour: un código que no existe
+      // simplemente no se cobra.
+      input.extraCodes?.length ? { codes: input.extraCodes, locale: holder.locale } : undefined,
     );
     quote = quoted.quote;
+    extras = quoted.extras;
     // Los lugares que ocupa el grupo los decide el motor de precios, que ya
     // consultó `counts_toward_capacity`. Aquí no se recalcula.
     seatsNeeded = quoted.seatsNeeded;
@@ -251,6 +259,25 @@ export async function createBookingWithHold(
         returning id
       `);
       const itemId = items[0]!.id;
+
+      /* Los extras, renglón por renglón.
+     
+         El desglose congelado en `quote` ya los lleva como líneas, pero eso es
+         jsonb: sirve para releer un comprobante, no para preguntarle a la base
+         cuántos kayaks salen el sábado. El precio y el nombre se copian —no se
+         referencian— por la misma razón por la que `bookings` guarda
+         `coupon_code` además de `coupon_id`: si mañana sube la tirolesa o se
+         borra del catálogo, esta reserva sigue diciendo qué se vendió y en
+         cuánto. */
+      for (const extra of extras) {
+        await tx.execute(sql`
+          insert into booking_extras (booking_id, booking_item_id, tour_extra_id, code, name,
+                                      unit_price_cents, qty, subtotal_cents)
+          values (${booking.id}::uuid, ${itemId}::uuid, ${extra.id}::uuid, ${extra.code},
+                  ${extra.name}, ${extra.priceCents}, ${seatsNeeded},
+                  ${extra.priceCents * seatsNeeded})
+        `);
+      }
 
       // El titular es un pax con bandera; así el manifiesto del guía sale de una
       // sola tabla (regla del SME, C4).

@@ -33,6 +33,16 @@ begin
 
   select count(*) filter (where ok) into v_granted from bench_result;
 
+  -- Primero que la prueba haya ocurrido. "Sin sobreventa" con cero lugares
+  -- otorgados es cierto y no comprueba nada: si la salida está cerrada o
+  -- agotada, los 200 intentos se rechazan y el veredicto sale en verde sobre
+  -- un banco que nunca se ejecutó. Con 200 intentos de 1 lugar sobre un cupo
+  -- de 20, lo correcto es que se otorguen exactamente 20.
+  assert v_granted = v_capacity,
+    format('EL BANCO NO SE EJECUTÓ: se otorgaron %s lugares de un cupo de %s. '
+           'Sin lugares otorgados, "sin sobreventa" no comprueba nada.',
+           v_granted, v_capacity);
+
   assert v_taken <= v_capacity,
     format('SOBREVENTA: %s lugares tomados sobre un cupo de %s', v_taken, v_capacity);
   assert v_drift = 0,

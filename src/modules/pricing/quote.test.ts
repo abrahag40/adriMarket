@@ -76,6 +76,11 @@ function tourInput(overrides: Partial<TourQuoteInput> = {}): TourQuoteInput {
   };
 }
 
+/* Extras de prueba. El grupo de `tourInput` ocupa 3 lugares —2 adultos y un
+   menor; el infante no cuenta— así que cada extra se multiplica por 3. */
+const TIROLESA = { id: "e1", code: "tirolesa", name: "Tirolesa", note: null, priceCents: 45_000 };
+const KAYAK = { id: "e2", code: "kayak", name: "Kayak", note: null, priceCents: 30_000 };
+
 /** Las dos invariantes que deben cumplirse en toda cotización, siempre. */
 function assertInvariants(quote: ReturnType<typeof buildStayQuote>) {
   const sum = quote.lines.reduce((total, line) => total + line.cents, 0);
@@ -322,7 +327,7 @@ describe("cupones", () => {
     // (limpieza) = 1,360,000. El comentario de applyTaxes lo dice desde el
     // Sprint 2: los impuestos van sobre el subtotal "ya con descuentos".
     const quote = buildStayQuote(
-      stayInput({ coupon: { code: "PROMO10", kind: "percent", value: 10, minTotalCents: 0 } }),
+      stayInput({ coupon: { code: "PROMO10", kind: "percent", value: 10, minTotalCents: 0, appliesToExtras: false } }),
     );
 
     const discount = quote.lines.find((line) => line.kind === "discount");
@@ -337,7 +342,7 @@ describe("cupones", () => {
   it("un cupón fijo nunca deja el total en negativo, aunque el cupón valga más que la compra", () => {
     const quote = buildStayQuote(
       stayInput({
-        coupon: { code: "REGALO", kind: "fixed", value: 2_000_000, minTotalCents: 0 },
+        coupon: { code: "REGALO", kind: "fixed", value: 2_000_000, minTotalCents: 0, appliesToExtras: false },
       }),
     );
 
@@ -353,7 +358,7 @@ describe("cupones", () => {
     const sinCupon = buildStayQuote(stayInput());
     const conCupon = buildStayQuote(
       stayInput({
-        coupon: { code: "GRANDE", kind: "fixed", value: 100_000, minTotalCents: 2_000_000 },
+        coupon: { code: "GRANDE", kind: "fixed", value: 100_000, minTotalCents: 2_000_000, appliesToExtras: false },
       }),
     );
 
@@ -376,7 +381,7 @@ describe("cupones", () => {
     // Subtotal: 2 adultos × 1,800 + 1 menor × 1,200 = 480,000 (el infante sin
     // costo no genera línea, así que no hay nada que descontarle).
     const quote = buildTourQuote(
-      tourInput({ coupon: { code: "TOUR10", kind: "percent", value: 10, minTotalCents: 0 } }),
+      tourInput({ coupon: { code: "TOUR10", kind: "percent", value: 10, minTotalCents: 0, appliesToExtras: false } }),
     );
 
     const discount = quote.lines.find((line) => line.kind === "discount");
@@ -384,6 +389,170 @@ describe("cupones", () => {
     // 480,000 − 48,000 = 432,000 taxable; IVA 16% = 69,120.
     assert.equal(quote.total_cents, 501_120);
     assertInvariants(quote);
+  });
+});
+
+describe("extras de tour", () => {
+  it("se cobra por lugar ocupado, no por persona: el infante en brazos no sube a la tirolesa", () => {
+    // El grupo son CUATRO personas —2 adultos, 1 menor, 1 infante— pero solo
+    // TRES ocupan lugar. Es la misma regla que decide el cupo, y cobrar por
+    // personas aquí sería una segunda definición de "cuántos son" que tarde o
+    // temprano se separa de la primera.
+    const quote = buildTourQuote(tourInput({ extras: [TIROLESA] }));
+
+    const extra = quote.lines.find((line) => line.kind === "extra");
+    assert.equal(extra?.cents, 135_000, "45,000 × 3 lugares, no × 4 personas");
+    assert.equal(extra?.concept, "extra:3:Tirolesa");
+    assertInvariants(quote);
+  });
+
+  it("los extras pagan impuestos sobre su importe completo", () => {
+    // 480,000 (pasajeros) + 135,000 (tirolesa) = 615,000; IVA 16% = 98,400.
+    const quote = buildTourQuote(tourInput({ extras: [TIROLESA] }));
+
+    assert.equal(quote.total_cents, 713_400);
+    assert.equal(quote.lines.find((line) => line.kind === "tax")?.cents, 98_400);
+    assertInvariants(quote);
+  });
+
+  it("dos extras suman dos renglones, y el orden lo pone el catálogo", () => {
+    const quote = buildTourQuote(tourInput({ extras: [TIROLESA, KAYAK] }));
+
+    const extras = quote.lines.filter((line) => line.kind === "extra");
+    assert.deepEqual(
+      extras.map((line) => line.concept),
+      ["extra:3:Tirolesa", "extra:3:Kayak"],
+    );
+    assert.equal(extras[0]!.cents + extras[1]!.cents, 225_000);
+    assertInvariants(quote);
+  });
+
+  it("un extra sin precio no genera renglón, igual que el infante sin costo", () => {
+    const quote = buildTourQuote(tourInput({ extras: [{ ...KAYAK, priceCents: 0 }] }));
+
+    assert.equal(quote.lines.filter((line) => line.kind === "extra").length, 0);
+    assert.equal(quote.total_cents, 556_800, "el mismo total que sin extras");
+    assertInvariants(quote);
+  });
+
+  // -------------------------------------------------------------------------
+  // La decisión 0019, hecha prueba
+  // -------------------------------------------------------------------------
+
+  it("el cupón NO descuenta los extras: el descuento sale solo del servicio base", () => {
+    const quote = buildTourQuote(
+      tourInput({
+        extras: [TIROLESA],
+        coupon: { code: "TOUR10", kind: "percent", value: 10, minTotalCents: 0, appliesToExtras: false },
+      }),
+    );
+
+    const discount = quote.lines.find((line) => line.kind === "discount");
+    assert.equal(discount?.cents, -48_000, "10% de los 480,000 de pasajeros");
+    assert.notEqual(discount?.cents, -61_500, "no es 10% de 615,000: la tirolesa no se descuenta");
+
+    // 480,000 + 135,000 − 48,000 = 567,000; IVA 16% = 90,720.
+    assert.equal(quote.total_cents, 657_720);
+    assertInvariants(quote);
+  });
+
+  it("con applies_to_extras el mismo cupón sí los alcanza, y la diferencia son 15,660", () => {
+    const base = { code: "TODO10", kind: "percent" as const, value: 10, minTotalCents: 0 };
+
+    const acotado = buildTourQuote(
+      tourInput({ extras: [TIROLESA], coupon: { ...base, appliesToExtras: false } }),
+    );
+    const completo = buildTourQuote(
+      tourInput({ extras: [TIROLESA], coupon: { ...base, appliesToExtras: true } }),
+    );
+
+    assert.equal(completo.lines.find((line) => line.kind === "discount")?.cents, -61_500);
+    assert.equal(completo.total_cents, 642_060);
+    // 13,500 de descuento sobre la tirolesa más 2,160 del IVA que ya no se
+    // cobra sobre ellos. Es el número que la decisión 0019 pone en la balanza.
+    assert.equal(acotado.total_cents - completo.total_cents, 15_660);
+
+    assertInvariants(acotado);
+    assertInvariants(completo);
+  });
+
+  it("los extras SÍ cuentan para alcanzar el mínimo del cupón, aunque no reciban el descuento", () => {
+    // Esta es la asimetría entera en un caso: el servicio base son 480,000 y
+    // el cupón pide 600,000. Sin la tirolesa no alcanza; con ella sí —y aun
+    // así el descuento sale solo de los 480,000—.
+    const cupon = {
+      code: "GRANDE10",
+      kind: "percent" as const,
+      value: 10,
+      minTotalCents: 600_000,
+      appliesToExtras: false,
+    };
+
+    const sinExtras = buildTourQuote(tourInput({ coupon: cupon }));
+    assert.deepEqual(sinExtras.coupon, { code: "GRANDE10", applied: false, reason: "min_total" });
+
+    const conExtras = buildTourQuote(tourInput({ extras: [TIROLESA], coupon: cupon }));
+    assert.deepEqual(conExtras.coupon, { code: "GRANDE10", applied: true });
+    assert.equal(
+      conExtras.lines.find((line) => line.kind === "discount")?.cents,
+      -48_000,
+      "la tirolesa ayudó a alcanzar el mínimo pero no se descontó a sí misma",
+    );
+    assertInvariants(conExtras);
+  });
+
+  it("el renglón del descuento dice su alcance solo cuando hay algo que aclarar", () => {
+    const cupon = {
+      code: "TOUR10",
+      kind: "percent" as const,
+      value: 10,
+      minTotalCents: 0,
+      appliesToExtras: false,
+    };
+
+    const conExtras = buildTourQuote(tourInput({ extras: [TIROLESA], coupon: cupon }));
+    assert.equal(
+      conExtras.lines.find((line) => line.kind === "discount")?.concept,
+      "coupon:TOUR10:base",
+      "el huésped lee POR QUÉ bajó menos de lo que esperaba",
+    );
+
+    const sinExtras = buildTourQuote(tourInput({ coupon: cupon }));
+    assert.equal(
+      sinExtras.lines.find((line) => line.kind === "discount")?.concept,
+      "coupon:TOUR10",
+      "sin extras la aclaración sobraría: el renglón se lee como siempre",
+    );
+
+    // Y con el cupón que sí los alcanza tampoco hay nada que aclarar.
+    const completo = buildTourQuote(
+      tourInput({ extras: [TIROLESA], coupon: { ...cupon, appliesToExtras: true } }),
+    );
+    assert.equal(completo.lines.find((line) => line.kind === "discount")?.concept, "coupon:TOUR10");
+  });
+
+  it("el anticipo sube con los extras, y sigue cuadrando", () => {
+    const sinExtras = buildTourQuote(tourInput());
+    const conExtras = buildTourQuote(tourInput({ extras: [TIROLESA] }));
+
+    // 30% de 713,400 = 214,020, contra 30% de 556,800 = 167,040. Es la
+    // consecuencia aceptada en la decisión 0019: el upsell sube lo que se
+    // cobra hoy en línea, no solo el total.
+    assert.equal(sinExtras.deposit_cents, 167_040);
+    assert.equal(conExtras.deposit_cents, 214_020);
+    assertInvariants(conExtras);
+  });
+
+  it("una estancia no cambia de comportamiento: minimoSobre cae en descontables", () => {
+    // La firma de applyCoupon creció por los extras. Este es el caso que
+    // comprueba que el camino que no los tiene se cotiza exactamente igual.
+    const quote = buildStayQuote(
+      stayInput({
+        coupon: { code: "PROMO10", kind: "percent", value: 10, minTotalCents: 0, appliesToExtras: false },
+      }),
+    );
+    assert.equal(quote.lines.find((line) => line.kind === "discount")?.cents, -136_000);
+    assert.equal(quote.total_cents, 1_456_560);
   });
 });
 

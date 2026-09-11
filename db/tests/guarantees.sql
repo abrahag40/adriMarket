@@ -1185,4 +1185,75 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 26. El renglón de un extra cuadra por construcción
+-- ---------------------------------------------------------------------------
+
+-- Los extras no se apartan: no hay cupo, no hay carrera y no hay nada que
+-- serializar. Lo que sí hay que garantizar es aritmética, porque es dinero que
+-- se cobra y que después se concilia: `subtotal = precio unitario × cantidad`.
+--
+-- Va en la base y no en la aplicación por la misma razón que el resto de este
+-- archivo: un renglón torcido metido con SQL a mano —una corrección apurada de
+-- madrugada, una carga masiva— no debe poder existir. Una reserva cuyo total
+-- no coincide con la suma de sus partes es una discusión con el huésped y un
+-- descuadre en la contabilidad.
+
+do $$
+declare
+  v_departure uuid;
+  v_item      uuid;
+  v_booking   uuid;
+  v_extra     uuid;
+  v_producto  uuid;
+  v_caught    boolean := false;
+begin
+  v_departure := test_departure(10);
+  v_item := test_make_item('tour', null, null, v_departure, 2);
+  select booking_id, product_id into v_booking, v_producto
+    from booking_items where id = v_item;
+
+  insert into tour_extras (product_id, code, name_es, price_cents)
+  values (v_producto, 'tirolesa-prueba', 'Tirolesa de prueba', 45000)
+  returning id into v_extra;
+
+  -- (a) El renglón correcto entra sin protestar.
+  insert into booking_extras (booking_id, booking_item_id, tour_extra_id, code, name,
+                              unit_price_cents, qty, subtotal_cents)
+  values (v_booking, v_item, v_extra, 'tirolesa-prueba', 'Tirolesa de prueba', 45000, 2, 90000);
+
+  -- (b) Uno que no cuadra, no.
+  begin
+    insert into booking_extras (booking_id, booking_item_id, tour_extra_id, code, name,
+                                unit_price_cents, qty, subtotal_cents)
+    values (v_booking, v_item, v_extra, 'kayak-prueba', 'Kayak de prueba', 30000, 2, 30000);
+  exception when check_violation then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: se guardó un extra cuyo subtotal no es precio × cantidad';
+
+  -- (c) Marcar dos veces la misma casilla no es comprar dos veces.
+  v_caught := false;
+  begin
+    insert into booking_extras (booking_id, booking_item_id, tour_extra_id, code, name,
+                                unit_price_cents, qty, subtotal_cents)
+    values (v_booking, v_item, v_extra, 'tirolesa-prueba', 'Tirolesa de prueba', 45000, 2, 90000);
+  exception when unique_violation then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: el mismo extra se cobró dos veces en el mismo renglón';
+
+  -- (d) Y el extra se puede retirar del catálogo sin que la reserva pierda
+  --     qué se vendió ni en cuánto: por eso el nombre y el precio se copian.
+  delete from tour_extras where id = v_extra;
+  assert (select count(*) from booking_extras where booking_item_id = v_item) = 1,
+    'FALLO: borrar el extra del catálogo se llevó el renglón de la reserva';
+  assert (select tour_extra_id is null and name = 'Tirolesa de prueba' and subtotal_cents = 90000
+            from booking_extras where booking_item_id = v_item),
+    'FALLO: la reserva perdió el nombre o el precio congelado del extra';
+
+  raise notice '✔ 26. el renglón de un extra cuadra y sobrevive al catálogo';
+end;
+$$;
+
 rollback;

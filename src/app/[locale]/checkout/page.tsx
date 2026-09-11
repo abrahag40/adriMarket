@@ -30,6 +30,12 @@ function single(value: string | string[] | undefined): string {
   return value ?? "";
 }
 
+/** Campos repetidos: `?extras=kayak&extras=tirolesa`. */
+function many(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
 export const metadata: Metadata = { robots: { index: false } };
 
 export default async function CheckoutPage({
@@ -64,6 +70,9 @@ export default async function CheckoutPage({
   // Vacío y "sin cupón" tienen que verse igual: nada de mostrar un aviso de
   // "cupón no encontrado" antes de que el huésped haya escrito nada.
   const coupon = single(sp.coupon).trim();
+  // Vienen del paso anterior. Aquí solo se acarrean: el precio de cada uno lo
+  // pone el catálogo dentro de `quoteTour`, igual que el del tour.
+  const extras = many(sp.extras);
 
   let quoteNode: React.ReactNode = null;
   let formNode: React.ReactNode = null;
@@ -118,6 +127,7 @@ export default async function CheckoutPage({
         { adult: adults, child: children, infant: infants },
         new Date(),
         coupon,
+        { codes: extras, locale },
       );
 
       quoteNode = (
@@ -131,6 +141,9 @@ export default async function CheckoutPage({
               adults: String(adults),
               children: String(children),
               infants: String(infants),
+              // Sin esto, aplicar un cupón vaciaba el carrito de extras: el
+              // formulario del cupón reescribe la URL entera.
+              extras,
             }}
             current={coupon}
           />
@@ -157,6 +170,7 @@ export default async function CheckoutPage({
             adults: String(adults),
             children: String(children),
             infants: String(infants),
+            extras,
             coupon: result.quote.coupon?.applied ? coupon : "",
           }}
           paxSlots={paxSlots}

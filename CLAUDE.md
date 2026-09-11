@@ -34,7 +34,7 @@ en el `PATH`.
 cp .env.example .env          # y apuntar DATABASE_URL a tu Postgres
 npm install
 
-npm run db:migrate            # aplica las 22 migraciones en orden
+npm run db:migrate            # aplica las 23 migraciones en orden
 npm run db:seed               # datos de desarrollo
 npm run dev                   # http://localhost:3000
 ```
@@ -71,18 +71,18 @@ por qué** — ver también la trampa de abajo.
 Es lo mismo que corre el pipeline, y **está pensada para correrse entera**:
 
 ```bash
-npm run db:test               # 25 garantías del inventario, en transacción
-npm run test:integration      # 165 casos del dominio
+npm run db:test               # 26 garantías del inventario, en transacción
+npm run test:integration      # 189 casos del dominio
 npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
 npx next start -p 3100 &
-BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 140 criterios
-BASE_URL=http://127.0.0.1:3100 npm run test:e2e            # 11 · el checkout
+BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 151 criterios
+BASE_URL=http://127.0.0.1:3100 npm run test:e2e            # 18 · el checkout y los extras
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin      # 18 · un día de recepción
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme        # 25 · cierran el puerto
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:publicar   # 30 · publicar un tour
-BASE_URL=http://127.0.0.1:3100 npm run audit               # 31 · accesibilidad y peso
+BASE_URL=http://127.0.0.1:3100 npm run audit               # 35 · accesibilidad y peso
 npm run db:bench              # sobreventa bajo concurrencia real
 ```
 
@@ -160,7 +160,14 @@ La selección es **por configuración, no por una bandera de "modo desarrollo"**
 ## Invariantes que no se negocian
 
 - **Ningún precio se calcula en el navegador.** Hay una sola fuente autorizada,
-  en el servidor.
+  en el servidor. El paso de extras es la prueba de que eso no cuesta interfaz:
+  marcar una casilla **recotiza contra el servidor** y el total sube solo, sin
+  que el navegador sume un centavo. Sin JavaScript queda el mismo formulario
+  con su botón, y el total es idéntico.
+- **El cupón descuenta el servicio base, no los extras** —y los extras **sí**
+  cuentan para su mínimo de compra—. La asimetría es deliberada y reversible
+  por cupón con `coupons.applies_to_extras`. Ver
+  [decisión 0019](docs/decisiones/0019-el-cupon-no-descuenta-los-extras.md).
 - **Todo monto es un entero en centavos** (`bigint`) con su moneda explícita.
   Nunca decimales flotantes.
 - **Las noches son `date`** (una noche no es un instante); **las salidas de
@@ -433,6 +440,25 @@ Están aquí porque cada una se pagó una vez.
   con que el seed creciera. Lo que sí aguanta es comprobar la faceta —que
   ofrece los tres tipos con su cuenta, sacada del catálogo entero— en vez de
   qué tarjeta cayó en la página 1.
+- **La prueba de concurrencia pasaba sin otorgar un solo lugar.** `bench_target`
+  tomaba la salida más temprana del calendario —`order by starts_at limit 1`—
+  y `e2e-sme` crea una a las 8:00, más temprano que las 9:00 del seed, **y la
+  cancela**, que es precisamente lo que ese recorrido va a probar. A partir de
+  ahí el banco apuntaba a una salida cerrada: `tour_hold_create` rechazaba los
+  200 intentos con AM001 y el veredicto decía *"✔ sin sobreventa: 0 lugares
+  otorgados"*. Cierto, y completamente vacío — **la garantía que `CLAUDE.md`
+  llama no negociable llevaba tiempo sin ejercitarse**, y el daño simétrico era
+  que su `update ... set seats_taken = 0` le borraba el contador a una salida
+  compartida que podía tener apartados vivos. Es la trampa de la fila tomada
+  por posición otra vez, en el único lugar donde no se había aplicado la
+  lección. Ahora el banco **crea la suya** y el veredicto exige
+  `v_granted = v_capacity`: una comprobación anti-sobreventa que no otorga
+  lugares no comprueba nada. Del otro lado, la prueba B nunca liberaba los
+  bloqueos de estancia que ella misma creaba, así que **solo pasaba la primera
+  vez**: el apartado del ganador dura 15 minutos y una segunda corrida dentro
+  de ese rato reportaba "0 clientes ganaron el mismo rango" —un fallo que
+  parece del inventario y era del banco—. Para descartarlo: el banco tiene que
+  poder correrse **dos veces seguidas**.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 
@@ -533,6 +559,15 @@ Ninguna impide vender; todas tienen un rodeo conocido y están dichas en
   `/admin/catalogo/[id]/unidades`. Ambas agregadas después del Sprint 7.
   Publicar un producto ahora exige tener algo vendible: una opción de tour con
   precio de adulto, o una unidad de estancia con al menos una tarifa cargada.
+- **Los extras de tour se dan de alta a mano en la base.** El panel los
+  **muestra** en la ficha de la reserva —el guía necesita saber que lleva dos
+  kayaks— pero todavía no los edita: es el mismo estado en el que están las
+  restricciones de cupón. Lo que tampoco existe todavía es venderlos **en el
+  mostrador**, que es donde más se venderían: el sistema ya cobra el saldo ahí,
+  falta la acción en el panel y el recálculo. Y no tienen cupo: si algún día
+  hay ocho kayaks y no nueve, eso exige el mismo aparato transaccional que los
+  lugares de una salida. Ver
+  [decisión 0019](docs/decisiones/0019-el-cupon-no-descuenta-los-extras.md).
 - **No hay colchón de rotación entre estancias** (se bloquea el día a mano).
 - **El cobro parcial del saldo se rechaza a propósito**: no hay regla de negocio.
 - **Stripe está verificado contra la API real, pero en una cuenta *sandbox*.**

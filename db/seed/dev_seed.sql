@@ -78,6 +78,24 @@ insert into tour_pax_prices (tour_option_id, pax_type, price_cents, counts_towar
   ('44444444-4444-4444-4444-444444444444', 'child',  120000, true),
   ('44444444-4444-4444-4444-444444444444', 'infant',      0, false);
 
+-- Extras del tour (S8). Cuelgan del producto, no de la opción: la misma
+-- tirolesa la venda el horario de las 9:00 o cualquier otro.
+--
+-- El catamarán de más abajo se queda SIN extras a propósito: los dos caminos
+-- tienen que existir en la base de desarrollo, porque el botón "Reservar"
+-- lleva al paso de extras o directo al checkout según eso, y un camino que
+-- nadie recorre es un camino que nadie prueba.
+insert into tour_extras (product_id, code, name_es, name_en, note_es, note_en,
+                         price_cents, position) values
+  ('33333333-3333-3333-3333-333333333333', 'tirolesa', 'Tirolesa sobre el cenote',
+   'Zip line over the cenote', 'Incluye arnés y casco', 'Harness and helmet included',
+   45000, 1),
+  ('33333333-3333-3333-3333-333333333333', 'kayak', 'Kayak media hora',
+   'Half-hour kayak', null, null, 30000, 2),
+  ('33333333-3333-3333-3333-333333333333', 'comida', 'Buffet de tacos',
+   'Taco buffet', 'Opción vegetariana disponible', 'Vegetarian option available',
+   18000, 3);
+
 -- Salidas diarias del próximo mes, 9:00 hora de Cancún.
 insert into tour_departures (tour_option_id, starts_at, ends_at, capacity)
 select
