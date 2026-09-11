@@ -124,6 +124,113 @@ jobs:
           done
           BASE_URL=http://127.0.0.1:3000 ./scripts/smoke.sh
 
+  # ── Compuerta: los recorridos en navegador y la accesibilidad ──
+  #
+  # Job aparte y no pasos del anterior por dos razones: corre en paralelo, así
+  # que no alarga la espera del PR, y cuando algo se rompe el nombre del job ya
+  # dice si fue un criterio del servidor o uno del navegador.
+  #
+  # Por qué existe: hasta el 2026-09-11 estos cinco se corrían A MANO. La barra
+  # de `CLAUDE.md` decía "es lo mismo que corre el pipeline" y no era cierto —
+  # el pipeline nunca los ejecutó—. El costo real de esa mentira no es
+  # cosmético: **los criterios que solo el navegador puede ver vivían fuera de
+  # toda compuerta**. Son exactamente los que `smoke.sh` no puede comprobar
+  # porque pide con `curl` y una petición nueva siempre acierta:
+  #
+  #   · que el punto del menú se mueva al navegar sin recargar (decisión 0018);
+  #   · que el total del paso de extras lo calcule el SERVIDOR y no el
+  #     navegador (decisión 0019) — el invariante mayor del proyecto;
+  #   · que el sitio funcione sin JavaScript;
+  #   · que no haya violaciones de accesibilidad en los dos temas.
+  #
+  # Cada uno defiende una decisión escrita, y ninguno tenía quién lo corriera
+  # más que la memoria de quien hiciera el cambio.
+  recorridos:
+    name: Recorridos y accesibilidad
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: adrimarket_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Solo Chromium: es el único que usan los recorridos, y `--with-deps`
+      # trae las bibliotecas de sistema que el runner no tiene.
+      #
+      # Los guiones buscan primero `CHROMIUM_PATH`, luego el binario del
+      # contenedor donde se escribieron (`/opt/pw-browsers/chromium`, que aquí
+      # no existe) y si no está dejan que Playwright resuelva el suyo — que es
+      # el que instala esta línea.
+      - name: Navegador
+        run: npx playwright install --with-deps chromium
+
+      - name: Migraciones y datos de desarrollo
+        run: ./scripts/db.sh migrate && ./scripts/db.sh seed
+
+      - name: Build
+        run: npm run build
+
+      # Un solo servidor para los cinco. Se comprueba que respondió antes de
+      # seguir: sin esto, un arranque lento se ve como un recorrido que falla.
+      - name: Levantar el sitio
+        run: |
+          npx next start -p 3000 &
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null http://127.0.0.1:3000/es && break
+            sleep 1
+          done
+          curl -sf -o /dev/null http://127.0.0.1:3000/es
+
+      # En serie y en este orden, a propósito. Los recorridos CONSUMEN
+      # inventario y no lo devuelven, así que cada uno tiene su propio año
+      # —2027 el checkout, 2028 el panel— y comparten una sola base. En
+      # paralelo se quitarían fechas y lugares entre ellos, y los fallos
+      # parecerían del inventario.
+      - name: Recorrido · checkout y extras
+        run: BASE_URL=http://127.0.0.1:3000 npm run test:e2e
+
+      - name: Recorrido · un día de recepción
+        run: BASE_URL=http://127.0.0.1:3000 npm run test:e2e:admin
+
+      - name: Recorrido · cierran el puerto
+        run: BASE_URL=http://127.0.0.1:3000 npm run test:e2e:sme
+
+      - name: Recorrido · publicar un tour
+        run: BASE_URL=http://127.0.0.1:3000 npm run test:e2e:publicar
+
+      - name: Accesibilidad y peso
+        run: BASE_URL=http://127.0.0.1:3000 npm run audit
+
+      # Las capturas son la evidencia de la corrida. Solo al fallar: en verde
+      # nadie las abre y ocupan espacio.
+      - name: Capturas de la corrida
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas-${{ github.run_id }}
+          path: "*.png"
+          if-no-files-found: ignore
+          retention-days: 7
+
   # La prueba de carga solo corre cuando el cambio toca inventario o pagos:
   # tarda, y en un cambio de interfaz no aporta información.
   concurrencia:

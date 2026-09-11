@@ -68,7 +68,14 @@ por qué** — ver también la trampa de abajo.
 
 ## La barra de verificación
 
-Es lo mismo que corre el pipeline, y **está pensada para correrse entera**:
+Es lo mismo que corre el pipeline, y **está pensada para correrse entera**.
+Desde el 2026-09-11 eso es cierto de verdad: hasta ese día los cuatro
+recorridos y la auditoría **no los corría nadie más que la memoria de quien
+hiciera el cambio**, y ahí vivían los únicos criterios que comprueban lo que
+`smoke.sh` no puede ver —pide con `curl`, y una petición nueva siempre
+acierta—: el punto del menú al navegar sin recargar, que el total de los
+extras lo calcule el servidor, que el sitio sirva sin JavaScript, y la
+accesibilidad en los dos temas.
 
 ```bash
 npm run db:test               # 26 garantías del inventario, en transacción
