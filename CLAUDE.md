@@ -466,6 +466,28 @@ Están aquí porque cada una se pagó una vez.
   de ese rato reportaba "0 clientes ganaron el mismo rango" —un fallo que
   parece del inventario y era del banco—. Para descartarlo: el banco tiene que
   poder correrse **dos veces seguidas**.
+- **Una miniatura vertical sacaba la foto principal de su columna, y solo a
+  ciertos anchos.** En la ficha, la principal y las miniaturas comparten
+  fila a partir de 720 px con `align-items: stretch`, y la principal lleva
+  `aspect-ratio: 9/5`. El `<img>` iba en flujo con `height: 100%`, que en una
+  miniatura sin alto definido cae a `auto`: la imagen mide lo que su forma
+  real le dicte. Bastaba **una** foto vertical entre las miniaturas para que
+  su fila creciera, la fila de la galería con ella, la principal se estirara
+  a esa altura y `aspect-ratio` convirtiera la altura extra en **anchura**
+  extra — 824 px sobre una columna de 617, metida debajo de las miniaturas.
+  Dos cosas lo hacían difícil de ver: a 1280 px **no se reproducía** porque
+  las miniaturas diferidas aún no habían cargado y su forma real todavía no
+  mandaba; y el HTML declara `width="1200" height="800"` para fotos cuyo
+  archivo real es vertical (`844×1303`), así que leer el marcado engaña. Las
+  fotos ahora van **fuera del flujo** (`position: absolute` dentro de su
+  enlace): llenan su caja y no pueden definirla. Lo mide "Composición en
+  escritorio" en `audit.mjs` — a 1000 px, no a 390, porque en el teléfono la
+  galería es una sola columna y el defecto no existe — y necesita que el seed
+  tenga una miniatura vertical (`akumal-4.svg`): sin ella pasaría con el
+  defecto puesto. Lo que sigue abierto: **las dimensiones declaradas en
+  `product_media` no son las de los archivos** para las fotos de demostración,
+  y eso sigue haciendo saltar la página al cargar aunque ya no rompa la
+  galería.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 
