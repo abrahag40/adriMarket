@@ -67,8 +67,12 @@ export function CatalogFilters({
           {t.filterApply}
         </button>
 
+        {/* Al listado completo, no a la portada: `/${locale}` a secas es el
+            inicio, y quitar un filtro nunca debe sacar a nadie del catálogo
+            (decisión 0017). Este era el tercer "Quitar filtros" con el destino
+            viejo; los otros dos ya se habían corregido en page.tsx. */}
         {hasFilters ? (
-          <Link className="btn btn-secondary" href={`/${locale}`}>
+          <Link className="btn btn-secondary" href={`/${locale}?kind=all#resultados`}>
             {t.filterClear}
           </Link>
         ) : null}

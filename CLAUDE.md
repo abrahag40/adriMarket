@@ -84,12 +84,12 @@ npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
 npx next start -p 3100 &
-BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 151 criterios
-BASE_URL=http://127.0.0.1:3100 npm run test:e2e            # 18 · el checkout y los extras
+BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 157 criterios
+BASE_URL=http://127.0.0.1:3100 npm run test:e2e            # 20 · el checkout, los extras y el idioma
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin      # 18 · un día de recepción
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme        # 25 · cierran el puerto
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:publicar   # 30 · publicar un tour
-BASE_URL=http://127.0.0.1:3100 npm run audit               # 35 · accesibilidad y peso
+BASE_URL=http://127.0.0.1:3100 npm run audit               # 38 · accesibilidad, peso y composición
 npm run db:bench              # sobreventa bajo concurrencia real
 ```
 
@@ -214,10 +214,12 @@ Están aquí porque cada una se pagó una vez.
   expiran los apartados, no salen los avisos y no hay recordatorios. Nada da
   error. Por eso `/api/health` responde **503** —no un `{"ok":true}`— cuando el
   último latido tiene más de diez minutos.
-- **Cada recorrido en navegador tiene su propio año**, porque consumen inventario
-  y no lo devuelven: **2026 para `smoke.sh`, 2027 para el checkout, 2028 para el
-  panel**. El rango **2026-09-17 → 20 de la Casa Akumal está reservado para
-  `smoke.sh`**; si otro recorrido lo vende, la barra falla.
+- **Cada recorrido en navegador tiene su propio territorio de fechas**, porque
+  consumen inventario y no lo devuelven: **2027 para el checkout, 2028 para el
+  panel**. `smoke.sh` y `audit.mjs` ya no tienen año: eligen en cada corrida
+  **el primer jueves libre a partir de dos semanas**, fuera de la temporada
+  alta, y como solo cotizan —no reservan— no le quitan nada a nadie. Ver la
+  trampa de la fecha de caducidad, abajo.
 - **`checkout.test.ts` blanquea `to_address` a propósito** en el caso del aviso
   que falla, y ahora borra sus filas al salir. Si vuelve a dejarlas, `/api/health`
   reporta avisos muertos que **parecen un defecto de producción y no lo son**.
@@ -488,6 +490,39 @@ Están aquí porque cada una se pagó una vez.
   `product_media` no son las de los archivos** para las fotos de demostración,
   y eso sigue haciendo saltar la página al cargar aunque ya no rompa la
   galería.
+- **"Ver en inglés" mandaba a la portada, y el código decía por escrito que
+  ese enlace "sí es cosa del servidor".** Es la trampa del layout congelado
+  (decisión 0018) otra vez, en el único sitio que se había exceptuado a
+  propósito: el enlace de idioma se calculaba en `layout.tsx` con `x-pathname`
+  y un comentario afirmaba que "depende de la ruta y no cambia con la
+  búsqueda". Las dos mitades eran falsas. Un layout no se vuelve a renderizar
+  al navegar, así que el enlace se quedaba en la página de entrada — entrabas
+  por el inicio, pasabas a Estancias y seguía apuntando a `/en`. Y sí cambia
+  con la búsqueda: sin parámetros, `/en` es literalmente la portada (decisión
+  0017 por otra puerta). Medido en producción: en `/es?kind=stay` el enlace
+  era `/en` al llegar **y** tras navegar. Ahora lo decide `LangSwitch` en el
+  cliente, como `NavLinks`. La lección que vale más que el arreglo: **cuando
+  un comentario explica por qué algo es la excepción a una regla que ya costó
+  caro, ese comentario es el primer sospechoso.** `smoke.sh` comprueba que los
+  parámetros viajan (una carga fresca sí lo deja ver); `e2e.mjs` comprueba el
+  enlace **después** de navegar, que es lo que `curl` nunca verá.
+- **La barra tenía fecha de caducidad.** `smoke.sh` y `audit.mjs` cotizaban la
+  Casa Akumal con un rango fijo, `2026-09-17 → 20`. El 2026-09-21 ese rango
+  pasó a ser **pasado**, la ficha dejó de cotizar (`past_dates`, que es
+  correcto) y **doce criterios se cayeron de golpe sin que nadie tocara el
+  código** — y con ellos la CI, así que ningún PR podía pasar. Se descubrió
+  el 2026-10-08, al abrir el primer PR después de tres semanas. Ahora los dos
+  guiones eligen el **primer jueves libre a partir de dos semanas** (jueves,
+  viernes y sábado: una noche base y dos de fin de semana, que es lo que suma
+  los $16,184 esperados), saltando la temporada alta del 15-dic-2026 al
+  6-ene-2027 y comprobando que la ficha ofrezca reservar. Con Node y no con
+  `date`, porque la aritmética de fechas de `date` no es la misma en macOS
+  que en el runner. Las ventanas de **2027** (`e2e.mjs`) y **2028**
+  (`e2e-sme.mjs`) siguen fijas porque esos recorridos sí reservan y necesitan
+  territorio propio, pero ahora tienen un **guardián** que falla con un
+  mensaje claro desde el 1 de septiembre del año anterior a vencer, en vez de
+  quedarse sin fechas en silencio. La pista que lo delata: doce fallos que
+  comparten la misma URL de la Casa Akumal y ningún cambio en el código.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 
