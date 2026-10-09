@@ -523,6 +523,26 @@ Están aquí porque cada una se pagó una vez.
   mensaje claro desde el 1 de septiembre del año anterior a vencer, en vez de
   quedarse sin fechas en silencio. La pista que lo delata: doce fallos que
   comparten la misma URL de la Casa Akumal y ningún cambio en el código.
+- **Un despliegue correcto se marcó en rojo porque una dependencia que nadie
+  fijó cambió lo que imprime.** `desplegar.yml` instalaba `vercel@latest`. El
+  2026-10-08 `latest` pasó de 59 a 63 y el CLI empezó a imprimir también el
+  **alias de producción** (`adrimarket.vercel.app`) después de la URL del
+  despliegue; el guion pescaba "la última URL" con `tail -1`, pescó el alias,
+  lo comparó contra el despliegue real (`adrimarket-j7klgthov-…`, READY) y
+  falló — con el código nuevo ya sirviendo, comprobado navegando. Ahora la
+  versión va **fija** (`vercel@63.1.0`; se sube a mano con la barra en verde)
+  y la captura excluye el alias. Es la misma lección que el `package-lock`:
+  lo que no se fija, cambia solo y en el peor momento. La pista que lo
+  delata: `desplegado en: https://adrimarket.vercel.app` — un alias donde
+  antes salía una URL con hash. **Y encima, el hueco del latido:** ese mismo
+  día `/api/health` estaba `degraded` con "último latido hace 23 min" porque
+  el job de Actions que late corre ~6 horas y entre que termina y el
+  siguiente arranca por schedule pasan minutos sin tick — el peor caso
+  documentado en la decisión 0005. Un despliegue que caiga en ese hueco se
+  marcaba en rojo sin que nada estuviera mal. La compuerta ahora **provoca un
+  latido antes de preguntar por la salud**, como `smoke.sh`. Lo que no se
+  arregla así es el hueco en sí: existe por correr el latido en Actions en
+  vez de en un cron de verdad, y eso es el plan Pro de Vercel.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 
