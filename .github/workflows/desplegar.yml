@@ -147,12 +147,21 @@ jobs:
             exit 1
           fi
 
-          npm i -g vercel@latest
+          # Versión FIJA, no `@latest`. El 2026-10-08 `@latest` pasó de 59 a 63 y
+          # el CLI empezó a imprimir también el alias de producción
+          # (`adrimarket.vercel.app`) después de la URL del despliegue: la
+          # compuerta de abajo pescó el alias, lo comparó contra el despliegue
+          # real y marcó en rojo un despliegue que sí ocurrió. Una dependencia
+          # que nadie fija cambia sola; se sube a mano y con la barra en verde.
+          npm i -g vercel@63.1.0
           vercel deploy --prod --yes --token "$VERCEL_TOKEN" 2>&1 | tee /tmp/despliegue.log
 
-          # La URL se pesca con una expresión y no con `tail -1`: el CLI cambia
-          # lo que imprime al final entre versiones.
-          url="$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/despliegue.log | tail -1)"
+          # Se pesca la URL DEL DESPLIEGUE —la de forma `proyecto-hash-ámbito`—
+          # y nunca el alias de producción, que el CLI también imprime desde la
+          # versión 63. Con `tail -1` a secas se tomaba lo último que saliera,
+          # y "lo último" cambió de versión a versión.
+          url="$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/despliegue.log \
+                 | grep -v '^https://adrimarket\.vercel\.app$' | tail -1)"
 
           # Y si no hay URL, no hubo despliegue. Esta guarda es la que habría
           # atrapado el fallo silencioso aunque `pipefail` no estuviera.
@@ -226,6 +235,8 @@ jobs:
 
       - name: Comprobar que lo desplegado sirve
         shell: bash
+        env:
+          JOBS_SECRET: ${{ secrets.JOBS_SECRET }}
         run: |
           sitio="https://adrimarket.vercel.app"
 
@@ -234,6 +245,19 @@ jobs:
             curl -sf -o /dev/null "$sitio/es" && break
             sleep 2
           done
+
+          # Se provoca un latido ANTES de preguntar por la salud, igual que hace
+          # smoke.sh. El latido vive en un job de Actions que corre ~6 horas y
+          # se reinicia por schedule: entre que uno termina y el siguiente
+          # arranca hay un hueco de minutos en el que `/api/health` dice
+          # `worker: último latido hace N min` y pasa a `degraded`. Un
+          # despliegue que cae en ese hueco se marcaba en rojo sin que nada
+          # estuviera mal (2026-10-08, 23 minutos sin latido). Un tick aquí
+          # vuelve a dejar la salud limpia si lo único que faltaba era eso; si
+          # falta algo más, sigue en rojo y se ve.
+          codigo=$(curl -s -o /tmp/tick.json -w "%{http_code}" -X POST \
+            "$sitio/api/jobs/tick" -H "x-job-secret: ${JOBS_SECRET}")
+          echo "latido provocado → $codigo $(cat /tmp/tick.json)"
 
           curl -s --max-time 30 "$sitio/api/health" -o /tmp/salud.json
           python3 -m json.tool /tmp/salud.json
