@@ -67,6 +67,36 @@ const activoTrasNavegar = await page.locator(".site-nav a[aria-current]").innerT
 if (activoTrasNavegar.trim() === "Estancias") ok("y tras navegar sin recargar, marca Estancias");
 else fail(`tras navegar el menú seguía en "${activoTrasNavegar.trim()}"`);
 
+// El enlace de idioma, **después de navegar**: es la misma trampa que el punto
+// del menú y se escondía en el mismo sitio. El layout lo calculaba con
+// `x-pathname` y se quedaba congelado en la página de entrada: entrabas por el
+// inicio, pasabas a Estancias, y "Ver en inglés" seguía apuntando a `/en` — la
+// portada. `smoke.sh` no puede verlo: una petición nueva siempre acierta.
+const idiomaTrasNavegar = await page.locator(".lang-switch").getAttribute("href");
+if (idiomaTrasNavegar === "/en?kind=stay") ok("y el enlace de idioma conserva el lugar: /en?kind=stay");
+else fail(`tras navegar, el enlace de idioma apuntaba a "${idiomaTrasNavegar}" (debería ser /en?kind=stay)`);
+
+// Y se cruza de verdad, desde el panel del teléfono: la página en inglés tiene
+// que ser el listado de estancias, no el inicio.
+// El panel es un <details> que vive en el layout, y el layout no se vuelve a
+// renderizar al navegar: sigue ABIERTO desde el clic de arriba. Pulsar el
+// botón otra vez lo cerraría y el enlace dejaría de ser visible — el recorrido
+// se quedaba treinta segundos esperando y moría sin reportar nada.
+await page.locator(".mobile-nav").evaluate((d) => { d.open = true; });
+await page.locator('.mobile-nav-panel a[hreflang="en"]').click();
+// Se espera "/en…", no la URL exacta: con el defecto se llega a `/en` a secas,
+// y esperar la URL correcta dejaría el recorrido colgado treinta segundos en
+// vez de reportar a dónde se fue.
+await page.waitForURL(/\/en/);
+await page.waitForTimeout(500);
+const llegue = new URL(page.url()).pathname + new URL(page.url()).search;
+if (llegue === "/en?kind=stay" && (await page.locator("#resultados").count()) > 0) {
+  ok("al cambiar de idioma sigo en el listado, no en la portada");
+} else {
+  fail(`cambiar de idioma llevó a "${llegue}" (debería ser /en?kind=stay con listado)`);
+}
+await page.goto(`${base}/es?kind=stay`, { waitUntil: "networkidle" });
+
 // Y al quitar el filtro no se cae en la portada: se ve el catálogo entero.
 //
 // Se pulsa el chip y no el "Quitar filtros" de la barra lateral: en el teléfono
@@ -99,6 +129,14 @@ if ((await page.locator("#resultados").count()) > 0) {
 //
 // La temporada alta solo está definida para diciembre de 2026, así que todo 2027
 // es tarifa base y el total no cambia.
+// Guardián de la ventana. La barra ya tuvo una bomba de tiempo: el rango fijo
+// de smoke.sh venció y tumbó doce criterios sin que nadie tocara el código.
+// Este recorrido vive en 2027; que avise ANTES de quedarse sin fechas.
+if (new Date() >= new Date("2027-09-01T00:00:00Z")) {
+  fail("la ventana de 2027 de este recorrido vence pronto: hay que moverla (CLAUDE.md · 'la barra tenía fecha de caducidad')");
+  process.exit(1);
+}
+
 const jueves = [];
 for (let d = new Date(Date.UTC(2027, 1, 1)); d < new Date(Date.UTC(2027, 11, 1)); d.setUTCDate(d.getUTCDate() + 1)) {
   if (d.getUTCDay() === 4) jueves.push(new Date(d));

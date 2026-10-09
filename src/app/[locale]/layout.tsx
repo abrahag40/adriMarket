@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import type { ReactNode } from "react";
 
 import "../globals.css";
-import { LOCALES, alternateForPathname, isLocale } from "@/i18n/config";
+import { LOCALES, isLocale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 import { absoluteUrl } from "@/site";
 import { SiteFooter } from "@/components/marketing/site-footer";
@@ -70,19 +69,15 @@ export default async function LocaleLayout({
   if (!isLocale(locale)) notFound();
 
   const t = getMessages(locale);
-  const requestHeaders = await headers();
-  const pathname = requestHeaders.get("x-pathname") ?? `/${locale}`;
-  const alternate = alternateForPathname(locale, pathname);
-
-  // `x-pathname` sigue haciendo falta para el enlace de idioma, que **sí** es
-  // cosa del servidor: depende de la ruta y no cambia con la búsqueda.
-  //
-  // Lo que ya no se calcula aquí es cuál enlace del menú va marcado. Se hacía
-  // con `x-pathname` + `x-search`, y funcionaba solo en la primera carga: en el
-  // App Router un layout no se vuelve a renderizar en una navegación de
-  // cliente, así que el valor se congelaba y el punto se quedaba en "Inicio"
-  // mientras el listado ya mostraba otra cosa. Ahora lo decide `NavLinks` con
-  // `usePathname` y `useSearchParams`, que sí se actualizan.
+  // Aquí ya no se decide nada que dependa de la URL. En el App Router un
+  // layout no se vuelve a renderizar en una navegación de cliente, así que
+  // cualquier valor sacado de `x-pathname`/`x-search` se congela en el primer
+  // render. Pasó dos veces: primero con el enlace activo del menú (decisión
+  // 0018) y después con el enlace de idioma, que se había dejado aquí con un
+  // comentario que afirmaba que "sí es cosa del servidor". No lo era: entrabas
+  // por el inicio, navegabas a Estancias, y "Ver en inglés" seguía apuntando
+  // a `/en` — la portada. Los dos viven ahora en componentes de cliente
+  // (`NavLinks`, `LangSwitch`) con `usePathname` y `useSearchParams`.
 
   return (
     <html lang={locale} className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
@@ -91,7 +86,7 @@ export default async function LocaleLayout({
           {t.skipToContent}
         </a>
 
-        <SiteHeader locale={locale} alternate={alternate} />
+        <SiteHeader locale={locale} />
 
         <main id="content" className="wrap">
           {children}

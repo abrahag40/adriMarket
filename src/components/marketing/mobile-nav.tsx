@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { otherLocale, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
 
+import { LangSwitch } from "./lang-switch";
 import { NavLinks } from "./nav-links";
 
 /**
@@ -11,13 +12,7 @@ import { NavLinks } from "./nav-links";
  * un disclosure con teclado y con toque, así que no hace falta JavaScript ni
  * estado propio para el menú de la cabecera en pantallas angostas.
  */
-export function MobileNav({
-  locale,
-  alternate,
-}: {
-  locale: Locale;
-  alternate: string;
-}) {
+export function MobileNav({ locale }: { locale: Locale }) {
   const t = getMessages(locale);
   const other = otherLocale(locale);
 
@@ -39,9 +34,15 @@ export function MobileNav({
         </Suspense>
 
 
-        <Link href={alternate} hrefLang={other} lang={other}>
-          {t.switchLanguage}
-        </Link>
+        <Suspense
+          fallback={
+            <Link href={`/${other}`} hrefLang={other} lang={other}>
+              {t.switchLanguage}
+            </Link>
+          }
+        >
+          <LangSwitch locale={locale} />
+        </Suspense>
         <Link href="/admin/entrar">{t.navPanel}</Link>
       </nav>
     </details>

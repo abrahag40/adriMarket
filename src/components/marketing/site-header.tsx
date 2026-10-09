@@ -6,6 +6,7 @@ import { getMessages } from "@/i18n/messages";
 
 import { CurrencyBadge } from "./currency-badge";
 import { MobileNav } from "./mobile-nav";
+import { LangSwitch } from "./lang-switch";
 import { NavLinks } from "./nav-links";
 
 /**
@@ -15,10 +16,8 @@ import { NavLinks } from "./nav-links";
  */
 export function SiteHeader({
   locale,
-  alternate,
 }: {
   locale: Locale;
-  alternate: string;
 }) {
   const t = getMessages(locale);
   const other = otherLocale(locale);
@@ -57,15 +56,25 @@ export function SiteHeader({
 
         <div className="site-header-meta">
           <CurrencyBadge />
-          <Link className="lang-switch" href={alternate} hrefLang={other} lang={other}>
-            {t.switchLanguage}
-          </Link>
+          {/* Decidido en el cliente, como los enlaces del menú: el layout no se
+              vuelve a renderizar al navegar y congelaba este enlace en la
+              página de entrada. El fallback es el inicio del otro idioma, que
+              es lo único que se sabe antes de hidratar. */}
+          <Suspense
+            fallback={
+              <Link className="lang-switch" href={`/${other}`} hrefLang={other} lang={other}>
+                {t.switchLanguage}
+              </Link>
+            }
+          >
+            <LangSwitch locale={locale} className="lang-switch" />
+          </Suspense>
           <Link className="site-header-access" href="/admin/entrar">
             {t.navPanel}
           </Link>
         </div>
 
-        <MobileNav locale={locale} alternate={alternate} />
+        <MobileNav locale={locale} />
       </div>
     </header>
   );

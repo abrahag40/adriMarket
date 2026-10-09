@@ -155,7 +155,28 @@ const browser = await chromium.launch(
   existsSync(chromiumPath) ? { executablePath: chromiumPath } : {},
 );
 
-const RANGO = "from=2026-09-17&to=2026-09-20&guests=5";
+/* Fechas relativas a hoy, igual que en smoke.sh y por la misma razón: el
+   rango fijo venció el 2026-09-20 y dejó la ficha sin cotización —y con ella
+   "la cotización se ve", "y se puede reservar" y el checkout— sin que nadie
+   tocara el código. Primer jueves libre a partir de dos semanas, fuera de la
+   temporada alta; jueves→domingo son una noche base y dos de fin de semana. */
+async function rangoLibre() {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + 14);
+  while (d.getUTCDay() !== 4) d.setUTCDate(d.getUTCDate() + 1);
+  for (let i = 0; i < 24; i++, d.setUTCDate(d.getUTCDate() + 7)) {
+    const from = d.toISOString().slice(0, 10);
+    if (from >= "2026-12-13" && from <= "2027-01-06") continue;
+    const hasta = new Date(d);
+    hasta.setUTCDate(hasta.getUTCDate() + 3);
+    const to = hasta.toISOString().slice(0, 10);
+    const html = await (await fetch(`${base}/es/estancias/casa-akumal?from=${from}&to=${to}&guests=5`)).text();
+    if (html.includes('href="/es/checkout')) return `from=${from}&to=${to}&guests=5`;
+  }
+  throw new Error("no hay un jueves libre para la Casa Akumal en los próximos meses");
+}
+const RANGO = await rangoLibre();
 
 /* El paso de extras necesita una salida real, y la toma de la ficha igual que
    la tomaría un huésped. Se audita porque es una pantalla pública llena de

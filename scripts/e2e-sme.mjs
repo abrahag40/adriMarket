@@ -48,6 +48,13 @@ function query(sql) {
 // ---------------------------------------------------------------------------
 
 /** Códigos de reserva creados por esta corrida. La limpieza se acota a ellos. */
+// Guardián de la ventana (ver e2e.mjs): las noches de este recorrido viven en
+// 2028, y una ventana que vence en silencio parece un defecto del inventario.
+if (new Date() >= new Date("2028-09-01T00:00:00Z")) {
+  fail("la ventana de 2028 de este recorrido vence pronto: hay que moverla (CLAUDE.md · 'la barra tenía fecha de caducidad')");
+  process.exit(1);
+}
+
 const creadas = [];
 
 // Cancelar una salida **registra** un reembolso que nadie ejecuta: es deuda

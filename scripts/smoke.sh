@@ -208,12 +208,48 @@ expect_status "/es/estancias/no-existe-esta-casa" 404 "un slug inexistente respo
 echo
 echo "S2-1 · cotización de estancia"
 CASA="/es/estancias/casa-akumal"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "\$16,184" "total de 3 noches con huésped extra, limpieza e impuestos"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "\$6,474" "anticipo del 40% de este producto"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "\$9,710" "saldo a pagar en destino"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "Anticipo hoy (40%)" "se dice qué se paga hoy"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "Saldo al llegar" "se dice qué se paga al llegar"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" "Limpieza" "la limpieza aparece como concepto"
+# ── Fechas de la Casa Akumal: relativas a hoy, nunca fijas ──
+#
+# El rango 2026-09-17→20 que vivió aquí venció el 2026-09-20 y tumbó doce
+# criterios de golpe —y la CI— sin que nadie tocara el código. Se busca el
+# primer jueves a partir de dos semanas que esté LIBRE y fuera de la temporada
+# alta (noches del 2026-12-15 al 2027-01-06: otro precio y mínimo de cuatro
+# noches). Jueves, viernes y sábado son una noche base y dos de fin de semana,
+# que es lo que suma $16,184; las tarifas del seed llegan a 2028-12-31.
+#
+# Node y no `date`: la aritmética de fechas de `date` no es la misma en macOS
+# que en el runner de Linux, y Node está en los dos.
+FROM=""; TO=""
+for CAND in $(node -e '
+  const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() + 14);
+  while (d.getUTCDay() !== 4) d.setUTCDate(d.getUTCDate() + 1);
+  const out = [];
+  while (out.length < 24) {
+    const iso = d.toISOString().slice(0, 10);
+    if (!(iso >= "2026-12-13" && iso <= "2027-01-06")) out.push(iso);
+    d.setUTCDate(d.getUTCDate() + 7);
+  }
+  console.log(out.join(" "));
+'); do
+  HASTA="$(node -e "const d = new Date('${CAND}T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 3); console.log(d.toISOString().slice(0, 10))")"
+  if body "$CASA?from=$CAND&to=$HASTA&guests=5" | grep -q 'href="/es/checkout'; then
+    FROM="$CAND"; TO="$HASTA"; break
+  fi
+done
+if [[ -n "$FROM" ]]; then
+  ok "fechas libres de la Casa Akumal para esta corrida: $FROM → $TO"
+else
+  no "no se encontró un jueves libre para la Casa Akumal en los próximos meses"
+  FROM="2029-02-01"; TO="2029-02-04"
+fi
+MES="${FROM:0:7}-01"
+
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" "\$16,184" "total de 3 noches con huésped extra, limpieza e impuestos"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" "\$6,474" "anticipo del 40% de este producto"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" "\$9,710" "saldo a pagar en destino"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" "Anticipo hoy (40%)" "se dice qué se paga hoy"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" "Saldo al llegar" "se dice qué se paga al llegar"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" "Limpieza" "la limpieza aparece como concepto"
 # El precio del catálogo también incluye impuestos: 3,200 netos son 3,808 con
 # ISH e IVA. La ley obliga a exhibir el total.
 expect_contains "$CASA" "\$3,808" "el precio desde se exhibe con impuestos incluidos"
@@ -237,35 +273,36 @@ expect_contains "$TOUR" "seats left" "el desplegable dice cuántos lugares queda
 
 echo
 echo "S2-3 · calendario de disponibilidad"
-expect_contains "$CASA?month=2026-10-01" "cal-busy" "el bloqueo de mantenimiento se ve ocupado"
-expect_absent "$CASA?month=2026-10-01" "Pintura de la terraza" "no se revela el motivo del bloqueo"
-expect_absent "$CASA?month=2026-10-01" "mantenimiento" "tampoco la palabra mantenimiento"
-expect_contains "$CASA?month=2026-10-01" 'cal-busy"><span class="cal-number">5<' "la primera noche bloqueada se ve ocupada"
-expect_contains "$CASA?month=2026-10-01" 'cal-busy"><span class="cal-number">8<' "la última noche bloqueada también"
-expect_contains "$CASA?month=2026-10-01" 'cal-free"><span class="cal-number">9<' "el día de salida queda libre: otro huésped puede llegar ese día"
-expect_contains "$CASA?month=2026-10-01" 'cal-free"><span class="cal-number">4<' "la noche previa al bloqueo sigue libre"
-expect_contains "$CASA?month=2026-10-01" "octubre de 2026" "el mes se nombra en el idioma de la página"
-expect_contains "/en/stays/casa-akumal?month=2026-10-01" "October 2026" "y en inglés"
+expect_contains "$CASA?month=$MES" "cal-busy" "el bloqueo de mantenimiento se ve ocupado"
+expect_absent "$CASA?month=$MES" "Pintura de la terraza" "no se revela el motivo del bloqueo"
+expect_absent "$CASA?month=$MES" "mantenimiento" "tampoco la palabra mantenimiento"
+expect_contains "$CASA?month=$MES" 'cal-busy"><span class="cal-number">5<' "la primera noche bloqueada se ve ocupada"
+expect_contains "$CASA?month=$MES" 'cal-busy"><span class="cal-number">8<' "la última noche bloqueada también"
+expect_contains "$CASA?month=$MES" 'cal-free"><span class="cal-number">9<' "el día de salida queda libre: otro huésped puede llegar ese día"
+expect_contains "$CASA?month=$MES" 'cal-free"><span class="cal-number">4<' "la noche previa al bloqueo sigue libre"
+expect_contains "$CASA?month=$MES" "octubre de 2026" "el mes se nombra en el idioma de la página"
+expect_contains "/en/stays/casa-akumal?month=$MES" "October 2026" "y en inglés"
 
 echo
 echo "S2-4 · el selector funciona sin JavaScript y el precio lo calcula el servidor"
 expect_contains "$CASA" 'method="get"' "el formulario es GET: funciona sin JavaScript"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'value="2026-09-17"' "la selección queda en la URL y se refleja en el campo"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" "value=\"$FROM\"" "la selección queda en la URL y se refleja en el campo"
 # El total viene en el HTML de la primera respuesta: no lo calculó el navegador.
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'class="quote-total"' "el desglose llega renderizado del servidor"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=6&month=2026-10-01" "quote-total" "el mes del calendario no rompe la cotización"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" 'class="quote-total"' "el desglose llega renderizado del servidor"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=6&month=$MES" "quote-total" "el mes del calendario no rompe la cotización"
 
 echo
 echo "S3 · checkout y cobro del anticipo"
-# Este bloque necesita que 2026-09-17→20 esté libre en la Casa Akumal, porque
+# Este bloque necesita que $FROM→$TO esté libre en la Casa Akumal (lo está:
+# se eligió por eso), porque
 # comprueba montos exactos y no puede consultar la base para elegir fechas.
 #
 # **Ese rango está reservado para smoke.sh.** Los recorridos de navegador trabajan
 # en otros años a propósito: el del checkout busca jueves libres desde el 24 de
 # septiembre y los del panel operan en 2028. Un recorrido nuevo que venda aquí
 # rompe cinco criterios sin que nada del sistema esté mal.
-CHECKOUT="/es/checkout?kind=stay&slug=casa-akumal&from=2026-09-17&to=2026-09-20&guests=5"
-expect_contains "$CASA?from=2026-09-17&to=2026-09-20&guests=5" 'href="/es/checkout' "la ficha ofrece reservar cuando hay disponibilidad"
+CHECKOUT="/es/checkout?kind=stay&slug=casa-akumal&from=$FROM&to=$TO&guests=5"
+expect_contains "$CASA?from=$FROM&to=$TO&guests=5" 'href="/es/checkout' "la ficha ofrece reservar cuando hay disponibilidad"
 expect_contains "$CHECKOUT" "Confirma tu reserva" "el checkout responde"
 expect_contains "$CHECKOUT" "\$6,474" "el checkout vuelve a calcular el anticipo en el servidor"
 expect_contains "$CHECKOUT" 'name="fullName"' "pide los datos del titular"
@@ -323,6 +360,25 @@ if [[ -n "$CATAMARAN" ]]; then
     "y el de un tour con extras pasa primero por el paso"
 else
   no "no se pudo extraer una salida del catamarán"
+fi
+
+echo
+echo "S9 · cambiar de idioma conserva el lugar"
+# Lo que `curl` sí puede ver: en una carga fresca, el enlace de idioma tiene
+# que llevarse los parámetros. Sin ellos, `/en` es literalmente la portada —
+# el mismo defecto que la decisión 0017, por otra puerta. Que el enlace se
+# congele al navegar sin recargar NO se ve desde aquí; eso vive en e2e.mjs.
+expect_matches "/es?kind=tour" 'lang-switch[^>]*href="/en\?kind=tour"' \
+  "cambiar de idioma desde el listado conserva el filtro"
+expect_matches "/en?kind=stay&guests=4" 'lang-switch[^>]*href="/es\?kind=stay&amp;guests=4"' \
+  "y de vuelta al español, con todos los parámetros"
+expect_matches "/es/estancias/casa-akumal" 'lang-switch[^>]*href="/en/stays/casa-akumal"' \
+  "desde una ficha traduce el segmento"
+expect_matches "/es/destinos" 'lang-switch[^>]*href="/en/destinations"' \
+  "y desde destinos también"
+if [[ -n "${EXTRAS:-}" ]]; then
+  expect_matches "$EXTRAS" 'lang-switch[^>]*href="/en/extras\?kind=tour&amp;slug=snorkel-cenotes-tulum' \
+    "y desde el paso de extras se lleva la selección"
 fi
 
 echo

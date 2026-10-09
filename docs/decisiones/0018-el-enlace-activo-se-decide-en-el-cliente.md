@@ -62,3 +62,30 @@ modelo del framework para conseguir algo que un componente de cliente da gratis.
   en un teléfono— y comprueba el marcado **después** de navegar. Es el único
   lugar de la barra donde este defecto puede verse: `smoke.sh` pide con `curl`
   y una petición nueva siempre acierta.
+
+## Posdata · 2026-10-08: la excepción que no lo era
+
+Al tomar esta decisión se dejó **un** valor calculado en el layout a propósito:
+el enlace de idioma, con un comentario que decía que "sí es cosa del servidor:
+depende de la ruta y no cambia con la búsqueda". Un mes después se reportó que
+cambiar de idioma desde cualquier lugar devolvía a la portada.
+
+Las dos afirmaciones del comentario eran falsas por separado:
+
+- **"Es cosa del servidor."** El layout no se vuelve a renderizar al navegar;
+  el enlace se congelaba en la página de entrada. Entrabas por el inicio,
+  pasabas a Estancias, y "Ver en inglés" seguía apuntando a `/en`.
+- **"No cambia con la búsqueda."** `/es?kind=tour` tiene que ir a
+  `/en?kind=tour`. Sin los parámetros, `/en` es exactamente la portada — el
+  mismo hueco que cerró la decisión 0017, por otra puerta.
+
+Medido en producción antes de tocar nada: en `/es?kind=stay`, el enlace era
+`/en` al llegar y `/en` tras navegar. Ahora lo decide `LangSwitch`, un
+componente de cliente idéntico en espíritu a `NavLinks`, y el layout ya no lee
+`x-pathname` para nada (el middleware lo sigue poniendo porque `not-found` lo
+usa, y ese sí es un render de servidor por petición).
+
+La regla queda sin excepciones: **nada que dependa de la URL se decide en un
+layout.** Y una lección de método: cuando un comentario explica por qué algo
+es la excepción a una regla que ya costó caro, ese comentario es el primer
+sospechoso.
