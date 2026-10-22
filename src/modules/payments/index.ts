@@ -28,7 +28,11 @@ export function paymentProvider(): PaymentProvider {
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (secretKey && stripeWebhookSecret) {
-    cached = new StripeProvider(secretKey, stripeWebhookSecret);
+    cached = new StripeProvider(secretKey, stripeWebhookSecret, {
+      connectedAccount: process.env.STRIPE_CONNECTED_ACCOUNT || undefined,
+      platformFeeBps: Number(process.env.PLATFORM_FEE_BPS ?? 0),
+      refundPlatformFee: process.env.PLATFORM_FEE_REFUNDABLE === "si",
+    });
     return cached;
   }
 

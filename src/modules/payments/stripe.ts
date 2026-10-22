@@ -18,7 +18,8 @@ import {
  * Se habla con la API por HTTP directo en lugar del SDK. Son tres llamadas y el
  * formato es estable; una dependencia menos en el camino del dinero.
  *
- * ADVERTENCIA HONESTA: esta implementación está escrita contra la API
+ * Verificado contra la API real en una cuenta sandbox el 2026-09-09 (decisión 0016).
+ * ADVERTENCIA HONESTA, histórica: esta implementación se escribió contra la API
  * documentada pero **no se ha ejecutado contra Stripe**, porque la cuenta del
  * cliente sigue en verificación. Lo que sí está verificado es la parte que puede
  * verificarse sin cuenta: la firma del webhook (signature.test.ts) y todo el
@@ -40,13 +41,52 @@ export function stripeExpiresAt(holdExpiresAt: string, now: Date = new Date()): 
   return ahora + Math.min(Math.max(margen, STRIPE_MIN_SEGUNDOS), STRIPE_MAX_SEGUNDOS);
 }
 
+/**
+ * Stripe Connect: el sitio cobra **en la cuenta del cliente** (cargo directo) y la
+ * plataforma —ZaharDev— se lleva su comisión en el mismo cobro.
+ *
+ * Con cargo directo el cliente es el vendedor: su nombre sale en el estado de
+ * cuenta del huésped, Stripe le descuenta su comisión a él, y reembolsos y
+ * contracargos salen de su saldo. La plataforma solo recibe su comisión. Ver
+ * docs.stripe.com/connect/charges y la decisión 0021.
+ *
+ * Sin `connectedAccount`, el sitio cobra en la cuenta de la llave, como antes.
+ */
+export type StripeConnect = {
+  /** `acct_…` de la cuenta del cliente, conectada a la plataforma. */
+  connectedAccount?: string;
+  /** Comisión de la plataforma en puntos base: 250 = 2.5%. */
+  platformFeeBps?: number;
+  /** Si una devolución también devuelve la comisión de la plataforma. */
+  refundPlatformFee?: boolean;
+};
+
+/**
+ * La comisión de la plataforma, en centavos enteros: un porcentaje del **total**
+ * de la reserva, cobrado de lo que pasa por la pasarela. Nunca más que el cobro
+ * (Stripe lo rechazaría) y nunca negativa.
+ */
+export function platformFeeCents(chargeCents: number, totalCents: number | undefined, bps: number): number {
+  if (!Number.isFinite(bps) || bps <= 0) return 0;
+  const base = totalCents && totalCents > 0 ? totalCents : chargeCents;
+  return Math.max(0, Math.min(chargeCents, Math.round((base * bps) / 10_000)));
+}
+
 export class StripeProvider implements PaymentProvider {
   readonly name = "stripe";
 
   constructor(
     private readonly secretKey: string,
     private readonly webhookSecret: string,
+    private readonly connect: StripeConnect = {},
   ) {}
+
+  /** Con Connect, cada llamada va a nombre de la cuenta del cliente. */
+  private headers(extra: Record<string, string> = {}): Record<string, string> {
+    const h: Record<string, string> = { Authorization: `Bearer ${this.secretKey}`, ...extra };
+    if (this.connect.connectedAccount) h["Stripe-Account"] = this.connect.connectedAccount;
+    return h;
+  }
 
   /**
    * Una llamada que **mueve dinero**. La llave de idempotencia es explícita y
@@ -66,12 +106,11 @@ export class StripeProvider implements PaymentProvider {
   ): Promise<unknown> {
     const response = await fetch(`${API}${path}`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.secretKey}`,
+      headers: this.headers({
         "Content-Type": "application/x-www-form-urlencoded",
         // Sin esto, un reintento por timeout puede cobrar —o devolver— dos veces.
         "Idempotency-Key": idempotencyKey,
-      },
+      }),
       body: new URLSearchParams(form).toString(),
     });
 
@@ -101,7 +140,7 @@ export class StripeProvider implements PaymentProvider {
    */
   private async get(path: string): Promise<unknown> {
     const response = await fetch(`${API}${path}`, {
-      headers: { Authorization: `Bearer ${this.secretKey}` },
+      headers: this.headers(),
     });
 
     const body: unknown = await response.json();
@@ -149,6 +188,11 @@ export class StripeProvider implements PaymentProvider {
       expires_at: String(stripeExpiresAt(request.holdExpiresAt)),
     };
     if (request.email) form.customer_email = request.email;
+
+    const comision = this.connect.connectedAccount
+      ? platformFeeCents(request.amountCents, request.totalCents, this.connect.platformFeeBps ?? 0)
+      : 0;
+    if (comision > 0) form["payment_intent_data[application_fee_amount]"] = String(comision);
 
     const session = (await this.post(
       "/checkout/sessions",
@@ -225,6 +269,11 @@ export class StripeProvider implements PaymentProvider {
         amount: String(request.amountCents),
         "metadata[reason]": request.reason,
         "metadata[refund_id]": request.refundId,
+        // Con Connect, si la devolución también le regresa al cliente la comisión
+        // de la plataforma. Es una regla de negocio, no un detalle técnico.
+        ...(this.connect.connectedAccount && this.connect.refundPlatformFee
+          ? { refund_application_fee: "true" }
+          : {}),
       },
       // La fila de `refunds` ya existe cuando se llega aquí, y su UUID no
       // cambia entre reintentos. Es la llave, no un adorno de auditoría.
