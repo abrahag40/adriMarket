@@ -273,15 +273,23 @@ expect_contains "$TOUR" "seats left" "el desplegable dice cuántos lugares queda
 
 echo
 echo "S2-3 · calendario de disponibilidad"
-expect_contains "$CASA?month=$MES" "cal-busy" "el bloqueo de mantenimiento se ve ocupado"
-expect_absent "$CASA?month=$MES" "Pintura de la terraza" "no se revela el motivo del bloqueo"
-expect_absent "$CASA?month=$MES" "mantenimiento" "tampoco la palabra mantenimiento"
-expect_contains "$CASA?month=$MES" 'cal-busy"><span class="cal-number">5<' "la primera noche bloqueada se ve ocupada"
-expect_contains "$CASA?month=$MES" 'cal-busy"><span class="cal-number">8<' "la última noche bloqueada también"
-expect_contains "$CASA?month=$MES" 'cal-free"><span class="cal-number">9<' "el día de salida queda libre: otro huésped puede llegar ese día"
-expect_contains "$CASA?month=$MES" 'cal-free"><span class="cal-number">4<' "la noche previa al bloqueo sigue libre"
-expect_contains "$CASA?month=$MES" "octubre de 2026" "el mes se nombra en el idioma de la página"
-expect_contains "/en/stays/casa-akumal?month=$MES" "October 2026" "y en inglés"
+# El bloqueo del seed vive en el mes que viene en dos meses (db/seed/dev_seed.sql),
+# no en el de las fechas de arriba: así ni caduca ni depende de qué jueves salió.
+read -r MES_BLOQUEO MES_ES MES_EN < <(node -e '
+  const d = new Date(); const m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 2, 1));
+  const f = (l) => new Intl.DateTimeFormat(l, { month: "long", year: "numeric", timeZone: "UTC" }).format(m);
+  console.log(m.toISOString().slice(0, 10), f("es-MX").replace(/ /g, "_"), f("en-US").replace(/ /g, "_"));
+')
+MES_ES="${MES_ES//_/ }"; MES_EN="${MES_EN//_/ }"
+expect_contains "$CASA?month=$MES_BLOQUEO" "cal-busy" "el bloqueo de mantenimiento se ve ocupado"
+expect_absent "$CASA?month=$MES_BLOQUEO" "Pintura de la terraza" "no se revela el motivo del bloqueo"
+expect_absent "$CASA?month=$MES_BLOQUEO" "mantenimiento" "tampoco la palabra mantenimiento"
+expect_contains "$CASA?month=$MES_BLOQUEO" 'cal-busy"><span class="cal-number">5<' "la primera noche bloqueada se ve ocupada"
+expect_contains "$CASA?month=$MES_BLOQUEO" 'cal-busy"><span class="cal-number">8<' "la última noche bloqueada también"
+expect_contains "$CASA?month=$MES_BLOQUEO" 'cal-free"><span class="cal-number">9<' "el día de salida queda libre: otro huésped puede llegar ese día"
+expect_contains "$CASA?month=$MES_BLOQUEO" 'cal-free"><span class="cal-number">4<' "la noche previa al bloqueo sigue libre"
+expect_contains "$CASA?month=$MES_BLOQUEO" "$MES_ES" "el mes se nombra en el idioma de la página"
+expect_contains "/en/stays/casa-akumal?month=$MES_BLOQUEO" "$MES_EN" "y en inglés"
 
 echo
 echo "S2-4 · el selector funciona sin JavaScript y el precio lo calcula el servidor"

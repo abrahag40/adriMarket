@@ -213,7 +213,7 @@ Están aquí porque cada una se pagó una vez.
 - **El worker falla en silencio.** Sin `POST /api/jobs/tick` cada minuto no
   expiran los apartados, no salen los avisos y no hay recordatorios. Nada da
   error. Por eso `/api/health` responde **503** —no un `{"ok":true}`— cuando el
-  último latido tiene más de diez minutos.
+  último latido tiene más de 35 minutos (corre cada 15: ver decisión 0020).
 - **Cada recorrido en navegador tiene su propio territorio de fechas**, porque
   consumen inventario y no lo devuelven: **2027 para el checkout, 2028 para el
   panel**. `smoke.sh` y `audit.mjs` ya no tienen año: eligen en cada corrida

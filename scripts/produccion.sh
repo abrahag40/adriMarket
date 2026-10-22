@@ -27,7 +27,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-ARCHIVO=".env.neon"
+# Un archivo por sitio: `SITIO=conquest-tours npm run prod:migrate` lee
+# `.env.neon.conquest-tours`. Sin SITIO, el de siempre (adriMarket). Cada sitio
+# trae su propia ancla, así que equivocarse de archivo también se detiene.
+ARCHIVO=".env.neon${SITIO:+.$SITIO}"
 
 # El archivo NO se llama `.env.production.local`, y no es capricho.
 #
@@ -123,8 +126,18 @@ case "${1:-}" in
   psql)
     psql "$DATABASE_URL"
     ;;
+  run)
+    # Un guion de operación (importar fichas) con la DATABASE_URL ya verificada.
+    # La cadena no se teclea ni se pega.
+    shift
+    if [[ $# -eq 0 ]]; then
+      echo "Uso: $0 run <comando…>" >&2
+      exit 1
+    fi
+    exec "$@"
+    ;;
   *)
-    echo "Uso: $0 {migrate|sql <archivo>|psql}" >&2
+    echo "Uso: $0 {migrate|sql <archivo>|psql|run <comando…>}" >&2
     exit 1
     ;;
 esac

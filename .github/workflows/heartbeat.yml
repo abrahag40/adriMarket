@@ -27,22 +27,34 @@ on:
     - cron: "0 */3 * * *"
   workflow_dispatch:
 
-concurrency:
-  # Un arranque nuevo reemplaza cualquier bucle anterior que siga vivo: no
-  # hace falta que convivan dos, y así nunca se pisan llamando al latido al
-  # mismo tiempo.
-  group: heartbeat
-  cancel-in-progress: true
-
+# Un bucle por sitio (desde el 2026-10-22): cada cliente tiene su propio
+# proyecto y su propia llave de latido, y si el latido de uno falla el del otro
+# sigue vivo. Un sitio nuevo es un renglón más en la matriz.
 jobs:
   tick:
-    name: Latido en bucle
+    name: Latido en bucle · ${{ matrix.sitio }}
     runs-on: ubuntu-latest
     # Un poco por debajo del límite de 6 horas de un job de GitHub Actions:
     # el bucle se detiene solo con margen, en vez de que lo mate a la fuerza.
     timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sitio: adrimarket
+            url: https://adrimarket.vercel.app
+            jobs_secret: JOBS_SECRET
+          - sitio: conquest-tours
+            url: https://conquest-tours.vercel.app
+            jobs_secret: JOBS_SECRET_CONQUEST_TOURS
+    # Un arranque nuevo reemplaza cualquier bucle anterior del mismo sitio que
+    # siga vivo: no hace falta que convivan dos, y así nunca se pisan llamando al
+    # latido al mismo tiempo.
+    concurrency:
+      group: heartbeat-${{ matrix.sitio }}
+      cancel-in-progress: true
     steps:
-      - name: Llamar al latido cada minuto
+      - name: Llamar al latido cada 15 minutos
         run: |
           fin=$(( $(date +%s) + 345*60 ))
           while [ "$(date +%s)" -lt "$fin" ]; do
@@ -54,8 +66,10 @@ jobs:
               echo "El latido respondió $codigo" >&2
               exit 1
             fi
-            sleep 60
+            # Cada 15 minutos, no cada minuto: entre llamadas la base de Neon se
+            # duerme (a los 5 minutos sin uso) y no gasta su cuota. Ver decisión 0020.
+            sleep 900
           done
         env:
-          SITE_URL: https://adrimarket.vercel.app
-          JOBS_SECRET: ${{ secrets.JOBS_SECRET }}
+          SITE_URL: ${{ matrix.url }}
+          JOBS_SECRET: ${{ secrets[matrix.jobs_secret] }}

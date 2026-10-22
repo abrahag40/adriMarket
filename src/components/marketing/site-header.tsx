@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { otherLocale, type Locale } from "@/i18n/config";
+import { brand } from "@/brand";
 import { getMessages } from "@/i18n/messages";
 
 import { CurrencyBadge } from "./currency-badge";
@@ -20,6 +21,7 @@ export function SiteHeader({
   locale: Locale;
 }) {
   const t = getMessages(locale);
+  const b = brand();
   const other = otherLocale(locale);
   return (
     <header className="site-header">
@@ -32,9 +34,16 @@ export function SiteHeader({
             propio nombre ("Travel Tour"), aplicado al nombre real del
             sitio en vez de inventar uno nuevo. */}
         <Link className="brand brand-header" href={`/${locale}`}>
+          {b.logo && (
+            // Decorativa: el nombre de al lado ya dice a dónde lleva el enlace. Es un
+            // archivo fijo de 176 px (4× lo que mide en pantalla), así que el
+            // optimizador de imágenes no ganaría nada y gastaría cuota.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="brand-logo" src={b.logo.src} width={b.logo.width} height={b.logo.height} alt="" />
+          )}
           <span className="brand-name">
-            {t.siteName.slice(0, 4)}
-            <span className="brand-accent">{t.siteName.slice(4)}</span>
+            {b.lead}
+            <span className="brand-accent">{b.accent}</span>
           </span>
         </Link>
 

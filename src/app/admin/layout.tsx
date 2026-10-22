@@ -1,3 +1,4 @@
+import { brand } from "@/brand";
 import type { Metadata } from "next";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import type { ReactNode } from "react";
@@ -29,7 +30,7 @@ const dmSerifDisplay = DM_Serif_Display({
  * revés sí. Ante la duda, se elige lo que funciona en ambos.
  */
 export const metadata: Metadata = {
-  title: "Panel · adriMarket",
+  title: `Panel · ${brand().name}`,
   robots: { index: false, follow: false },
 };
 

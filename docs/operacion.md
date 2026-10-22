@@ -26,7 +26,7 @@ monitoreo que exige credenciales es un monitoreo que alguien termina apagando.
 | Comprobación | Qué mira | Si falla |
 |---|---|---|
 | `database` | que la base responda | [§1](#1-la-base-no-responde) |
-| `worker` | que el latido haya corrido hace menos de 10 min | [§2](#2-el-worker-dejó-de-latir) |
+| `worker` | que el latido haya corrido hace menos de 35 min (corre cada 15) | [§2](#2-el-worker-dejó-de-latir) |
 | `notifications` | avisos muertos o atrasados | [§3](#3-hay-avisos-muertos) |
 | `refunds` | reembolsos sin procesar por más de 24 h | [§4](#4-un-reembolso-lleva-un-día-sin-salir) |
 | `inventory` | apartados vencidos que siguen ocupando fechas | [§2](#2-el-worker-dejó-de-latir) |

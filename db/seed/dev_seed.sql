@@ -254,10 +254,15 @@ insert into product_media (product_id, url, alt_es, alt_en, width, height, posit
   ('99999999-9999-9999-9999-999999999999', '/media/catamaran-2.svg',
    'Snorkel sobre el arrecife', 'Snorkeling over the reef', 1200, 800, 1);
 
--- Un bloqueo de mantenimiento en fechas fijas: hace demostrable el calendario y
--- la regla de que el motivo no se expone al huésped.
+-- Un bloqueo de mantenimiento: hace demostrable el calendario y la regla de que
+-- el motivo no se expone al huésped. Noches del 5 al 8 del mes que viene en DOS
+-- meses, contado desde el día en que se siembra: con fecha fija (era octubre de
+-- 2026) la prueba del calendario caducó sola en cuanto ese mes quedó atrás, igual
+-- que la barra entera el 2026-09-21. smoke.sh calcula el mismo mes.
 insert into rental_blocks (unit_id, dates, reason, note) values
-  ('66666666-6666-6666-6666-666666666666', daterange('2026-10-05', '2026-10-09'),
+  ('66666666-6666-6666-6666-666666666666',
+   daterange((date_trunc('month', current_date) + interval '2 months')::date + 4,
+             (date_trunc('month', current_date) + interval '2 months')::date + 8),
    'maintenance', 'Pintura de la terraza');
 
 -- Publicado pero solo en español: sirve para probar que /en responde 404 en

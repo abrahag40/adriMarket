@@ -2,6 +2,7 @@
 // de JSX (`"jsx": "preserve"` + Next), pero `tsx` —que corre las pruebas y la
 // vista previa— usa el clásico y falla con "React is not defined". El import
 // sobra en el build y hace que el archivo funcione en los dos.
+import { brand } from "@/brand";
 import * as React from "react";
 
 import {
@@ -147,7 +148,7 @@ export function BookingConfirmedEmail({ data }: { data: BookingNotification }) {
               className="m-0 text-[12px] uppercase tracking-[0.14em]"
               style={{ color: COLOR.acento, fontFamily: SANS, fontWeight: 600 }}
             >
-              adriMarket
+              {brand().name}
             </Text>
 
             <Heading
@@ -387,7 +388,7 @@ export function BookingConfirmedEmail({ data }: { data: BookingNotification }) {
               className="m-0 text-[12px] leading-[18px]"
               style={{ color: COLOR.tenue, fontFamily: SANS }}
             >
-              adriMarket · {es ? "Tours y estancias en el Caribe mexicano" : "Tours and stays in the Mexican Caribbean"}
+              {brand().name} · {brand().emailTagline[es ? "es" : "en"]}
             </Text>
           </Container>
         </Body>

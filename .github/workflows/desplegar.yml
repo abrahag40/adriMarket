@@ -53,17 +53,44 @@ on:
   # Escotilla manual para volver a desplegar sin tocar código.
   workflow_dispatch:
 
-concurrency:
-  # Dos despliegues a la vez sobre la misma base y el mismo proyecto no tienen
-  # sentido, y el segundo podría adelantar al primero.
-  group: desplegar-produccion
-  cancel-in-progress: false
+# ---------------------------------------------------------------------------
+# Un código, varios sitios (desde el 2026-10-22)
+# ---------------------------------------------------------------------------
+#
+# Cada cliente tiene su propio proyecto de Vercel y su propia base: sus datos no
+# tocan los de otro. Lo que cambia entre sitios vive en la matriz de abajo —el
+# nombre de cada llave, nunca su valor— y la marca, en `NEXT_PUBLIC_SITE_BRAND`
+# del proyecto de Vercel (ver src/brand.ts). Un sitio nuevo es un renglón más en
+# la matriz y sus llaves cargadas; ver docs/decisiones/0020.
+#
+# `fail-fast: false`: si un sitio falla, los demás terminan su despliegue.
 
 jobs:
   desplegar:
-    name: Migrar y desplegar
+    name: Migrar y desplegar · ${{ matrix.sitio }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sitio: adrimarket
+            url: https://adrimarket.vercel.app
+            db_secret: DATABASE_URL
+            jobs_secret: JOBS_SECRET
+            project_var: VERCEL_PROJECT_ID
+          - sitio: conquest-tours
+            url: https://conquest-tours.vercel.app
+            db_secret: DATABASE_URL_CONQUEST_TOURS
+            jobs_secret: JOBS_SECRET_CONQUEST_TOURS
+            project_var: VERCEL_PROJECT_ID_CONQUEST_TOURS
+
+    # Dos despliegues a la vez sobre la misma base y el mismo proyecto no tienen
+    # sentido, y el segundo podría adelantar al primero. Uno por sitio.
+    concurrency:
+      group: desplegar-${{ matrix.sitio }}
+      cancel-in-progress: false
 
     # Sin esto, un PR que no pasó la CI llegaría hasta aquí. `workflow_dispatch`
     # no trae `workflow_run`, así que se acepta explícitamente.
@@ -78,7 +105,8 @@ jobs:
       - name: Comprobar credenciales
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets[matrix.db_secret] }}
+          JOBS_SECRET: ${{ secrets[matrix.jobs_secret] }}
         run: |
           falta=0
           if [ -z "$VERCEL_TOKEN" ]; then
@@ -88,7 +116,11 @@ jobs:
             falta=1
           fi
           if [ -z "$DATABASE_URL" ]; then
-            echo "::error::Falta el secreto DATABASE_URL (la cadena directa de Neon)."
+            echo "::error::Falta el secreto ${{ matrix.db_secret }} (la cadena directa de Neon de ${{ matrix.sitio }})."
+            falta=1
+          fi
+          if [ -z "$JOBS_SECRET" ]; then
+            echo "::error::Falta el secreto ${{ matrix.jobs_secret }} (el del latido de ${{ matrix.sitio }})."
             falta=1
           fi
           [ "$falta" -eq 0 ] || exit 1
@@ -110,7 +142,7 @@ jobs:
       # ── Paso 1: migrar, antes de desplegar ──
       - name: Migraciones pendientes en producción
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets[matrix.db_secret] }}
         run: |
           # DB_CONFIRM porque el destino ya viene del secreto, no de un teclado.
           # DB_BOOTSTRAP **no** se pasa: estrenar el esquema en una base remota
@@ -139,10 +171,11 @@ jobs:
           # Son identificadores, no credenciales: van como variables del
           # repositorio y sin el token no sirven para nada.
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ vars[matrix.project_var] }}
+          SITIO_URL: ${{ matrix.url }}
         run: |
           if [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::error::Faltan las variables VERCEL_ORG_ID / VERCEL_PROJECT_ID."\
+            echo "::error::Faltan las variables VERCEL_ORG_ID / ${{ matrix.project_var }}."\
                  "Salen de .vercel/project.json y se cargan con: gh variable set VERCEL_ORG_ID"
             exit 1
           fi
@@ -161,7 +194,7 @@ jobs:
           # versión 63. Con `tail -1` a secas se tomaba lo último que saliera,
           # y "lo último" cambió de versión a versión.
           url="$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' /tmp/despliegue.log \
-                 | grep -v '^https://adrimarket\.vercel\.app$' | tail -1)"
+                 | grep -vxF "$SITIO_URL" | tail -1)"
 
           # Y si no hay URL, no hubo despliegue. Esta guarda es la que habría
           # atrapado el fallo silencioso aunque `pipefail` no estuviera.
@@ -197,7 +230,7 @@ jobs:
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PROJECT_ID: ${{ vars[matrix.project_var] }}
           ESPERADA: ${{ steps.desplegar.outputs.url }}
         run: |
           curl -sS --max-time 30 \
@@ -236,9 +269,9 @@ jobs:
       - name: Comprobar que lo desplegado sirve
         shell: bash
         env:
-          JOBS_SECRET: ${{ secrets.JOBS_SECRET }}
+          JOBS_SECRET: ${{ secrets[matrix.jobs_secret] }}
         run: |
-          sitio="https://adrimarket.vercel.app"
+          sitio="${{ matrix.url }}"
 
           # El despliegue tarda unos segundos en tomar el alias de producción.
           for i in $(seq 1 30); do
@@ -296,9 +329,9 @@ jobs:
         if: always()
         run: |
           {
-            echo "### Despliegue a producción"
+            echo "### Despliegue a producción · ${{ matrix.sitio }}"
             echo
             echo "- commit: \`${{ github.event.workflow_run.head_sha || github.sha }}\`"
             echo "- despliegue: ${{ steps.desplegar.outputs.url }}"
-            echo "- sitio: https://adrimarket.vercel.app"
+            echo "- sitio: ${{ matrix.url }}"
           } >> "$GITHUB_STEP_SUMMARY"

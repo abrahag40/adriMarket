@@ -1,3 +1,4 @@
+import { brand } from "@/brand";
 import { formatMoney, LOCALE_TAG, type Locale, type ProductKind, isRental } from "@/i18n/config";
 
 /**
@@ -194,7 +195,7 @@ export function guestConfirmation(data: BookingNotification): {
   );
 
   lines.push("");
-  lines.push("adriMarket");
+  lines.push(brand().name);
 
   return {
     subject: es
@@ -384,7 +385,7 @@ export function cancellationNotice(data: CancellationNotification): {
       : "If you'd like to travel on another date, just reply to this email.",
   );
   lines.push("");
-  lines.push("adriMarket");
+  lines.push(brand().name);
 
   return {
     subject: es
@@ -506,7 +507,7 @@ export function reminderNotice(data: ReminderNotification): {
   }
 
   lines.push("");
-  lines.push("adriMarket");
+  lines.push(brand().name);
 
   return {
     subject: es
