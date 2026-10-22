@@ -80,7 +80,10 @@ jobs:
             db_secret: DATABASE_URL
             jobs_secret: JOBS_SECRET
             project_var: VERCEL_PROJECT_ID
-            token_secret: VERCEL_TOKEN
+            # La llave vieja (VERCEL_TOKEN) se reemplazó el 2026-10-22 por la de
+            # conquest-tours. adrimarket necesita la suya, con alcance a su proyecto,
+            # el día que su base vuelva: gh secret set VERCEL_TOKEN_ADRIMARKET.
+            token_secret: VERCEL_TOKEN_ADRIMARKET
           - sitio: conquest-tours
             url: https://conquest-tours.vercel.app
             db_secret: DATABASE_URL_CONQUEST_TOURS
@@ -88,7 +91,7 @@ jobs:
             project_var: VERCEL_PROJECT_ID_CONQUEST_TOURS
             # Una llave de Vercel por sitio, con alcance a SU proyecto: la llave de
             # un cliente no puede tocar el sitio de otro.
-            token_secret: VERCEL_TOKEN_CONQUEST_TOURS
+            token_secret: VERCEL_TOKEN
 
     # Dos despliegues a la vez sobre la misma base y el mismo proyecto no tienen
     # sentido, y el segundo podría adelantar al primero. Uno por sitio.

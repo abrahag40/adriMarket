@@ -702,5 +702,5 @@ export function getMessages(locale: Locale): Messages {
   // El nombre y la leyenda son de la marca del sitio, no de los textos: el mismo
   // código sirve a varios clientes (ver src/brand.ts).
   const b = brand();
-  return { ...MESSAGES[locale], siteName: b.name, tagline: b.tagline[locale] };
+  return { ...MESSAGES[locale], ...b.messages?.[locale], siteName: b.name, tagline: b.tagline[locale] };
 }
