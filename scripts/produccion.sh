@@ -126,8 +126,18 @@ case "${1:-}" in
   psql)
     psql "$DATABASE_URL"
     ;;
+  run)
+    # Un guion de operación (importar fichas) con la DATABASE_URL ya verificada.
+    # La cadena no se teclea ni se pega.
+    shift
+    if [[ $# -eq 0 ]]; then
+      echo "Uso: $0 run <comando…>" >&2
+      exit 1
+    fi
+    exec "$@"
+    ;;
   *)
-    echo "Uso: $0 {migrate|sql <archivo>|psql}" >&2
+    echo "Uso: $0 {migrate|sql <archivo>|psql|run <comando…>}" >&2
     exit 1
     ;;
 esac
