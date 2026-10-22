@@ -54,7 +54,7 @@ jobs:
       group: heartbeat-${{ matrix.sitio }}
       cancel-in-progress: true
     steps:
-      - name: Llamar al latido cada minuto
+      - name: Llamar al latido cada 15 minutos
         run: |
           fin=$(( $(date +%s) + 345*60 ))
           while [ "$(date +%s)" -lt "$fin" ]; do
@@ -66,7 +66,9 @@ jobs:
               echo "El latido respondió $codigo" >&2
               exit 1
             fi
-            sleep 60
+            # Cada 15 minutos, no cada minuto: entre llamadas la base de Neon se
+            # duerme (a los 5 minutos sin uso) y no gasta su cuota. Ver decisión 0020.
+            sleep 900
           done
         env:
           SITE_URL: ${{ matrix.url }}

@@ -36,8 +36,15 @@ import { gatewayState } from "@/modules/payments";
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * El latido corre cada 15 minutos (desde el 2026-10-22, decisión 0020): cada
+ * minuto mantenía la base de Neon despierta todo el día y agotaba su cuota
+ * gratuita a mitad de mes. Las alarmas de abajo se miden contra esa frecuencia:
+ * una sola vuelta perdida no es una caída, dos sí.
+ */
+const HEARTBEAT_EVERY_MINUTES = 15;
 /** Minutos sin latido a partir de los cuales el worker se considera caído. */
-const HEARTBEAT_MINUTES = 10;
+const HEARTBEAT_MINUTES = HEARTBEAT_EVERY_MINUTES * 2 + 5;
 
 type Check = { ok: boolean; detail: string };
 
@@ -80,14 +87,14 @@ export async function GET() {
       (select count(*)::int from outbox where status = 'dead') as avisos_muertos,
       -- Pendientes cuya hora de intento ya pasó hace rato: la cola no avanza.
       (select count(*)::int from outbox
-        where status in ('pending', 'failed') and next_attempt_at < now() - interval '15 minutes')
+        where status in ('pending', 'failed') and next_attempt_at < now() - interval '35 minutes')
         as avisos_atrasados,
       (select count(*)::int from refunds
         where status = 'pending' and created_at < now() - interval '24 hours')
         as reembolsos_atorados,
       -- Apartados que ya vencieron y siguen ocupando inventario.
       (select count(*)::int from bookings
-        where status = 'hold' and deposit_due_at < now() - interval '5 minutes')
+        where status = 'hold' and deposit_due_at < now() - interval '20 minutes')
         as apartados_vencidos,
       (select count(*)::int from media_jobs where status = 'failed') as fotos_falladas,
       -- Configuración, no operación: sin esto nadie recibe el aviso de
