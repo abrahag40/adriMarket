@@ -1,5 +1,6 @@
 "use server";
 
+import { brand } from "@/brand";
 import { headers } from "next/headers";
 import { sql } from "drizzle-orm";
 
@@ -35,7 +36,7 @@ export async function requestAccess(
               ${JSON.stringify({
                 url: absoluteUrl(`/admin/entrar/${link.token}`),
                 rendered: {
-                  subject: "Tu acceso al panel de adriMarket",
+                  subject: `Tu acceso al panel de ${brand().name}`,
                   text:
                     `Entra al panel con este enlace, válido 15 minutos y de un solo uso:\n\n` +
                     `${absoluteUrl(`/admin/entrar/${link.token}`)}\n\n` +

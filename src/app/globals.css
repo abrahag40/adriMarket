@@ -243,6 +243,16 @@ a {
   color: var(--accent);
 }
 
+/* El logo del cliente, cuando su marca trae uno (src/brand.ts). Mide lo que
+   el área táctil del enlace, para que el encabezado no crezca por él. */
+.brand-logo {
+  width: var(--tap);
+  height: var(--tap);
+  object-fit: contain;
+  flex: none;
+  margin-inline-end: 8px;
+}
+
 .brand-tagline {
   font-size: var(--step--1);
   color: var(--text-muted);

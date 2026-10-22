@@ -27,7 +27,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-ARCHIVO=".env.neon"
+# Un archivo por sitio: `SITIO=conquest-tours npm run prod:migrate` lee
+# `.env.neon.conquest-tours`. Sin SITIO, el de siempre (adriMarket). Cada sitio
+# trae su propia ancla, así que equivocarse de archivo también se detiene.
+ARCHIVO=".env.neon${SITIO:+.$SITIO}"
 
 # El archivo NO se llama `.env.production.local`, y no es capricho.
 #

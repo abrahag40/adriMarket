@@ -1,3 +1,4 @@
+import { brand } from "@/brand";
 import type { Locale } from "./config";
 
 /**
@@ -698,5 +699,8 @@ const en: Messages = {
 const MESSAGES: Record<Locale, Messages> = { es, en };
 
 export function getMessages(locale: Locale): Messages {
-  return MESSAGES[locale];
+  // El nombre y la leyenda son de la marca del sitio, no de los textos: el mismo
+  // código sirve a varios clientes (ver src/brand.ts).
+  const b = brand();
+  return { ...MESSAGES[locale], siteName: b.name, tagline: b.tagline[locale] };
 }
