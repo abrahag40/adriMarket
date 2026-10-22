@@ -80,11 +80,15 @@ jobs:
             db_secret: DATABASE_URL
             jobs_secret: JOBS_SECRET
             project_var: VERCEL_PROJECT_ID
+            token_secret: VERCEL_TOKEN
           - sitio: conquest-tours
             url: https://conquest-tours.vercel.app
             db_secret: DATABASE_URL_CONQUEST_TOURS
             jobs_secret: JOBS_SECRET_CONQUEST_TOURS
             project_var: VERCEL_PROJECT_ID_CONQUEST_TOURS
+            # Una llave de Vercel por sitio, con alcance a SU proyecto: la llave de
+            # un cliente no puede tocar el sitio de otro.
+            token_secret: VERCEL_TOKEN_CONQUEST_TOURS
 
     # Dos despliegues a la vez sobre la misma base y el mismo proyecto no tienen
     # sentido, y el segundo podría adelantar al primero. Uno por sitio.
@@ -104,15 +108,15 @@ jobs:
       # vez de a mitad del despliegue con un error de la API de Vercel.
       - name: Comprobar credenciales
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets[matrix.token_secret] }}
           DATABASE_URL: ${{ secrets[matrix.db_secret] }}
           JOBS_SECRET: ${{ secrets[matrix.jobs_secret] }}
         run: |
           falta=0
           if [ -z "$VERCEL_TOKEN" ]; then
-            echo "::error::Falta el secreto VERCEL_TOKEN. Se genera en"\
+            echo "::error::Falta el secreto ${{ matrix.token_secret }}. Se genera en"\
                  "vercel.com/account/tokens (alcance: el equipo del proyecto) y se"\
-                 "carga con: gh secret set VERCEL_TOKEN"
+                 "carga con: gh secret set ${{ matrix.token_secret }}"
             falta=1
           fi
           if [ -z "$DATABASE_URL" ]; then
@@ -162,7 +166,7 @@ jobs:
         id: desplegar
         shell: bash
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets[matrix.token_secret] }}
           # Sin esto el CLI no sabe a qué proyecto desplegar y muere con
           # "User not found", que suena a un problema del token y no lo es:
           # `.vercel/` está en `.gitignore`, así que el runner nunca tiene el
@@ -229,7 +233,7 @@ jobs:
       - name: El alias de producción apunta a este despliegue
         shell: bash
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets[matrix.token_secret] }}
           VERCEL_PROJECT_ID: ${{ vars[matrix.project_var] }}
           ESPERADA: ${{ steps.desplegar.outputs.url }}
         run: |
