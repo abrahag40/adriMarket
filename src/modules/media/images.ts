@@ -72,7 +72,17 @@ class BlobStorage implements MediaStorage {
     // `addRandomSuffix: false` porque el nombre ya lleva un uuid (al subir) o el
     // identificador y el ancho (variantes): es único de por sí, y así la URL
     // guardada en la base es la misma que Blob va a servir después.
-    const blob = await put(filename, bytes, { access: "public", addRandomSuffix: false });
+    //
+    // `allowOverwrite: true` porque una variante se llama igual en cada intento:
+    // si un intento escribió la mitad y falló —o dos latidos tomaron la misma
+    // foto—, el reintento chocaba con "this blob already exists" y no terminaba
+    // nunca. Pasó el 2026-10-23 con las primeras fotos de Conquest Tours.
+    // Sobrescribir es seguro: el mismo nombre siempre lleva los mismos bytes.
+    const blob = await put(filename, bytes, {
+      access: "public",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
     return blob.url;
   }
 
