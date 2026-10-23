@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import type { Locale } from "@/i18n/config";
+import { brand } from "@/brand";
 import { getMessages } from "@/i18n/messages";
 
 /**
@@ -33,6 +34,7 @@ import { getMessages } from "@/i18n/messages";
  */
 export function NavLinks({ locale }: { locale: Locale }) {
   const t = getMessages(locale);
+  const { kinds } = brand();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -45,15 +47,21 @@ export function NavLinks({ locale }: { locale: Locale }) {
       <Link href={`/${locale}`} aria-current={isActive("") ? "page" : undefined}>
         {t.navHome}
       </Link>
-      <Link href={`/${locale}?kind=tour`} aria-current={isActive("tour") ? "page" : undefined}>
-        {t.navTours}
-      </Link>
-      <Link href={`/${locale}?kind=stay`} aria-current={isActive("stay") ? "page" : undefined}>
-        {t.navStays}
-      </Link>
-      <Link href={`/${locale}?kind=vehicle`} aria-current={isActive("vehicle") ? "page" : undefined}>
-        {t.navVehicles}
-      </Link>
+      {kinds.includes("tour") && (
+        <Link href={`/${locale}?kind=tour`} aria-current={isActive("tour") ? "page" : undefined}>
+          {t.navTours}
+        </Link>
+      )}
+      {kinds.includes("stay") && (
+        <Link href={`/${locale}?kind=stay`} aria-current={isActive("stay") ? "page" : undefined}>
+          {t.navStays}
+        </Link>
+      )}
+      {kinds.includes("vehicle") && (
+        <Link href={`/${locale}?kind=vehicle`} aria-current={isActive("vehicle") ? "page" : undefined}>
+          {t.navVehicles}
+        </Link>
+      )}
     </>
   );
 }

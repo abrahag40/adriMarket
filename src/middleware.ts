@@ -47,5 +47,5 @@ export const config = {
   //   ni vuelve a firmar la URL nueva.
   // - `admin`: sin ella el panel entero responde 307 hacia /es/admin, que no
   //   existe. La operación no puede entrar.
-  matcher: ["/((?!api|admin|_next|media|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: ["/((?!api|admin|_next|media|brand|favicon.ico|robots.txt|sitemap.xml).*)"],
 };
