@@ -65,6 +65,9 @@ const BRANDS: Record<string, Brand> = {
         ctaBody: "Elige el tour, la fecha y cuántos van. Tratas directo con quien lo organiza, sin cargos ocultos.",
         footerHowBody: "Eliges tu tour y tu fecha, y reservas directo con el operador.",
         extrasIntro: "Se paga junto con el tour.",
+        // Conquest no tiene cancelación: «Cancelación clara» sugería que sí.
+        valuePropCancelHeading: "Sin sorpresas",
+        valuePropCancelBody: "Las condiciones del tour quedan escritas en tu reserva desde el momento en que pagas.",
         // El precio de la tarjeta es el de adulto: dicho así, sin «Desde».
         fromPrice: "",
         perPerson: "por adulto",
@@ -77,6 +80,8 @@ const BRANDS: Record<string, Brand> = {
         ctaBody: "Pick the tour, the date and how many are going. You deal directly with the people who run it, no hidden fees.",
         footerHowBody: "Pick your tour and date, and book directly with the operator.",
         extrasIntro: "Paid together with the tour.",
+        valuePropCancelHeading: "No surprises",
+        valuePropCancelBody: "The tour's terms are written into your booking from the moment you pay.",
         fromPrice: "",
         perPerson: "per adult",
       },
