@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { Locale } from "@/i18n/config";
+import { brand } from "@/brand";
 import { getMessages } from "@/i18n/messages";
 
 import { CurrencyBadge } from "./currency-badge";
@@ -38,9 +39,11 @@ export function SiteFooter({ locale }: { locale: Locale }) {
             <li>
               <Link href={`/${locale}?kind=tour`}>{t.navTours}</Link>
             </li>
-            <li>
-              <Link href={`/${locale}?kind=stay`}>{t.navStays}</Link>
-            </li>
+            {brand().kinds.includes("stay") && (
+              <li>
+                <Link href={`/${locale}?kind=stay`}>{t.navStays}</Link>
+              </li>
+            )}
           </ul>
         </div>
 
