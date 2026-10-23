@@ -36,6 +36,12 @@ export type DepositRequest = {
    * ya se habían liberado.
    */
   holdExpiresAt: string;
+  /**
+   * El total de la reserva, aunque hoy solo se cobre una parte. La comisión de la
+   * plataforma (Stripe Connect) se calcula sobre el total y se cobra de lo que pasa
+   * por la pasarela: con anticipo, el saldo en efectivo nunca pasa por ella.
+   */
+  totalCents?: number;
 };
 
 /** Lo que el proveedor nos dice que pasó, ya normalizado. */

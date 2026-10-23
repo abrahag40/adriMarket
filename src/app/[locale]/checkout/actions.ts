@@ -133,9 +133,15 @@ export async function startCheckout(
       bookingId: booking.bookingId,
       bookingCode: booking.code,
       amountCents: booking.depositCents,
+      totalCents: booking.quote.total_cents,
       currency: booking.currency,
       email,
-      description: `Anticipo reserva ${booking.code}`,
+      // Con el anticipo al 100% se cobra la reserva completa, y llamarle
+      // «anticipo» en el recibo de la tarjeta confundiría al huésped.
+      description:
+        booking.depositCents >= booking.quote.total_cents
+          ? `Reserva ${booking.code}`
+          : `Anticipo reserva ${booking.code}`,
       successUrl: absoluteUrl(`/${locale}/reserva/${booking.code}`),
       cancelUrl: absoluteUrl(productPath(locale, kind, slug)),
       holdExpiresAt: booking.depositDueAt,
