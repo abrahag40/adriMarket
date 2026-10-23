@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { Locale } from "@/i18n/config";
+import { brand } from "@/brand";
 import { getMessages } from "@/i18n/messages";
 import type { LocationOption } from "@/modules/catalog/queries";
 
@@ -33,9 +34,9 @@ export function CatalogFilters({
           <label htmlFor="kind">{t.filterKind}</label>
           <select id="kind" name="kind" defaultValue={selected.kind}>
             <option value="">{t.filterKindAll}</option>
-            <option value="tour">{t.filterKindTour}</option>
-            <option value="stay">{t.filterKindStay}</option>
-            <option value="vehicle">{t.filterKindVehicle}</option>
+            {brand().kinds.includes("tour") && <option value="tour">{t.filterKindTour}</option>}
+            {brand().kinds.includes("stay") && <option value="stay">{t.filterKindStay}</option>}
+            {brand().kinds.includes("vehicle") && <option value="vehicle">{t.filterKindVehicle}</option>}
           </select>
         </div>
 

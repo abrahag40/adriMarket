@@ -1,3 +1,4 @@
+import { brand } from "@/brand";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -435,7 +436,8 @@ export default async function CatalogPage({
     hrefCon({ kind: null, price: null, page: 1 }),
     filters.kind === undefined,
     countWith(allItems, sinTipo, {}),
-    (["tour", "stay", "vehicle"] as const).map((kind) => ({
+    // Solo lo que vende este sitio (src/brand.ts): Conquest no ofrece estancias.
+    (["tour", "stay", "vehicle"] as const).filter((kind) => brand().kinds.includes(kind)).map((kind) => ({
       label: kindLabels[kind],
       href: hrefCon({ kind, price: null, page: 1 }),
       count: countWith(allItems, sinTipo, { kind }),
