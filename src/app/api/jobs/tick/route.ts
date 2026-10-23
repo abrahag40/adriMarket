@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
-import { db } from "@/db/index";
+import { db, sqlClient } from "@/db/index";
+import { syncFromIntake } from "@/modules/catalog/intake-sync";
 import { expireHolds } from "@/modules/availability/holds";
 import { processMediaJobs } from "@/modules/media/images";
 import { enqueueReminders, processOutbox } from "@/modules/notifications/send";
@@ -33,6 +34,12 @@ export async function POST(request: Request) {
   const reminders = await enqueueReminders();
   const outbox = await processOutbox();
   const media = await processMediaJobs();
+  // Las fichas que el cliente envió desde zahardev-intake (solo en los sitios que
+  // lo tienen configurado). Si la herramienta de fichas no responde, el latido
+  // sigue: se reporta y se reintenta en el siguiente.
+  const fichas = await syncFromIntake(sqlClient).catch((e: unknown) => ({
+    error: e instanceof Error ? e.message : String(e),
+  }));
 
   // El latido se registra al final y solo si todo corrió. Es lo que hace
   // observable que el worker esté vivo: /api/health lo lee y avisa cuando lleva
@@ -40,8 +47,8 @@ export async function POST(request: Request) {
   // apartados y deja de mandar avisos, en silencio.
   await db.execute(sql`
     select audit_record(null, 'job.tick', 'system', 'tick', null,
-                        ${JSON.stringify({ expired, reminders, outbox, media })}::jsonb)
+                        ${JSON.stringify({ expired, reminders, outbox, media, fichas })}::jsonb)
   `);
 
-  return Response.json({ expired, reminders, outbox, media });
+  return Response.json({ expired, reminders, outbox, media, fichas });
 }
