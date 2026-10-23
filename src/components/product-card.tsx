@@ -66,7 +66,7 @@ export function ProductCard({ item, locale }: { item: CatalogCard; locale: Local
         <div className="card-foot">
           {item.fromCents !== null ? (
             <p className="price">
-              <span className="price-label">{t.fromPrice}</span>
+              {t.fromPrice ? <span className="price-label">{t.fromPrice}</span> : null}
               <span className="price-amount">
                 {formatMoney(item.fromCents, item.currency, locale)}
               </span>

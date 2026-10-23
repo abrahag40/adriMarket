@@ -41,7 +41,10 @@ export function FeaturedCard({ item, locale }: { item: CatalogCard; locale: Loca
         <span className="featured-card-name">{item.name}</span>
         {item.fromCents !== null ? (
           <span className="featured-card-price">
-            {t.fromPrice} {formatMoney(item.fromCents, item.currency, locale)}
+            {/* Sin «Desde» (marcas que dicen el precio por adulto), el precio lleva su unidad. */}
+            {t.fromPrice
+              ? `${t.fromPrice} ${formatMoney(item.fromCents, item.currency, locale)}`
+              : `${formatMoney(item.fromCents, item.currency, locale)} ${t.perPerson}`}
           </span>
         ) : null}
       </span>
