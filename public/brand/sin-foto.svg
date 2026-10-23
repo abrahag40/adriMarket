@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Foto pendiente">
+  <rect width="1200" height="800" fill="#d9dde3"/>
+  <circle cx="820" cy="260" r="70" fill="#c3c9d1"/>
+  <path d="M0 640 L330 360 L560 560 L760 420 L1200 720 L1200 800 L0 800 Z" fill="#c3c9d1"/>
+  <path d="M0 700 L260 520 L520 700 L800 560 L1200 760 L1200 800 L0 800 Z" fill="#b3bac4"/>
+</svg>

@@ -18,6 +18,9 @@ import { taxFactorFor } from "@/modules/pricing/service";
  * la URL.
  */
 
+/** Imagen de relleno para un producto sin fotos (public/brand/sin-foto.svg). */
+export const FOTO_PENDIENTE = "/brand/sin-foto.svg";
+
 export type CatalogFilters = {
   kind?: ProductKind;
   locationSlug?: string;
@@ -172,7 +175,10 @@ export async function listCatalog(
     locationName: row.location_name,
     locationSlug: row.location_slug,
     city: row.city,
-    coverUrl: row.cover_url,
+    // Sin foto todavía, el catálogo usa una imagen de relleno para que la portada
+    // y las tarjetas conserven su diseño. La foto real la sustituye sola en
+    // cuanto se sube. Publicar sin foto lo decide quien opera el sitio.
+    coverUrl: row.cover_url ?? FOTO_PENDIENTE,
     coverAlt: row.cover_alt,
     coverWidth: row.cover_width === null ? null : Number(row.cover_width),
     coverHeight: row.cover_height === null ? null : Number(row.cover_height),
