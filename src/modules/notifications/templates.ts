@@ -154,17 +154,27 @@ export function guestConfirmation(data: BookingNotification): {
   lines.push(`  ${es ? "Total" : "Total"}: ${money(data.totalCents)}`);
 
   lines.push("");
-  lines.push(
-    es
-      ? `Anticipo pagado: ${money(data.depositCents)}`
-      : `Deposit paid: ${money(data.depositCents)}`,
-  );
-  // El dato que más reclamos evita.
-  lines.push(
-    es
-      ? `SALDO A PAGAR EN DESTINO: ${money(data.balanceCents)}`
-      : `BALANCE TO PAY ON ARRIVAL: ${money(data.balanceCents)}`,
-  );
+  if (data.balanceCents <= 0) {
+    // Cobro del 100% en línea (Conquest Tours): no hay saldo que anunciar, y
+    // decir «saldo en destino: $0» hace dudar al huésped de si debe algo.
+    lines.push(
+      es
+        ? `PAGADO COMPLETO EN LÍNEA: ${money(data.depositCents)}. No hay nada que pagar al llegar.`
+        : `PAID IN FULL ONLINE: ${money(data.depositCents)}. Nothing to pay on arrival.`,
+    );
+  } else {
+    lines.push(
+      es
+        ? `Anticipo pagado: ${money(data.depositCents)}`
+        : `Deposit paid: ${money(data.depositCents)}`,
+    );
+    // El dato que más reclamos evita.
+    lines.push(
+      es
+        ? `SALDO A PAGAR EN DESTINO: ${money(data.balanceCents)}`
+        : `BALANCE TO PAY ON ARRIVAL: ${money(data.balanceCents)}`,
+    );
+  }
 
   if (data.securityDepositNote) {
     lines.push("");
@@ -267,8 +277,12 @@ export function adminNotification(data: BookingNotification): {
 
   lines.push("");
   lines.push(`Total: ${money(data.totalCents)}`);
-  lines.push(`Anticipo cobrado: ${money(data.depositCents)}`);
-  lines.push(`Por cobrar en destino: ${money(data.balanceCents)}`);
+  if (data.balanceCents <= 0) {
+    lines.push(`Cobrado completo en línea: ${money(data.depositCents)}`);
+  } else {
+    lines.push(`Anticipo cobrado: ${money(data.depositCents)}`);
+    lines.push(`Por cobrar en destino: ${money(data.balanceCents)}`);
+  }
 
   return {
     subject: `Reserva ${data.code} · ${data.productName}`,
