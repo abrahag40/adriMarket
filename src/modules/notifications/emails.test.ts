@@ -87,6 +87,19 @@ describe("confirmación en HTML", () => {
     assert.match(html, /Cancelación sin costo/);
   });
 
+  it("con el cobro al 100% no anuncia un saldo en destino, dice que ya se pagó", async () => {
+    // Conquest Tours cobra todo en línea. «Saldo a pagar en destino: $0 · en
+    // efectivo al llegar» hacía dudar al huésped de si todavía debía algo.
+    const completo = { ...BASE, depositCents: BASE.totalCents, balanceCents: 0 };
+    const html = await renderHtml("booking_confirmed_guest", completo);
+    assert.ok(html);
+    assert.doesNotMatch(html, /Saldo a pagar en destino/);
+    assert.doesNotMatch(html, /Anticipo pagado/);
+    assert.match(html, /Pagado completo/);
+    assert.match(html, /No hay nada que pagar al llegar/);
+    assert.match(html, /5,568/, "el bloque grande tiene que mostrar el total pagado");
+  });
+
   it("en inglés cambia el idioma, no los hechos", async () => {
     const html = await renderHtml("booking_confirmed_guest", { ...BASE, locale: "en" });
     assert.ok(html);

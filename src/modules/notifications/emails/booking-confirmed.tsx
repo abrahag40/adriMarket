@@ -99,6 +99,9 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 export function BookingConfirmedEmail({ data }: { data: BookingNotification }) {
   const es = data.locale === "es";
   const money = (cents: number) => formatMoney(cents, data.currency, data.locale);
+  // Con el cobro al 100% (Conquest Tours) no hay saldo: anunciar «saldo en
+  // destino: $0» hace dudar al huésped de si todavía debe algo.
+  const pagadoCompleto = data.balanceCents <= 0;
 
   const t = {
     preview: es
@@ -123,6 +126,11 @@ export function BookingConfirmedEmail({ data }: { data: BookingNotification }) {
     saldoNota: es
       ? "En efectivo o tarjeta al llegar. No se cobró en línea."
       : "Cash or card on arrival. Not charged online.",
+    pagadoLinea: es ? "Pagado en línea" : "Paid online",
+    pagadoCompleto: es ? "Pagado completo" : "Paid in full",
+    pagadoNota: es
+      ? "Se cobró completo en línea. No hay nada que pagar al llegar."
+      : "Charged in full online. Nothing to pay on arrival.",
     propinas: es
       ? "Las propinas no se cobran en línea y no están incluidas."
       : "Tips are not charged online and are not included.",
@@ -301,7 +309,7 @@ export function BookingConfirmedEmail({ data }: { data: BookingNotification }) {
                   className="m-0 text-[14px] leading-[20px]"
                   style={{ color: COLOR.cuerpo, fontFamily: SANS }}
                 >
-                  {t.anticipo}
+                  {pagadoCompleto ? t.pagadoLinea : t.anticipo}
                 </Text>
               </Column>
               <Column align="right">
@@ -324,19 +332,19 @@ export function BookingConfirmedEmail({ data }: { data: BookingNotification }) {
                 className="m-0 text-[11px] uppercase tracking-[0.08em]"
                 style={{ color: "#b9b9b9", fontFamily: SANS }}
               >
-                {t.saldo}
+                {pagadoCompleto ? t.pagadoCompleto : t.saldo}
               </Text>
               <Text
                 className="m-0 mt-[4px] text-[26px] leading-[32px]"
                 style={{ color: "#ffffff", fontFamily: SANS, fontWeight: 700 }}
               >
-                {money(data.balanceCents)}
+                {money(pagadoCompleto ? data.totalCents : data.balanceCents)}
               </Text>
               <Text
                 className="m-0 mt-[6px] text-[13px] leading-[19px]"
                 style={{ color: "#c8c8c8", fontFamily: SANS }}
               >
-                {t.saldoNota}
+                {pagadoCompleto ? t.pagadoNota : t.saldoNota}
               </Text>
             </Section>
 
