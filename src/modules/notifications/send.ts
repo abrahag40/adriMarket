@@ -145,6 +145,7 @@ class ResendTransport implements Transport {
   constructor(
     private readonly apiKey: string,
     private readonly from: string,
+    private readonly replyTo?: string,
   ) {}
 
   async send(message: {
@@ -163,6 +164,7 @@ class ResendTransport implements Transport {
       body: JSON.stringify({
         from: this.from,
         to: [message.to],
+        reply_to: this.replyTo ? [this.replyTo] : undefined,
         subject: message.subject,
         // Los dos: el cliente de correo elige cuál pinta. Mandar solo HTML
         // empeora la entrega y deja fuera a quien lee en texto.
@@ -216,6 +218,7 @@ class SmtpTransport implements Transport {
   constructor(
     private readonly server: { host: string; port: number; user: string; pass: string },
     private readonly from: string,
+    private readonly replyTo?: string,
   ) {}
 
   async send(message: {
@@ -240,6 +243,7 @@ class SmtpTransport implements Transport {
     const info = await transporter.sendMail({
       from: this.from,
       to: message.to,
+      replyTo: this.replyTo,
       subject: message.subject,
       text: message.text,
       html: message.html,
@@ -285,8 +289,13 @@ export function transport(): Transport {
   const from = process.env.MAIL_FROM;
   if (!from) return new LocalTransport();
 
+  // A quién le llega la respuesta del huésped. Cuando el sitio manda desde una
+  // dirección de la plataforma (ZaharDev) por cuenta de un operador, el «responde
+  // a este correo» de las plantillas tiene que llegarle al operador, no a ZaharDev.
+  const replyTo = process.env.MAIL_REPLY_TO || undefined;
+
   const apiKey = process.env.RESEND_API_KEY;
-  if (apiKey) return new ResendTransport(apiKey, from);
+  if (apiKey) return new ResendTransport(apiKey, from, replyTo);
 
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
@@ -295,6 +304,7 @@ export function transport(): Transport {
     return new SmtpTransport(
       { host, port: Number(process.env.SMTP_PORT ?? 465), user, pass },
       from,
+      replyTo,
     );
   }
 
