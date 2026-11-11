@@ -411,6 +411,10 @@ export type TourOptionDetail = {
   active: boolean;
   prices: TourOptionPaxPrice[];
   itinerary: TourItineraryStep[];
+  /** Moneda del producto: un barco de Adri cobra en dólares. */
+  currency: string;
+  /** Barco que se renta entero (decisión 0022); null en un tour por pasajero. */
+  charter: { priceCents: number; includedPax: number; perPaxFeeCents: number } | null;
 };
 
 /** Opciones de un tour concreto, con su precio por tipo de pasajero. A
@@ -426,12 +430,19 @@ export async function listProductTourOptions(productId: string): Promise<TourOpt
     meeting_point: string | null;
     default_capacity: number;
     active: boolean;
+    currency: string;
+    pricing_mode: string;
+    private_price_cents: string | null;
+    private_included_pax: number | null;
+    per_pax_fee_cents: string;
   }>(sql`
-    select id, code, name_es, name_en, duration_minutes, meeting_point,
-           default_capacity, active
-      from tour_options
-     where product_id = ${productId}::uuid
-     order by active desc, code
+    select o.id, o.code, o.name_es, o.name_en, o.duration_minutes, o.meeting_point,
+           o.default_capacity, o.active, p.currency,
+           o.pricing_mode, o.private_price_cents, o.private_included_pax, o.per_pax_fee_cents
+      from tour_options o
+      join products p on p.id = o.product_id
+     where o.product_id = ${productId}::uuid
+     order by o.active desc, o.duration_minutes nulls last, o.code
   `);
 
   const prices = await db.execute<{
@@ -474,6 +485,15 @@ export async function listProductTourOptions(productId: string): Promise<TourOpt
     meetingPoint: row.meeting_point,
     defaultCapacity: Number(row.default_capacity),
     active: row.active,
+    currency: row.currency,
+    charter:
+      row.pricing_mode === "private"
+        ? {
+            priceCents: Number(row.private_price_cents),
+            includedPax: Number(row.private_included_pax),
+            perPaxFeeCents: Number(row.per_pax_fee_cents),
+          }
+        : null,
     prices: prices
       .filter((price) => price.tour_option_id === row.id)
       .map((price) => ({

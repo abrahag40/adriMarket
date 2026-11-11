@@ -147,11 +147,28 @@ export type Messages = {
   quoteNights: (n: number) => string;
   quoteExtraGuests: (guests: number, nights: number) => string;
   quoteCleaning: string;
+  /** El barco entero, para hasta N personas. */
+  quoteCharter: (included: number) => string;
+  quoteCharterExtra: (type: "adult" | "child" | "infant", count: number) => string;
+  quoteDockFee: (people: number) => string;
+  /** Unidad del "desde" de un barco que se renta entero. */
+  perBoat: string;
+  /** Campo para elegir entre las opciones de un tour: "4 horas", "8 horas Cozumel". */
+  optionLabel: string;
+  /** Una salida de barco privado que sigue libre. */
+  boatAvailable: string;
+  /** Renglones de la tabla de precios de un barco en la ficha. */
+  priceBoatUpTo: (n: number) => string;
+  priceExtraAdult: string;
+  priceExtraChild: string;
+  priceDockFee: string;
   quoteUnavailable: string;
   quoteAvailable: string;
   quoteRecalculate: string;
   paxAdults: string;
   paxChildren: string;
+  /** El campo de niños cuando la tarifa tiene edades: "Niños de 2 a 6 años". */
+  paxChildrenAges: (min: number, max: number) => string;
   paxInfants: string;
   paxInfantsHint: string;
   departureLabel: string;
@@ -378,11 +395,26 @@ const es: Messages = {
   quoteExtraGuests: (guests, nights) =>
     `${guests} ${guests === 1 ? "huésped extra" : "huéspedes extra"} × ${nights} ${nights === 1 ? "noche" : "noches"}`,
   quoteCleaning: "Limpieza",
+  quoteCharter: (n) => `Embarcación privada · hasta ${n} ${n === 1 ? "persona" : "personas"}`,
+  quoteCharterExtra: (type, n) => {
+    const quien =
+      type === "child" ? (n === 1 ? "niño extra" : "niños extra") : n === 1 ? "pasajero extra" : "pasajeros extra";
+    return `${n} ${quien}`;
+  },
+  quoteDockFee: (n) => `Cuota de muelle × ${n} ${n === 1 ? "persona" : "personas"}`,
+  perBoat: "por embarcación",
+  optionLabel: "Opción",
+  boatAvailable: "Disponible",
+  priceBoatUpTo: (n) => `Embarcación, hasta ${n} ${n === 1 ? "persona" : "personas"} · desde`,
+  priceExtraAdult: "Pasajero extra",
+  priceExtraChild: "Niño extra",
+  priceDockFee: "Cuota de muelle, por persona",
   quoteUnavailable: "Esas fechas ya están ocupadas",
   quoteAvailable: "Disponible",
   quoteRecalculate: "Cotizar",
   paxAdults: "Adultos",
   paxChildren: "Menores",
+  paxChildrenAges: (min, max) => `Niños de ${min} a ${max} años`,
   paxInfants: "Infantes",
   paxInfantsHint: "No ocupan lugar",
   departureLabel: "Salida",
@@ -609,11 +641,26 @@ const en: Messages = {
   quoteExtraGuests: (guests, nights) =>
     `${guests} extra ${guests === 1 ? "guest" : "guests"} × ${nights} ${nights === 1 ? "night" : "nights"}`,
   quoteCleaning: "Cleaning",
+  quoteCharter: (n) => `Private boat · up to ${n} ${n === 1 ? "guest" : "guests"}`,
+  quoteCharterExtra: (type, n) => {
+    const who =
+      type === "child" ? (n === 1 ? "extra child" : "extra children") : n === 1 ? "extra guest" : "extra guests";
+    return `${n} ${who}`;
+  },
+  quoteDockFee: (n) => `Dock fee × ${n} ${n === 1 ? "guest" : "guests"}`,
+  perBoat: "per boat",
+  optionLabel: "Option",
+  boatAvailable: "Available",
+  priceBoatUpTo: (n) => `Boat, up to ${n} ${n === 1 ? "guest" : "guests"} · from`,
+  priceExtraAdult: "Extra guest",
+  priceExtraChild: "Extra child",
+  priceDockFee: "Dock fee, per guest",
   quoteUnavailable: "Those dates are already taken",
   quoteAvailable: "Available",
   quoteRecalculate: "Get quote",
   paxAdults: "Adults",
   paxChildren: "Children",
+  paxChildrenAges: (min, max) => `Children ${min} to ${max}`,
   paxInfants: "Infants",
   paxInfantsHint: "Do not take a seat",
   departureLabel: "Departure",

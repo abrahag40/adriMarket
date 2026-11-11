@@ -22,18 +22,33 @@ if (!existsSync(SCHEMA)) {
 let source = readFileSync(SCHEMA, "utf8");
 const before = source;
 
-// 1. Quitar el comentario TODO que precede a cada columna sin parsear.
-source = source.replace(/\t\/\/ TODO: failed to parse database type 'daterange'\n/g, "");
-
-// 2. unknown("season") → daterange("season")
-const columns = [...source.matchAll(/unknown\("([^"]+)"\)/g)].map((m) => m[1]);
-source = source.replace(/unknown\("([^"]+)"\)/g, 'daterange("$1")');
+// 1 y 2. Cada columna sin parsear lleva un TODO con el tipo que drizzle-kit no
+//    supo leer. Se reemplaza por el tipo propio **de ese mismo nombre**:
+//    `daterange` para las noches y `tstzrange` para las horas de un barco.
+//    Antes todo `unknown` se volvía `daterange`, y el día que entró la primera
+//    columna `tstzrange` (tour_seat_holds.period) quedó tipada como rango de
+//    fechas sin que nada se quejara.
+const KNOWN = new Set(["daterange", "tstzrange"]);
+const columns = [];
+const used = new Set();
+source = source.replace(
+  /\t\/\/ TODO: failed to parse database type '(\w+)'\n(\t[^\n]*?)unknown\("([^"]+)"\)/g,
+  (all, type, prefix, column) => {
+    if (!KNOWN.has(type)) {
+      console.error(`Tipo sin equivalente en src/db/types.ts: ${type} (${column}). Agrégalo ahí y aquí.`);
+      process.exit(1);
+    }
+    columns.push(`${column} (${type})`);
+    used.add(type);
+    return `${prefix}${type}("${column}")`;
+  },
+);
 
 // 3. Importar el tipo propio (y dejar de importar `unknown` si quedó sin uso).
-if (!source.includes('from "../types"')) {
+if (used.size && !source.includes('from "../types"')) {
   source = source.replace(
     /^(import \{ sql \} from "drizzle-orm")$/m,
-    '$1\nimport { daterange } from "../types"',
+    `$1\nimport { ${[...used].sort().join(", ")} } from "../types"`,
   );
 }
 if (!/\bunknown\(/.test(source)) {
@@ -63,7 +78,7 @@ if (source === before) {
 writeFileSync(SCHEMA, source);
 console.log(`Parchado ${SCHEMA}:`);
 if (columns.length) {
-  console.log(`  daterange → ${columns.join(", ")}`);
+  console.log(`  rangos → ${columns.join(", ")}`);
 }
 if (defaults.size) {
   console.log(`  default en SQL → ${[...defaults].join(", ")}`);

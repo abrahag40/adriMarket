@@ -619,3 +619,98 @@ describe("cotización de tour", () => {
     );
   });
 });
+
+/* Las cifras son las de la ficha del Leopard 47 de Adri, 4 horas: US$2,300
+   por el barco para hasta 15 personas, US$100 cada pasajero extra, niños de
+   2 a 6 al 50% y US$20 de muelle por persona; caben 35. */
+function charterInput(overrides: Partial<TourQuoteInput> = {}): TourQuoteInput {
+  return tourInput({
+    currency: "USD",
+    pax: { adult: 10, child: 0, infant: 0 },
+    prices: [
+      { paxType: "adult", priceCents: 10_000, countsTowardCapacity: true },
+      { paxType: "child", priceCents: 5_000, countsTowardCapacity: true },
+    ],
+    seatsLeft: 35,
+    taxes: [],
+    charter: { basePriceCents: 230_000, includedPax: 15, capacity: 35, perPaxFeeCents: 2_000 },
+    ...overrides,
+  });
+}
+
+describe("embarcación privada", () => {
+  it("cobra el barco, no a cada pasajero, mientras quepan en lo incluido", () => {
+    const quote = buildTourQuote(charterInput());
+    assertInvariants(quote);
+    assert.deepEqual(
+      quote.lines.map((line) => [line.kind, line.concept, line.cents]),
+      [
+        ["charter", "charter:15", 230_000],
+        ["fee", "dock:10", 20_000],
+      ],
+    );
+    assert.equal(quote.total_cents, 250_000);
+  });
+
+  it("los adultos llenan primero lo incluido: un niño solo paga extra si ya no cabe", () => {
+    // 13 adultos y 4 niños: los 15 incluidos cubren a los 13 adultos y a 2
+    // niños; solo los otros 2 niños pagan, y al 50%.
+    const quote = buildTourQuote(charterInput({ pax: { adult: 13, child: 4, infant: 0 } }));
+    assertInvariants(quote);
+    assert.deepEqual(
+      quote.lines.filter((line) => line.kind === "charter_extra").map((line) => [line.concept, line.cents]),
+      [["charter_extra:child:2", 10_000]],
+    );
+
+    // 17 adultos y 2 niños: pagan 2 adultos y los 2 niños.
+    const lleno = buildTourQuote(charterInput({ pax: { adult: 17, child: 2, infant: 0 } }));
+    assertInvariants(lleno);
+    assert.deepEqual(
+      lleno.lines.filter((line) => line.kind === "charter_extra").map((line) => [line.concept, line.cents]),
+      [
+        ["charter_extra:adult:2", 20_000],
+        ["charter_extra:child:2", 10_000],
+      ],
+    );
+    assert.equal(lleno.total_cents, 230_000 + 30_000 + 19 * 2_000);
+  });
+
+  it("el muelle no lo descuenta el cupón ni lo graba el impuesto", () => {
+    const quote = buildTourQuote(
+      charterInput({
+        taxes: [IVA],
+        coupon: { code: "VERANO", kind: "percent", value: 10, minTotalCents: 0, appliesToExtras: false },
+      }),
+    );
+    assertInvariants(quote);
+    const by = (kind: string) => quote.lines.filter((line) => line.kind === kind);
+    // 10% de 2,300 = 230; el IVA va sobre 2,070, no sobre el muelle.
+    assert.equal(by("discount")[0]?.cents, -23_000);
+    assert.equal(by("tax")[0]?.cents, roundCents(207_000 * 0.16));
+    assert.equal(by("fee")[0]?.cents, 20_000);
+  });
+
+  it("un grupo que no cabe es 'no cabe', y un barco ya apartado es 'agotado'", () => {
+    assert.throws(
+      () => buildTourQuote(charterInput({ pax: { adult: 36, child: 0, infant: 0 } })),
+      (error: unknown) => error instanceof QuoteError && error.code === "over_capacity" && error.params.max === 35,
+    );
+    assert.throws(
+      () => buildTourQuote(charterInput({ seatsLeft: 0 })),
+      (error: unknown) => error instanceof QuoteError && error.code === "sold_out",
+    );
+  });
+
+  it("no inventa tarifa de niño donde el operador no la dio", () => {
+    assert.throws(
+      () =>
+        buildTourQuote(
+          charterInput({
+            pax: { adult: 4, child: 1, infant: 0 },
+            prices: [{ paxType: "adult", priceCents: 0, countsTowardCapacity: true }],
+          }),
+        ),
+      (error: unknown) => error instanceof QuoteError && error.code === "no_rate",
+    );
+  });
+});

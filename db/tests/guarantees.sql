@@ -126,7 +126,11 @@ declare
   v_option uuid;
   v_dep    uuid;
 begin
-  select id into v_option from tour_options order by id limit 1;
+  -- Por pasajero, nunca de barco: una opción privada aparta su cupo entero y
+  -- las pruebas 5 a 7 cuentan lugares sueltos. Antes de los barcos de Adri
+  -- (decisión 0022) cualquier opción servía; con ellos, `order by id` caía en
+  -- un barco según cómo salieran los uuid, y la 5 fallaba en una base nueva.
+  select id into v_option from tour_options where pricing_mode = 'per_pax' order by id limit 1;
 
   insert into tour_departures (tour_option_id, starts_at, ends_at, capacity, seats_taken, status)
   values (v_option,
@@ -1253,6 +1257,119 @@ begin
     'FALLO: la reserva perdió el nombre o el precio congelado del extra';
 
   raise notice '✔ 26. el renglón de un extra cuadra y sobrevive al catálogo';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 27. El mismo barco no se aparta dos veces, aunque sean opciones distintas
+-- ---------------------------------------------------------------------------
+--
+-- Un barco propio de la prueba con tres opciones —4 h a las 9:00, 4 h a las
+-- 14:00 y 8 h a las 9:00— y una salida de cada una el mismo día, lejos en el
+-- futuro. El CHECK del cupo no puede ver el choque: cada salida tiene su
+-- contador. Lo ve la exclusión sobre el rango de horas del barco.
+
+do $$
+declare
+  v_product uuid;
+  v_loc     uuid;
+  v_o4      uuid;
+  v_o4t     uuid;
+  v_o8      uuid;
+  v_day     timestamptz := date_trunc('day', now()) + interval '600 days';
+  v_d4      uuid;
+  v_d4t     uuid;
+  v_d8      uuid;
+  v_item    uuid;
+  v_otro    uuid;
+  v_caught  boolean := false;
+begin
+  select id into v_loc from locations order by slug limit 1;
+  insert into products (kind, slug, status, location_id, currency)
+  values ('tour', 'g27-barco-' || left(gen_random_uuid()::text, 8), 'draft', v_loc, 'USD')
+  returning id into v_product;
+
+  insert into tour_options (product_id, code, name_es, duration_minutes, default_capacity,
+                            pricing_mode, private_price_cents, private_included_pax, per_pax_fee_cents)
+  values (v_product, '4h', '4 horas', 240, 12, 'private', 115000, 10, 1000) returning id into v_o4;
+  insert into tour_options (product_id, code, name_es, duration_minutes, default_capacity,
+                            pricing_mode, private_price_cents, private_included_pax, per_pax_fee_cents)
+  values (v_product, '4h-tarde', '4 horas tarde', 240, 12, 'private', 115000, 10, 1000) returning id into v_o4t;
+  insert into tour_options (product_id, code, name_es, duration_minutes, default_capacity,
+                            pricing_mode, private_price_cents, private_included_pax, per_pax_fee_cents)
+  values (v_product, '8h', '8 horas', 480, 12, 'private', 165000, 10, 1000) returning id into v_o8;
+
+  -- Sin `ends_at`: el rango sale de la duración de la opción.
+  insert into tour_departures (tour_option_id, starts_at, capacity)
+  values (v_o4, v_day + interval '14 hours', 12) returning id into v_d4;     -- 9:00 Cancún
+  insert into tour_departures (tour_option_id, starts_at, capacity)
+  values (v_o4t, v_day + interval '19 hours', 12) returning id into v_d4t;   -- 14:00
+  insert into tour_departures (tour_option_id, starts_at, capacity)
+  values (v_o8, v_day + interval '14 hours', 12) returning id into v_d8;     -- 9:00 a 17:00
+
+  -- (a) Apartar el barco toma el cupo entero, aunque viajen cuatro.
+  v_item := test_make_item('tour', null, null, v_d4, 4);
+  perform tour_hold_create(v_d4, 4, v_item);
+  assert (select seats_taken from tour_departures where id = v_d4) = 12,
+    'FALLO: un barco privado apartó lugares sueltos y no el barco';
+  assert tour_seats_left(v_d4) = 0, 'FALLO: la salida apartada sigue ofreciendo lugares';
+
+  -- (b) Nadie se suma a esa misma salida.
+  begin
+    v_otro := test_make_item('tour', null, null, v_d4, 2);
+    perform tour_hold_create(v_d4, 2, v_otro);
+  exception when sqlstate 'AM001' then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: dos grupos se subieron al mismo barco privado';
+
+  -- (c) La opción de 8 h a la misma hora es otra salida con su propio
+  --     contador en cero, y aun así no se vende: es el mismo casco.
+  assert tour_seats_left(v_d8) = 0, 'FALLO: el calendario ofrece el barco de 8 h ya apartado en 4 h';
+  v_caught := false;
+  begin
+    v_otro := test_make_item('tour', null, null, v_d8, 2);
+    perform tour_hold_create(v_d8, 2, v_otro);
+  exception when sqlstate 'AM001' then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: el mismo barco se apartó dos veces en horarios encimados';
+  assert (select seats_taken from tour_departures where id = v_d8) = 0,
+    'FALLO: el intento rechazado movió el contador de la otra salida';
+
+  -- (d) La tarde no se encima con 9:00–13:00: el barco sí se puede vender dos
+  --     veces el mismo día, mientras no sea a la misma hora.
+  assert tour_seats_left(v_d4t) = 12, 'FALLO: la salida de la tarde quedó bloqueada sin traslape';
+  v_otro := test_make_item('tour', null, null, v_d4t, 6);
+  perform tour_hold_create(v_d4t, 6, v_otro);
+
+  -- (e) Liberar devuelve el barco: cancelar la reserva de la mañana deja libre
+  --     las 4 h de las 9:00… pero no las 8 h, porque 9:00–17:00 pisa la tarde
+  --     ya vendida. Se comprueban las dos cosas.
+  perform booking_cancel((select booking_id from booking_items where id = v_item),
+                         'prueba 27', true);
+  assert tour_seats_left(v_d4) = 12, 'FALLO: cancelar no devolvió el barco a la venta';
+  assert tour_seats_left(v_d8) = 0, 'FALLO: el barco de 8 h se ofrece encima de la tarde vendida';
+
+  -- (f) Reprogramar dentro del mismo barco no choca contra sí mismo.
+  perform booking_reschedule_tour((select booking_id from booking_items where id = v_otro),
+                                  v_d4, 1000000, '{}'::jsonb, null);
+  assert tour_seats_left(v_d4t) = 12, 'FALLO: reprogramar no soltó la tarde';
+  assert tour_seats_left(v_d4) = 0, 'FALLO: reprogramar no apartó la mañana';
+  assert (select seats_taken from tour_departures where id = v_d4t) = 0,
+    'FALLO: reprogramar dejó lugares tomados en la salida vieja';
+
+  -- (g) Una opción privada sin precio de barco no existe.
+  v_caught := false;
+  begin
+    insert into tour_options (product_id, code, name_es, duration_minutes, default_capacity, pricing_mode)
+    values (v_product, 'sin-precio', 'Sin precio', 240, 12, 'private');
+  exception when check_violation then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: se guardó una opción privada sin precio del barco';
+
+  raise notice '✔ 27. el mismo barco no se aparta dos veces, ni en opciones distintas';
 end;
 $$;
 

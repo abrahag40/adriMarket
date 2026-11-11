@@ -44,6 +44,8 @@ export type CatalogCard = {
   coverVariants: ImageVariants | null;
   capacity: number | null;
   fromCents: number | null;
+  /** El precio es del barco entero, no de una persona (decisión 0022). */
+  perBoat: boolean;
 };
 
 export async function listCatalog(
@@ -67,6 +69,7 @@ export async function listCatalog(
     cover_alt: string | null;
     capacity: number | null;
     from_cents: number | null;
+    per_boat: boolean;
   }>(sql`
     select
       p.id,
@@ -84,7 +87,8 @@ export async function listCatalog(
       cover.height as cover_height,
       cover.variants as cover_variants,
       cap.capacity::int as capacity,
-      round(price.from_cents * tax.factor)::bigint as from_cents
+      round(price.from_cents * tax.factor)::bigint as from_cents,
+      price.per_boat
     from products p
     join product_translations t
       on t.product_id = p.id and t.locale = ${locale}
@@ -135,6 +139,14 @@ export async function listCatalog(
              and rp.active
              and upper(sr.season) > current_date
         )
+        -- Un barco privado se anuncia por lo que cuesta el barco; el precio de
+        -- adulto de sus opciones es el del pasajero EXTRA, y anunciarlo sería
+        -- un "desde US$100" que nadie paga (decisión 0022).
+        when exists (select 1 from tour_options o
+                      where o.product_id = p.id and o.active and o.pricing_mode = 'private') then (
+          select min(o.private_price_cents) from tour_options o
+           where o.product_id = p.id and o.active and o.pricing_mode = 'private'
+        )
         else (
           select min(pp.price_cents)
             from tour_pax_prices pp
@@ -143,7 +155,9 @@ export async function listCatalog(
              and o.active
              and pp.pax_type = 'adult'
         )
-      end as from_cents
+      end as from_cents,
+      exists (select 1 from tour_options o
+               where o.product_id = p.id and o.active and o.pricing_mode = 'private') as per_boat
     ) price on true
     -- Los precios que se exhiben al huésped incluyen impuestos: la ley obliga a
     -- exhibir el total, así que un "desde" neto sería un precio que nadie paga.
@@ -185,6 +199,7 @@ export async function listCatalog(
     coverVariants: row.cover_variants ?? null,
     capacity: row.capacity === null ? null : Number(row.capacity),
     fromCents: row.from_cents === null ? null : Number(row.from_cents),
+    perBoat: row.per_boat === true,
   }));
 }
 
@@ -243,6 +258,18 @@ export type TourDetail = {
   capacity: number;
   prices: TourPrice[];
   itinerary: TourItineraryStep[];
+  /**
+   * Presente cuando el tour es un barco que se renta entero (decisión 0022).
+   * Entonces `prices` son las tarifas del pasajero **extra**, no del pasajero:
+   * pintarlas como "Adulto US$100" sería exhibir un precio que nadie paga
+   * por subirse.
+   */
+  charter: {
+    includedPax: number;
+    perPaxFeeCents: number;
+    /** Cuántas duraciones o rutas se ofrecen: 4 h, 6 h, 8 h, Cozumel… */
+    optionCount: number;
+  } | null;
 };
 
 export type ProductDetail = {
@@ -392,11 +419,23 @@ export async function getProductDetail(
       duration_minutes: number | null;
       meeting_point: string | null;
       default_capacity: number;
+      pricing_mode: string;
+      private_included_pax: number | null;
+      per_pax_fee_cents: string;
+      charter_from_cents: string | null;
+      option_count: number;
     }>(sql`
-      select o.id, o.duration_minutes, o.meeting_point, o.default_capacity
+      select o.id, o.duration_minutes, o.meeting_point, o.default_capacity,
+             o.pricing_mode, o.private_included_pax, o.per_pax_fee_cents,
+             -- El "desde" de un barco es su opción más barata, no la más grande.
+             (select min(x.private_price_cents) from tour_options x
+               where x.product_id = o.product_id and x.active
+                 and x.pricing_mode = 'private') as charter_from_cents,
+             (select count(*) from tour_options x
+               where x.product_id = o.product_id and x.active)::int as option_count
         from tour_options o
        where o.product_id = ${product.id}::uuid and o.active
-       order by o.default_capacity desc
+       order by o.default_capacity desc, o.private_price_cents nulls last
        limit 1
     `);
     const option = options[0];
@@ -430,9 +469,21 @@ export async function getProductDetail(
           title: row.title,
           description: row.description,
         })),
+        charter:
+          option.pricing_mode === "private"
+            ? {
+                includedPax: Number(option.private_included_pax),
+                perPaxFeeCents: Number(option.per_pax_fee_cents),
+                optionCount: Number(option.option_count),
+              }
+            : null,
       };
       const adult = tour.prices.find((price) => price.paxType === "adult");
-      fromCents = adult?.priceCents ?? null;
+      fromCents = tour.charter
+        ? option.charter_from_cents === null
+          ? null
+          : Number(option.charter_from_cents)
+        : (adult?.priceCents ?? null);
     }
   }
 

@@ -44,7 +44,7 @@ export function FeaturedCard({ item, locale }: { item: CatalogCard; locale: Loca
             {/* Sin «Desde» (marcas que dicen el precio por adulto), el precio lleva su unidad. */}
             {t.fromPrice
               ? `${t.fromPrice} ${formatMoney(item.fromCents, item.currency, locale)}`
-              : `${formatMoney(item.fromCents, item.currency, locale)} ${t.perPerson}`}
+              : `${formatMoney(item.fromCents, item.currency, locale)} ${item.perBoat ? t.perBoat : t.perPerson}`}
           </span>
         ) : null}
       </span>

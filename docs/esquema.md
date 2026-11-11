@@ -11,7 +11,7 @@ declarar por sí solo.
 | Plataforma | `settings`, `staff_users`, `audit_log`, `schema_migrations` | `settings` es configuración editable en caliente, una fila por concepto |
 | Catálogo | `products`, `product_translations`, `product_media`, `locations`, `tags`, `product_tags`, `cancellation_policies`, `tax_rates` | `products.kind` distingue `tour` de `stay`; el texto vive aparte para dos idiomas |
 | Inventario · estancias | `stay_units`, `stay_rate_plans`, `stay_rates`, `stay_blocks` | `stay_blocks` es la tabla crítica: lleva la restricción de exclusión |
-| Inventario · tours | `tour_options`, `tour_pax_prices`, `tour_departures`, `tour_seat_holds` | `tour_departures.seats_taken` solo se toca dentro de funciones que bloquean la fila |
+| Inventario · tours | `tour_options`, `tour_pax_prices`, `tour_departures`, `tour_seat_holds` | `tour_departures.seats_taken` solo se toca dentro de funciones que bloquean la fila; un barco privado no se aparta dos veces en horas encimadas (`tour_seat_holds.period`, decisión 0022) |
 | Extras de tour | `tour_extras`, `booking_extras` | **no se agotan**: sin cupo, sin apartado y sin nada que serializar |
 | Reserva | `customers`, `bookings`, `booking_items`, `booking_guests`, `booking_events` | una reserva puede llevar un tour y dos noches |
 | Dinero | `payments`, `payment_events`, `refunds`, `coupons` | el saldo en destino es un pago `pending`, no un dato faltante |
@@ -102,6 +102,12 @@ porque no sabe en qué idioma está leyendo el huésped: emite `occupancy:1x3` y
 interfaz lo traduce a "1 huésped extra × 3 noches" o "1 extra guest × 3 nights".
 Los nombres de impuestos y cupones sí van tal cual, porque vienen configurados y
 ya son legibles.
+
+Un barco que se renta entero (tour con `pricing_mode = 'private'`, decisión
+0022) emite tres claves propias: `charter:15` (el barco, para hasta 15
+personas, `kind: "charter"`), `charter_extra:child:2` (dos niños por encima de
+lo incluido, `kind: "charter_extra"`) y `dock:19` (cuota de muelle de 19
+personas, `kind: "fee"`, siempre al final: no se descuenta ni se grava).
 
 Cuando el Sprint 3 congele la cotización en la reserva, guardará además el texto
 ya traducido al idioma del huésped: un comprobante que se relee dos años después

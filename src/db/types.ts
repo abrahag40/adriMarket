@@ -58,3 +58,17 @@ export const daterange = customType<{ data: DateRange; driverData: string }>({
     return parseDateRangeLiteral(value);
   },
 });
+
+/**
+ * Rango de instantes de Postgres (`tstzrange`): las horas que un barco queda
+ * ocupado (`tour_seat_holds.period`, decisión 0022).
+ *
+ * Se maneja como el literal de Postgres tal cual, sin interpretarlo: nadie en
+ * la aplicación lo escribe —lo calcula `tour_hold_create` dentro de la base— y
+ * leerlo como texto basta para mostrarlo o depurarlo.
+ */
+export const tstzrange = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return "tstzrange";
+  },
+});

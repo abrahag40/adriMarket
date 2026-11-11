@@ -83,7 +83,9 @@ function parseFilters(searchParams: Record<string, string | string[] | undefined
   const rawGuests = single(searchParams.guests);
   const parsedGuests = Number.parseInt(rawGuests, 10);
   const guests =
-    Number.isInteger(parsedGuests) && parsedGuests > 0 && parsedGuests <= 50
+    // 200 y no 50: un catamarán de Adri lleva a 100 personas, y con el tope
+    // anterior "?guests=80" se descartaba como si no se hubiera pedido nada.
+    Number.isInteger(parsedGuests) && parsedGuests > 0 && parsedGuests <= 200
       ? parsedGuests
       : undefined;
 

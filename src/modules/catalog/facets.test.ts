@@ -33,6 +33,7 @@ function producto(campos: Partial<CatalogCard> = {}): CatalogCard {
     kind: "tour",
     slug: `producto-${siguiente}`,
     currency: "MXN",
+    perBoat: false,
     name: `Producto ${siguiente}`,
     summary: null,
     locationName: "Tulum",
@@ -190,6 +191,15 @@ describe("las cubetas de precio", () => {
       priceBuckets([producto({ fromCents: null }), producto({ fromCents: null })]),
       [],
     );
+  });
+
+  it("no mezcla monedas: un barco en dólares no comparte cubeta con una casa en pesos", () => {
+    const pesos = [65_000, 120_000, 380_000].map((fromCents) => producto({ fromCents }));
+    assert.ok(priceBuckets(pesos).length >= 2, "en una sola moneda sí se parte");
+
+    const barcos = [115_000, 230_000].map((fromCents) => producto({ fromCents, currency: "USD" }));
+    assert.deepEqual(priceBuckets([...pesos, ...barcos]), []);
+    assert.ok(priceBuckets(barcos).length >= 1, "los barcos solos sí se pueden partir");
   });
 });
 

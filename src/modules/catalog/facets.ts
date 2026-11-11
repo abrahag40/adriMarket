@@ -101,7 +101,15 @@ function niceCeil(cents: number): number {
  * precio con una sola opción no filtra nada y solo ocupa lugar.
  */
 export function priceBuckets(items: CatalogCard[]): PriceRange[] {
-  const prices = items
+  const priced = items.filter((item) => item.fromCents !== null);
+
+  /* Un barco en dólares y una casa en pesos no caben en la misma escalera:
+     US$1,150 son 115 000 centavos igual que $1,150 pesos, y la cubeta "hasta
+     $2,000" los juntaría. Sin tipo de cambio que valga, una faceta de precio
+     solo se ofrece cuando todo lo que reparte está en una sola moneda. */
+  if (new Set(priced.map((item) => item.currency)).size > 1) return [];
+
+  const prices = priced
     .map((item) => item.fromCents)
     .filter((value): value is number => value !== null)
     .sort((a, b) => a - b);

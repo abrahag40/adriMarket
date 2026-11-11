@@ -64,9 +64,12 @@ export async function primaryUnitId(productId: string): Promise<string | null> {
 export type TourDay = {
   date: string;
   departureId: string;
+  optionId: string;
   startsAt: string;
   seatsLeft: number;
   capacity: number;
+  /** Barco privado: la salida se vende entera o no se vende (decisión 0022). */
+  private: boolean;
 };
 
 /**
@@ -80,20 +83,28 @@ export async function tourDepartures(
   productId: string,
   from: string,
   to: string,
+  /** Solo las salidas de esta opción. Sin ella, las de todas. */
+  optionId?: string,
 ): Promise<TourDay[]> {
   const rows = await db.execute<{
     date: string;
     departure_id: string;
+    option_id: string;
     starts_at: string;
     seats_left: number;
     capacity: number;
+    private: boolean;
   }>(sql`
     select
       (d.starts_at at time zone coalesce(l.timezone, 'America/Cancun'))::date as date,
       d.id as departure_id,
+      o.id as option_id,
       d.starts_at,
-      (d.capacity - d.seats_taken) as seats_left,
-      d.capacity
+      -- La función, no capacity - seats_taken: un barco apartado en otra
+      -- opción que se encima también deja esta salida sin lugares.
+      tour_seats_left(d.id) as seats_left,
+      d.capacity,
+      o.pricing_mode = 'private' as private
     from tour_departures d
     join tour_options o on o.id = d.tour_option_id
     join products p on p.id = o.product_id
@@ -101,6 +112,7 @@ export async function tourDepartures(
     where o.product_id = ${productId}::uuid
       and o.active
       and d.status = 'open'
+      and (${optionId ?? null}::uuid is null or o.id = ${optionId ?? null}::uuid)
       -- Una salida que ya partió no está a la venta, aunque siga siendo de hoy.
       --
       -- El filtro es por fecha y esto es por instante, a propósito: el calendario
@@ -118,8 +130,76 @@ export async function tourDepartures(
   return rows.map((row) => ({
     date: row.date,
     departureId: row.departure_id,
+    optionId: row.option_id,
     startsAt: row.starts_at,
     seatsLeft: Number(row.seats_left),
+    capacity: Number(row.capacity),
+    private: row.private,
+  }));
+}
+
+export type TourOptionOnSale = {
+  id: string;
+  name: string;
+  private: boolean;
+  /** Precio que se exhibe en el selector: el barco, o el adulto. Sin impuestos. */
+  fromCents: number | null;
+  /** Si el operador dio tarifa de niño: sin ella no se ofrece el campo. */
+  hasChildPrice: boolean;
+  /** Edades de la tarifa de niño, si la ficha las da. */
+  childAges: { min: number; max: number } | null;
+  capacity: number;
+};
+
+/**
+ * Las opciones activas de un tour, en el idioma del huésped.
+ *
+ * Existe por los barcos: un tour de una opción nunca necesitó elegirla, pero
+ * la Leopard se vende en 4, 5, 6 y 8 horas y en "8 horas Cozumel", y sin este
+ * selector el calendario mezclaba las salidas de todas en el mismo día.
+ */
+export async function tourOptionsOnSale(productId: string, locale: "es" | "en"): Promise<TourOptionOnSale[]> {
+  const rows = await db.execute<{
+    id: string;
+    name: string;
+    private: boolean;
+    from_cents: string | null;
+    has_child: boolean;
+    child_min: number | null;
+    child_max: number | null;
+    capacity: number;
+  }>(sql`
+    select
+      o.id,
+      case when ${locale} = 'en' then coalesce(o.name_en, o.name_es) else o.name_es end as name,
+      o.pricing_mode = 'private' as private,
+      case when o.pricing_mode = 'private' then o.private_price_cents
+           else (select pp.price_cents from tour_pax_prices pp
+                  where pp.tour_option_id = o.id and pp.pax_type = 'adult')
+      end as from_cents,
+      exists (select 1 from tour_pax_prices pp
+               where pp.tour_option_id = o.id and pp.pax_type = 'child') as has_child,
+      (select pp.min_age from tour_pax_prices pp
+        where pp.tour_option_id = o.id and pp.pax_type = 'child') as child_min,
+      (select pp.max_age from tour_pax_prices pp
+        where pp.tour_option_id = o.id and pp.pax_type = 'child') as child_max,
+      o.default_capacity as capacity
+    from tour_options o
+    where o.product_id = ${productId}::uuid
+      and o.active
+    order by o.duration_minutes nulls last, o.code
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    private: row.private,
+    fromCents: row.from_cents === null ? null : Number(row.from_cents),
+    hasChildPrice: row.has_child,
+    childAges:
+      row.child_min !== null && row.child_max !== null
+        ? { min: Number(row.child_min), max: Number(row.child_max) }
+        : null,
     capacity: Number(row.capacity),
   }));
 }

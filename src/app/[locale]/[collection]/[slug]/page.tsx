@@ -187,7 +187,9 @@ function QuickFacts({ product, kind, t }: { product: ProductDetail; kind: Produc
   if (!tour) return null;
   return (
     <ul className="spec-list">
-      {tour.durationMinutes !== null ? (
+      {/* Un barco con varias duraciones no "dura 4 horas": la duración se
+          elige en el selector de opción, junto al calendario. */}
+      {tour.durationMinutes !== null && (tour.charter?.optionCount ?? 1) <= 1 ? (
         <li>
           <SpecIcon name="clock" />
           <span className="spec-value">{t.minutes(tour.durationMinutes)}</span>
@@ -242,6 +244,34 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
      elegir es una pregunta sin respuesta. */
   const precios = tour.prices.filter((price) => price.paxType !== "infant");
 
+  /* Un barco: lo que se exhibe es el barco y lo que se suma. Sus precios de
+     "adulto" son los del pasajero EXTRA; pintarlos como "Adulto US$100"
+     anunciaría un precio que nadie paga por subirse (decisión 0022). */
+  const charter = tour.charter;
+  const renglones: { key: string; label: string; cents: number }[] = charter
+    ? [
+        ...(product.fromCents !== null
+          ? [{ key: "boat", label: t.priceBoatUpTo(charter.includedPax), cents: product.fromCents }]
+          : []),
+        ...(tour.capacity > charter.includedPax
+          ? precios
+              .filter((price) => price.priceCents > 0)
+              .map((price) => ({
+                key: price.paxType,
+                label: price.paxType === "child" ? t.priceExtraChild : t.priceExtraAdult,
+                cents: price.priceCents,
+              }))
+          : []),
+        ...(charter.perPaxFeeCents > 0
+          ? [{ key: "dock", label: t.priceDockFee, cents: charter.perPaxFeeCents }]
+          : []),
+      ]
+    : precios.map((price) => ({
+        key: price.paxType,
+        label: paxLabel[price.paxType] ?? price.paxType,
+        cents: price.priceCents,
+      }));
+
   return (
     <>
       {tour.meetingPoint ? (
@@ -254,18 +284,14 @@ function TourSpecs({ product, t, locale }: { product: ProductDetail; t: Messages
         </p>
       ) : null}
 
-      {precios.length > 0 ? (
+      {renglones.length > 0 ? (
         <table className="price-table">
           <caption className="visually-hidden">{t.prices}</caption>
           <tbody>
-            {precios.map((price) => (
-              <tr key={price.paxType}>
-                <th scope="row">{paxLabel[price.paxType] ?? price.paxType}</th>
-                <td>
-                  {price.priceCents === 0
-                    ? t.paxFree
-                    : formatMoney(price.priceCents, product.currency, locale)}
-                </td>
+            {renglones.map((row) => (
+              <tr key={row.key}>
+                <th scope="row">{row.label}</th>
+                <td>{row.cents === 0 ? t.paxFree : formatMoney(row.cents, product.currency, locale)}</td>
               </tr>
             ))}
           </tbody>
@@ -289,7 +315,14 @@ export default async function ProductPage({
 
   /* La unidad del precio: por noche una casa, por día un vehículo, por
      persona un tour. */
-  const unit = kind === "stay" ? t.perNight : kind === "vehicle" ? t.perDay : t.perPerson;
+  const unit =
+    kind === "stay"
+      ? t.perNight
+      : kind === "vehicle"
+        ? t.perDay
+        : product.tour?.charter
+          ? t.perBoat
+          : t.perPerson;
 
   /* "También te puede interesar": tres tarjetas, siempre tres, y distintas en
      cada visita.
@@ -504,7 +537,9 @@ export default async function ProductPage({
               basePath={basePath}
               timezone={product.timezone}
               capacity={product.tour?.capacity ?? 1}
+              currency={product.currency}
               params={{
+                option: single(sp.option),
                 departure: single(sp.departure),
                 adults: single(sp.adults),
                 children: single(sp.children),

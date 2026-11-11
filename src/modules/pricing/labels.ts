@@ -41,6 +41,16 @@ export function describeLine(line: QuoteLine, locale: Locale, t: Messages): stri
       return `${label} × ${count}`;
     }
 
+    case "charter": {
+      const [, included = "0"] = line.concept.split(":");
+      return t.quoteCharter(Number(included));
+    }
+
+    case "charter_extra": {
+      const [, type = "", count = "0"] = line.concept.split(":");
+      return t.quoteCharterExtra(type === "child" ? "child" : type === "infant" ? "infant" : "adult", Number(count));
+    }
+
     case "extra": {
       /* `extra:<cantidad>:<nombre>`. El nombre viene del catálogo y ya está en
          el idioma del huésped —igual que el de un impuesto—, así que aquí no
@@ -51,8 +61,12 @@ export function describeLine(line: QuoteLine, locale: Locale, t: Messages): stri
       return `${resto.join(":")} × ${qty}`;
     }
 
-    case "fee":
-      return line.concept === "cleaning" ? t.quoteCleaning : line.concept;
+    case "fee": {
+      if (line.concept === "cleaning") return t.quoteCleaning;
+      // `dock:<personas>`: la cuota de muelle del barco.
+      const [name, people] = line.concept.split(":");
+      return name === "dock" ? t.quoteDockFee(Number(people ?? 0)) : line.concept;
+    }
 
     case "discount": {
       /* `coupon:<código>` o `coupon:<código>:base`. El sufijo lo pone el motor

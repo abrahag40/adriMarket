@@ -34,7 +34,7 @@ en el `PATH`.
 cp .env.example .env          # y apuntar DATABASE_URL a tu Postgres
 npm install
 
-npm run db:migrate            # aplica las 23 migraciones en orden
+npm run db:migrate            # aplica las 25 migraciones en orden
 npm run db:seed               # datos de desarrollo
 npm run dev                   # http://localhost:3000
 ```
@@ -78,13 +78,13 @@ extras lo calcule el servidor, que el sitio sirva sin JavaScript, y la
 accesibilidad en los dos temas.
 
 ```bash
-npm run db:test               # 26 garantías del inventario, en transacción
-npm run test:integration      # 189 casos del dominio
+npm run db:test               # 27 garantías del inventario, en transacción
+npm run test:integration      # 215 casos del dominio
 npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
 npx next start -p 3100 &
-BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 157 criterios
+BASE_URL=http://127.0.0.1:3100 ./scripts/smoke.sh          # 169 criterios
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e            # 20 · el checkout, los extras y el idioma
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:admin      # 18 · un día de recepción
 BASE_URL=http://127.0.0.1:3100 npm run test:e2e:sme        # 25 · cierran el puerto
@@ -127,16 +127,20 @@ funciones transaccionales.
 
 **Nunca edites una migración ya aplicada.** Se agrega una nueva.
 
-### Las dos garantías del inventario
+### Las garantías del inventario
 
 Mecanismos distintos porque los inventarios se agotan distinto:
 
-| | Estancias | Tours |
-|---|---|---|
-| Se agota por | traslape de rangos de fechas | conteo de lugares |
-| Garantía | `EXCLUDE USING gist (unit_id =, stay &&)` | `CHECK (seats_taken <= capacity)` |
-| Orden entre peticiones | la da la restricción de exclusión | `SELECT … FOR UPDATE` |
-| Probado en | `db/tests/guarantees.sql` 1–4 | `db/tests/guarantees.sql` 5–7 |
+| | Estancias | Tours | Barcos (tour privado) |
+|---|---|---|---|
+| Se agota por | traslape de rangos de fechas | conteo de lugares | traslape de horas del mismo casco |
+| Garantía | `EXCLUDE USING gist (unit_id =, stay &&)` | `CHECK (seats_taken <= capacity)` | `EXCLUDE USING gist (product_id =, period &&)` en `tour_seat_holds` |
+| Orden entre peticiones | la da la restricción de exclusión | `SELECT … FOR UPDATE` | cerrojo consultivo por producto, antes del `FOR UPDATE` |
+| Probado en | `db/tests/guarantees.sql` 1–4 | `db/tests/guarantees.sql` 5–7 | `db/tests/guarantees.sql` 27 |
+
+Un barco se cobra entero —precio del barco hasta N personas, pasajero extra y
+cuota de muelle— y "4 horas 9:00" y "8 horas 9:00" son salidas distintas del
+mismo casco. Ver [decisión 0022](docs/decisiones/0022-la-embarcacion-se-renta-entera.md).
 
 Ninguna depende de que la aplicación se acuerde de revisar.
 
@@ -543,6 +547,20 @@ Están aquí porque cada una se pagó una vez.
   latido antes de preguntar por la salud**, como `smoke.sh`. Lo que no se
   arregla así es el hueco en sí: existe por correr el latido en Actions en
   vez de en un cron de verdad, y eso es el plan Pro de Vercel.
+- **Un ayudante de prueba que toma "cualquier opción de tour" cae en un barco.**
+  `test_departure()` elegía `select id from tour_options order by id limit 1`, y
+  con los barcos de Adri en el seed el uuid más bajo podía ser una opción
+  privada —que aparta su cupo entero—: la garantía 5 fallaba en una base recién
+  creada y pasaba en la de siempre. Ahora pide `pricing_mode = 'per_pax'`. Es la
+  trampa de la fila tomada por posición otra vez: **"cualquiera" deja de ser
+  inocente el día que entra un tipo nuevo.**
+- **El parchador del esquema convertía todo rango en `daterange`.**
+  `patch-generated.mjs` reemplazaba cada `unknown(...)` por `daterange(...)`, y la
+  primera columna `tstzrange` (`tour_seat_holds.period`, las horas de un barco)
+  salió tipada como rango de fechas sin que nada se quejara. Ahora lee el tipo del
+  TODO de drizzle-kit y se niega ante uno que no conoce. Y `db:pull` reordena el
+  archivo entero según la base: para no meter un diff de 1,500 líneas, se copian
+  al archivo versionado solo los bloques que cambiaron.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
 
@@ -586,7 +604,7 @@ límites en el plan gratuito, ya resueltos en la decisión 0005:
 db/
   migrations/       SQL a mano, en orden. Fuente de verdad del esquema.
   seed/             datos de desarrollo
-  tests/            garantías (22) y concurrencia
+  tests/            garantías (27) y concurrencia
 src/
   app/[locale]/     rutas públicas; el prefijo de idioma es parte de la URL
   app/admin/        panel de operación; sin prefijo y sin indexar

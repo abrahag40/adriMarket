@@ -1,6 +1,6 @@
 import { pgTable, index, foreignKey, bigserial, uuid, text, jsonb, timestamp, uniqueIndex, boolean, date, check, integer, bigint, char, inet, numeric, unique, smallint, time, primaryKey, pgView, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
-import { daterange } from "../types"
+import { daterange, tstzrange } from "../types"
 
 export const blockReason = pgEnum("block_reason", ['hold', 'booking', 'maintenance', 'owner_use', 'other'])
 export const bookingStatus = pgEnum("booking_status", ['hold', 'confirmed', 'in_progress', 'completed', 'cancelled', 'expired', 'no_show'])
@@ -611,6 +611,8 @@ export const tourSeatHolds = pgTable("tour_seat_holds", {
 	confirmedAt: timestamp("confirmed_at", { withTimezone: true, mode: 'string' }),
 	releasedAt: timestamp("released_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	productId: uuid("product_id"),
+	period: tstzrange("period"),
 }, (table) => [
 	index("tour_seat_holds_departure_idx").using("btree", table.departureId.asc().nullsLast().op("uuid_ops")).where(sql`(released_at IS NULL)`),
 	index("tour_seat_holds_expiry_idx").using("btree", table.expiresAt.asc().nullsLast().op("timestamptz_ops")).where(sql`((confirmed_at IS NULL) AND (released_at IS NULL))`),
@@ -624,6 +626,12 @@ export const tourSeatHolds = pgTable("tour_seat_holds", {
 			foreignColumns: [tourDepartures.id],
 			name: "tour_seat_holds_departure_id_fkey"
 		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.productId],
+			foreignColumns: [products.id],
+			name: "tour_seat_holds_product_id_fkey"
+		}),
+	check("tour_seat_holds_period_shape", sql`((product_id IS NULL) = (period IS NULL)) AND ((period IS NULL) OR (NOT isempty(period)))`),
 	check("tour_seat_holds_seats_check", sql`seats > 0`),
 	check("tour_seat_holds_state_ok", sql`((confirmed_at IS NULL) AND (expires_at IS NOT NULL)) OR ((confirmed_at IS NOT NULL) AND (expires_at IS NULL)) OR (released_at IS NOT NULL)`),
 ]);
@@ -712,6 +720,12 @@ export const tourOptions = pgTable("tour_options", {
 	active: boolean().default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	pricingMode: text("pricing_mode").default('per_pax').notNull(),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	privatePriceCents: bigint("private_price_cents", { mode: "number" }),
+	privateIncludedPax: integer("private_included_pax"),
+	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
+	perPaxFeeCents: bigint("per_pax_fee_cents", { mode: "number" }).default(0).notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.productId],
@@ -721,6 +735,12 @@ export const tourOptions = pgTable("tour_options", {
 	unique("tour_options_product_id_code_key").on(table.productId, table.code),
 	check("tour_options_default_capacity_check", sql`default_capacity > 0`),
 	check("tour_options_duration_minutes_check", sql`duration_minutes > 0`),
+	check("tour_options_included_fits", sql`(private_included_pax IS NULL) OR (private_included_pax <= default_capacity)`),
+	check("tour_options_per_pax_fee_check", sql`per_pax_fee_cents >= 0`),
+	check("tour_options_pricing_mode_valid", sql`pricing_mode = ANY (ARRAY['per_pax'::text, 'private'::text])`),
+	check("tour_options_private_complete", sql`(pricing_mode <> 'private'::text) OR ((private_price_cents IS NOT NULL) AND (private_included_pax IS NOT NULL) AND (duration_minutes IS NOT NULL))`),
+	check("tour_options_private_included_check", sql`(private_included_pax IS NULL) OR (private_included_pax > 0)`),
+	check("tour_options_private_price_check", sql`(private_price_cents IS NULL) OR (private_price_cents >= 0)`),
 ]);
 
 export const tourPaxPrices = pgTable("tour_pax_prices", {
