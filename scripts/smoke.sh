@@ -137,8 +137,10 @@ expect_contains "/es?kind=vehicle" "facet-price" "la sección de vehículos cons
 # busca dónde quedarse.
 expect_contains "/es" "room-card-location" "la tarjeta de renta lleva su destino"
 expect_contains "/es" "Playa del Carmen" "y dice cuál es, no solo que lo tiene"
-expect_contains "/es?guests=49" "Nada coincide con esos filtros" "sin resultados se explica, no se deja vacío"
-expect_contains "/es?guests=49" "Quitar filtros" "sin resultados se ofrece la salida"
+# 150 y no 49: los barcos de Adri llevan hasta 100 personas, así que 49 ya
+# coincide con algo. Nada del catálogo llega a 150 (el filtro admite hasta 200).
+expect_contains "/es?guests=150" "Nada coincide con esos filtros" "sin resultados se explica, no se deja vacío"
+expect_contains "/es?guests=150" "Quitar filtros" "sin resultados se ofrece la salida"
 
 # ── Quitar el último filtro no puede devolver a la portada ──────────────────
 #
@@ -472,6 +474,28 @@ expect_absent "/sitemap.xml" "borrador-no-publicado" "pero no los borradores"
 # Un producto sin traducción responde 404 en ese idioma: listarlo sería mandar
 # al rastreador a una página rota.
 expect_absent "/sitemap.xml" "/en/stays/depa-centro-tulum" "ni las fichas sin traducir"
+
+echo
+echo "Embarcaciones · se cobra el barco, no el asiento (decisión 0022)"
+# Los cargan `embarcaciones_adri.sql` y `barcos_desarrollo.sql` desde
+# `npm run db:seed`. El listado se filtra por 20 personas para que el criterio
+# de la tarjeta no dependa de en qué página cae el barco: solo la Leopard (35)
+# llega a 20 entre los tours del seed.
+LEOPARD="/es/tours/barco-catamaran-leopard-47"
+expect_contains "$LEOPARD" "por embarcación" "el «desde» de un barco es por embarcación"
+# En el bloque del precio, no en cualquier parte: "2,300" también sale en el
+# selector de opciones, y pasaría aunque el «desde» fuera el pasajero extra.
+expect_matches  "$LEOPARD" 'price-amount">USD.{0,8}2,300<' "y es el precio del barco, no el del pasajero extra"
+expect_contains "$LEOPARD" "Embarcación privada · hasta 15 personas" "la cotización cobra el barco entero"
+expect_contains "$LEOPARD" "Cuota de muelle × 2 personas" "y la cuota de muelle por persona"
+expect_contains "$LEOPARD" 'id="option"' "un barco con varias duraciones ofrece elegirla"
+expect_contains "$LEOPARD" "8 horas · Cozumel" "con su ruta"
+expect_contains "$LEOPARD" "Niños de 2 a 6 años" "la tarifa de niño dice sus edades"
+expect_contains "/es/tours/barco-bertram-46" 'id="adults"' "un barco sin tarifa de niño pregunta por adultos"
+expect_absent   "/es/tours/barco-bertram-46" 'id="children"' "pero no por niños"
+expect_absent   "/es/tours/snorkel-cenotes-tulum" 'id="option"' "un tour de una sola opción no muestra el selector"
+expect_contains "/es?kind=tour&guests=20" "por embarcación" "la tarjeta del barco dice por embarcación"
+expect_contains "/en/tours/barco-catamaran-leopard-47" "per boat" "y en inglés"
 
 echo
 echo "S1-2 · accesibilidad básica"

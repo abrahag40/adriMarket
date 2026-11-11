@@ -13,13 +13,15 @@ import { uploadImage } from "@/modules/media/images";
  *
  *   SITIO=conquest-tours ./scripts/produccion.sh run npx tsx scripts/subir-fotos.ts plan.json
  *
- * plan.json: [{ "slug": "sian-kaan", "files": [{ "path": "/ruta/foto.jpg", "alt_es": "…" }] }]
+ * plan.json: [{ "slug": "sian-kaan", "files": [{ "path": "/ruta/foto.jpg", "alt_es": "…", "alt_en": "…" }] }]
+ *
+ * `alt_en` es opcional: sin él, la ficha en inglés lee el texto en español.
  *
  * Repetirlo no duplica: una foto con el mismo peso en bytes en ese tour se salta.
  * Sin BLOB_READ_WRITE_TOKEN se niega, porque guardaría en el disco de esta máquina
  * y producción apuntaría a archivos que no existen.
  */
-type Plan = { slug: string; files: { path: string; alt_es: string }[] }[];
+type Plan = { slug: string; files: { path: string; alt_es: string; alt_en?: string }[] }[];
 
 const archivo = process.argv[2];
 if (!archivo || !process.env.DATABASE_URL) {
@@ -51,7 +53,9 @@ try {
         continue;
       }
       const { mediaId } = await uploadImage(producto.id, { name: basename(f.path), bytes }, null);
-      await db.execute(sql`update product_media set alt_es = ${f.alt_es} where id = ${mediaId}::uuid`);
+      await db.execute(sql`
+        update product_media set alt_es = ${f.alt_es}, alt_en = ${f.alt_en ?? null}
+         where id = ${mediaId}::uuid`);
       console.log(`✓ ${tour.slug} ← ${basename(f.path)}`);
     }
   }

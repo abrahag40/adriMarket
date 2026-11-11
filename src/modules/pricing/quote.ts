@@ -7,6 +7,7 @@ import {
   type CouponResult,
   type NightRate,
   type PaxCounts,
+  type PrivateCharter,
   type Quote,
   type QuoteLine,
   type StayUnitPricing,
@@ -297,6 +298,8 @@ export type TourQuoteInput = {
    * que llega del navegador son códigos; el precio lo pone `service.ts`.
    */
   extras?: readonly TourExtra[];
+  /** Presente solo en una opción privada: se cobra el barco, no el asiento. */
+  charter?: PrivateCharter | null;
 };
 
 export function buildTourQuote(input: TourQuoteInput): Quote {
@@ -324,28 +327,23 @@ export function buildTourQuote(input: TourQuoteInput): Quote {
     return price?.countsTowardCapacity ? seats + pax[type] : seats;
   }, 0);
 
-  if (seatsNeeded > input.seatsLeft) {
+  // Un barco privado se vende entero o no se vende: con cualquier lugar
+  // tomado ya es de otro grupo, y pasarse de su cupo es "no cabe", no "se
+  // agotó" — el huésped tiene que leer cosas distintas.
+  if (input.charter) {
+    if (seatsNeeded > input.charter.capacity) {
+      throw new QuoteError("over_capacity", { max: input.charter.capacity });
+    }
+    if (input.seatsLeft < input.charter.capacity) {
+      throw new QuoteError("sold_out", { left: 0, asked: seatsNeeded });
+    }
+  } else if (seatsNeeded > input.seatsLeft) {
     throw new QuoteError("sold_out", { left: input.seatsLeft, asked: seatsNeeded });
   }
 
-  const lines: QuoteLine[] = [];
-
-  for (const type of ["adult", "child", "infant"] as const) {
-    const count = pax[type];
-    if (count <= 0) continue;
-
-    const price = prices.find((entry) => entry.paxType === type);
-    if (!price) {
-      throw new QuoteError("no_rate", { pax: type });
-    }
-    if (price.priceCents === 0) continue; // el infante sin costo no genera línea
-
-    lines.push({
-      concept: `pax:${type}:${count}`,
-      cents: roundCents(price.priceCents * count),
-      kind: "pax",
-    });
-  }
+  const lines: QuoteLine[] = input.charter
+    ? charterLines(input.charter, pax, prices, seatsNeeded)
+    : paxLines(pax, prices);
 
   /* El servicio base: lo único de lo que sale el descuento cuando el cupón no
      alcanza a los extras. Se separa aquí, antes de agregar nada más, porque
@@ -381,5 +379,87 @@ export function buildTourQuote(input: TourQuoteInput): Quote {
   const taxable = sumCents(lines.map((line) => line.cents));
   lines.push(...applyTaxes(taxable, input.taxes, { nights: 1, pax: seatsNeeded }));
 
+  /* La cuota de muelle va al final, fuera del cupón y fuera de los impuestos:
+     no es dinero del operador, es lo que cobra la marina por cada persona que
+     embarca. Descontarla sería pagarla de la bolsa del operador. */
+  const fee = input.charter?.perPaxFeeCents ?? 0;
+  if (fee > 0 && seatsNeeded > 0) {
+    lines.push({ concept: `dock:${seatsNeeded}`, cents: roundCents(fee * seatsNeeded), kind: "fee" });
+  }
+
   return close(input.currency, lines, input.depositPct, input.now, undefined, couponResult);
+}
+
+/** Un tour compartido: cada pasajero paga su tarifa. */
+function paxLines(pax: PaxCounts, prices: readonly TourPricing[]): QuoteLine[] {
+  const lines: QuoteLine[] = [];
+
+  for (const type of ["adult", "child", "infant"] as const) {
+    const count = pax[type];
+    if (count <= 0) continue;
+
+    const price = prices.find((entry) => entry.paxType === type);
+    if (!price) {
+      throw new QuoteError("no_rate", { pax: type });
+    }
+    if (price.priceCents === 0) continue; // el infante sin costo no genera línea
+
+    lines.push({
+      concept: `pax:${type}:${count}`,
+      cents: roundCents(price.priceCents * count),
+      kind: "pax",
+    });
+  }
+
+  return lines;
+}
+
+/**
+ * Un barco privado: el precio del barco cubre a las primeras N personas y las
+ * demás pagan su tarifa de pasajero extra.
+ *
+ * **Quién entra en las N incluidas: los adultos primero.** Es lo que dice la
+ * ficha del operador —"niños de 2 a 6 pagan 50%" se lee sobre el pasajero
+ * extra— y es lo que menos cobra al huésped: un niño solo paga extra si el
+ * barco ya se llenó de adultos. El infante que no ocupa lugar no cuenta para
+ * ninguna de las dos cosas.
+ */
+function charterLines(
+  charter: PrivateCharter,
+  pax: PaxCounts,
+  prices: readonly TourPricing[],
+  seatsNeeded: number,
+): QuoteLine[] {
+  if (seatsNeeded > charter.capacity) {
+    throw new QuoteError("over_capacity", { max: charter.capacity });
+  }
+
+  for (const type of ["adult", "child", "infant"] as const) {
+    if (pax[type] > 0 && !prices.some((entry) => entry.paxType === type)) {
+      throw new QuoteError("no_rate", { pax: type });
+    }
+  }
+
+  const lines: QuoteLine[] = [
+    { concept: `charter:${charter.includedPax}`, cents: charter.basePriceCents, kind: "charter" },
+  ];
+
+  let included = charter.includedPax;
+  for (const type of ["adult", "child", "infant"] as const) {
+    const price = prices.find((entry) => entry.paxType === type);
+    if (!price?.countsTowardCapacity) continue;
+
+    const covered = Math.min(included, pax[type]);
+    included -= covered;
+    const extra = pax[type] - covered;
+    if (extra <= 0 || price.priceCents === 0) continue;
+
+    lines.push({
+      concept: `charter_extra:${type}:${extra}`,
+      cents: roundCents(price.priceCents * extra),
+      kind: "charter_extra",
+    });
+  }
+
+  return lines;
 }

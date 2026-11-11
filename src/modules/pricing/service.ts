@@ -451,15 +451,27 @@ export async function quoteTour(
     currency: string;
     deposit_pct: string;
     option_id: string;
+    capacity: number;
+    pricing_mode: string;
+    private_price_cents: string | null;
+    private_included_pax: number | null;
+    per_pax_fee_cents: string;
   }>(sql`
     select
       d.id as departure_id,
       d.starts_at,
       d.status::text as status,
-      (d.capacity - d.seats_taken) as seats_left,
+      -- La función y no capacity - seats_taken: en un barco privado los
+      -- lugares libres dependen también de las OTRAS salidas del mismo barco.
+      tour_seats_left(d.id) as seats_left,
+      d.capacity,
       p.currency,
       resolve_deposit_pct(p.id) as deposit_pct,
-      o.id as option_id
+      o.id as option_id,
+      o.pricing_mode,
+      o.private_price_cents,
+      o.private_included_pax,
+      o.per_pax_fee_cents
     from tour_departures d
     join tour_options o on o.id = d.tour_option_id
     join products p on p.id = o.product_id
@@ -513,6 +525,15 @@ export async function quoteTour(
     now,
     coupon: couponLookup?.ok ? couponLookup.input : null,
     extras: elegidos,
+    charter:
+      departure.pricing_mode === "private"
+        ? {
+            basePriceCents: Number(departure.private_price_cents),
+            includedPax: Number(departure.private_included_pax),
+            capacity: Number(departure.capacity),
+            perPaxFeeCents: Number(departure.per_pax_fee_cents),
+          }
+        : null,
   });
   if (couponLookup && !couponLookup.ok) {
     quote.coupon = { code: couponLookup.code, applied: false, reason: couponLookup.reason };

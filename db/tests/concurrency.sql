@@ -51,6 +51,10 @@ select o.id,
   from tour_options o
   join products pr on pr.id = o.product_id
  where pr.kind = 'tour' and o.active
+   -- Por pasajero: un barco privado aparta su cupo entero y A cuenta lugares
+   -- sueltos (decisión 0022). Hoy el primero por fecha es un tour del seed,
+   -- pero "el primero" ya mordió dos veces.
+   and o.pricing_mode = 'per_pax'
  order by o.created_at
  limit 1
 on conflict (tour_option_id, starts_at) do update
@@ -88,6 +92,40 @@ delete from rental_blocks
  where unit_id = (select unit_id from bench_target)
    and lower(dates) >= date '2030-01-01';
 
+-- El barco del banco (escenario D, decisión 0022).
+--
+-- Propio, en borrador y con nombre que no se confunde con nada real: tres
+-- duraciones del mismo casco que salen a la misma hora. Ninguna salida comparte
+-- contador con otra, así que lo único que puede impedir que dos clientes se
+-- queden con el barco es la exclusión por horas — y lo único que evita que se
+-- interbloqueen al chocar en ella es el cerrojo consultivo por producto.
+insert into products (kind, slug, status, currency)
+values ('tour', 'bench-barco-de-concurrencia', 'draft', 'USD')
+on conflict (slug) do nothing;
+
+insert into tour_options (product_id, code, name_es, duration_minutes, default_capacity,
+                          pricing_mode, private_price_cents, private_included_pax)
+select p.id, v.code, v.code, v.mins, 10, 'private', 100000, 10
+  from products p
+ cross join (values ('4h', 240), ('6h', 360), ('8h', 480)) v(code, mins)
+ where p.slug = 'bench-barco-de-concurrencia'
+on conflict (product_id, code) do nothing;
+
+insert into tour_departures (tour_option_id, starts_at, capacity, note)
+select o.id, (current_date + 91 + time '09:00') at time zone 'America/Cancun', 10,
+       'barco del banco de concurrencia'
+  from tour_options o
+  join products p on p.id = o.product_id
+ where p.slug = 'bench-barco-de-concurrencia'
+on conflict (tour_option_id, starts_at) do update
+   set capacity = 10, status = 'open', note = excluded.note;
+
+-- Lo que dejó la corrida anterior, igual que con la salida y la unidad.
+delete from tour_seat_holds
+ where departure_id in (select id from tour_departures where note = 'barco del banco de concurrencia');
+update tour_departures set seats_taken = 0
+ where note = 'barco del banco de concurrencia';
+
 -- Envoltorios que capturan el error de dominio. Sin esto, pgbench aborta al
 -- cliente en el primer rechazo y no se puede contar cuántos intentos hubo.
 create or replace function bench_try_seat(p_seats integer) returns boolean
@@ -95,6 +133,24 @@ language plpgsql as $$
 begin
   perform tour_hold_create(
     (select departure_id from bench_target), p_seats, null, interval '15 minutes');
+  insert into bench_result (ok) values (true);
+  return true;
+exception when sqlstate 'AM001' then
+  insert into bench_result (ok, err) values (false, sqlerrm);
+  return false;
+end;
+$$;
+
+-- Cada cliente pide una de las tres duraciones al azar, todas a la misma hora.
+create or replace function bench_try_boat() returns boolean
+language plpgsql as $$
+begin
+  perform tour_hold_create(
+    (select d.id from tour_departures d
+      where d.note = 'barco del banco de concurrencia'
+        and d.starts_at = (current_date + 91 + time '09:00') at time zone 'America/Cancun'
+      order by random() limit 1),
+    2, null, interval '15 minutes');
   insert into bench_result (ok) values (true);
   return true;
 exception when sqlstate 'AM001' then

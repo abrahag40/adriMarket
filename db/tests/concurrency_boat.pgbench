@@ -1,0 +1,6 @@
+-- Todos los clientes piden el MISMO barco a la misma hora, cada uno en una
+-- duración distinta (4, 6 u 8 horas): salidas distintas, contadores distintos,
+-- un solo casco. Solo uno debe quedárselo (decisión 0022).
+BEGIN;
+SELECT bench_try_boat();
+COMMIT;

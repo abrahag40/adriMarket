@@ -178,6 +178,13 @@ cmd_seed() {
   echo "→ vehículos (el tercer inventario, que la barra necesita)"
   "${PSQL[@]}" -f db/seed/vehiculos_caribe.sql
 
+  # Los barcos de Adri se cobran enteros (decisión 0022). La carga es la misma
+  # que va a producción, en borrador; el segundo archivo publica dos, solo aquí,
+  # para que la barra tenga un barco que mirar.
+  echo "→ embarcaciones (se cobra el barco, no el asiento)"
+  "${PSQL[@]}" -f db/seed/embarcaciones_adri.sql
+  "${PSQL[@]}" -f db/seed/barcos_desarrollo.sql
+
   echo "Listo."
 }
 
@@ -229,6 +236,25 @@ cmd_bench() {
         into v_ok, v_no from bench_result;
       assert v_no = 0, format('FALLO: %s falsos conflictos en fechas libres', v_no);
       raise notice '✔ % rangos contiguos aceptados, 0 falsos conflictos', v_ok;
+    end \$\$;"
+
+  echo "→ D) $clients clientes por el MISMO barco, en duraciones distintas"
+  "${PSQL[@]}" -c "truncate bench_result" >/dev/null
+  pgbench "$DATABASE_URL" -n -f db/tests/concurrency_boat.pgbench \
+    -c "$clients" -j "$jobs" -t 1 2>&1 | grep -E "actually processed|tps"
+  # Dos condiciones, no una: que gane exactamente uno, y que **todos** los
+  # intentos terminen en un sí o en un AM001. Un interbloqueo no lo atrapa el
+  # envoltorio —pgbench aborta a ese cliente— y "ganó uno" seguiría siendo
+  # cierto con la mitad de los clientes muertos.
+  "${PSQL[@]}" -c "
+    do \$\$
+    declare v_ok integer; v_total integer;
+    begin
+      select count(*) filter (where ok), count(*) into v_ok, v_total from bench_result;
+      assert v_total = $clients,
+        format('FALLO: solo %s de $clients intentos terminaron limpios (¿interbloqueo?)', v_total);
+      assert v_ok = 1, format('FALLO: %s clientes se quedaron con el mismo barco', v_ok);
+      raise notice '✔ un solo cliente se quedó con el barco, los otros % recibieron AM001', v_total - 1;
     end \$\$;"
 }
 

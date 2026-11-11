@@ -3,9 +3,9 @@ import Link from "next/link";
 import { BookingSelector } from "@/components/booking-selector";
 import { DeparturePicker } from "@/components/departure-picker";
 import { QuoteBreakdown, describeQuoteError } from "@/components/quote-breakdown";
-import { LOCALE_TAG, type Locale } from "@/i18n/config";
+import { LOCALE_TAG, formatMoney, type Locale } from "@/i18n/config";
 import { getMessages } from "@/i18n/messages";
-import { tourDepartures } from "@/modules/availability/calendar";
+import { tourDepartures, tourOptionsOnSale } from "@/modules/availability/calendar";
 import { listTourExtras, quoteTour } from "@/modules/pricing/service";
 import { QuoteError } from "@/modules/pricing/types";
 import { startOfMonth, todayIn } from "@/time";
@@ -29,6 +29,7 @@ export async function TourBooking({
   basePath,
   timezone,
   capacity,
+  currency,
   params,
 }: {
   productId: string;
@@ -37,7 +38,8 @@ export async function TourBooking({
   basePath: string;
   timezone: string;
   capacity: number;
-  params: { departure?: string; adults?: string; children?: string; infants?: string; month?: string };
+  currency: string;
+  params: { option?: string; departure?: string; adults?: string; children?: string; infants?: string; month?: string };
 }) {
   const t = getMessages(locale);
   const today = todayIn(timezone);
@@ -49,16 +51,40 @@ export async function TourBooking({
      que manda todas las fechas vendibles en el HTML (`data-tour-date`). Doce
      meses de salidas diarias son ~360 filas de tres campos: cabe de sobra en
      el presupuesto de bytes de la página. */
-  const upcoming = await tourDepartures(productId, today, addMonths(today, 12));
+  const [todas, options] = await Promise.all([
+    tourDepartures(productId, today, addMonths(today, 12)),
+    tourOptionsOnSale(productId, locale),
+  ]);
 
-  const adults = count(params.adults, 2, capacity);
-  const children = count(params.children, 0, capacity);
-  const infants = count(params.infants, 0, capacity);
+  /* La opción manda sobre la salida: si el huésped cambia de "4 horas" a
+     "8 horas Cozumel", el formulario todavía trae la salida de las 4 horas y
+     hay que soltarla. Sin opción en la URL, la deduce de la salida —el enlace
+     de vuelta desde el checkout solo trae `departure`—. Un tour de una sola
+     opción no ve nada de esto. */
+  const desdeSalida = todas.find((day) => day.departureId === params.departure)?.optionId;
+  const option =
+    options.find((entry) => entry.id === params.option) ??
+    options.find((entry) => entry.id === desdeSalida) ??
+    options.find((entry) => todas.some((day) => day.optionId === entry.id && day.seatsLeft > 0)) ??
+    options[0] ??
+    null;
+  const upcoming = option && options.length > 1 ? todas.filter((day) => day.optionId === option.id) : todas;
+  const cupo = option?.private ? option.capacity : capacity;
+
+  const adults = count(params.adults, 2, cupo);
+  const children = count(params.children, 0, cupo);
+  const infants = count(params.infants, 0, cupo);
 
   const selected =
     upcoming.find((day) => day.departureId === params.departure) ??
     upcoming.find((day) => day.seatsLeft > 0) ??
     null;
+
+  /* Un barco sin tarifa de niño no pregunta por niños: todos pagan igual, y
+     un campo que no cambia nada es una duda más justo antes de pagar. */
+  const preguntaNinos = !option?.private || option.hasChildPrice;
+  const etiquetaLugares = (day: { seatsLeft: number; private: boolean }) =>
+    day.seatsLeft === 0 ? t.soldOut : day.private ? t.boatAvailable : t.seatsLeft(day.seatsLeft);
 
   let quoteNode: React.ReactNode = <p className="notice">{t.priceNotice}</p>;
 
@@ -66,7 +92,7 @@ export async function TourBooking({
     try {
       const result = await quoteTour(productId, selected.departureId, {
         adult: adults,
-        child: children,
+        child: preguntaNinos ? children : 0,
         infant: infants,
       });
       /* Si el tour tiene algo que ofrecer, el botón pasa primero por el paso
@@ -77,7 +103,8 @@ export async function TourBooking({
       const destino = tieneExtras ? "extras" : "checkout";
       const checkoutHref =
         `/${locale}/${destino}?kind=tour&slug=${encodeURIComponent(slug)}` +
-        `&departure=${selected.departureId}&adults=${adults}&children=${children}&infants=${infants}`;
+        `&departure=${selected.departureId}&adults=${adults}&children=${preguntaNinos ? children : 0}` +
+        `&infants=${infants}`;
       quoteNode = (
         <>
           <QuoteBreakdown quote={result.quote} locale={locale} />
@@ -105,6 +132,22 @@ export async function TourBooking({
   return (
     <>
       <BookingSelector action={basePath}>
+        {options.length > 1 ? (
+          <div className="selector-row">
+            <div className="field field-wide">
+              <label htmlFor="option">{t.optionLabel}</label>
+              <select id="option" name="option" defaultValue={option?.id ?? ""}>
+                {options.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.fromCents !== null
+                      ? `${entry.name} · ${formatMoney(entry.fromCents, currency, locale)}`
+                      : entry.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : null}
         <div className="selector-row">
           <DeparturePicker
             locale={LOCALE_TAG[locale]}
@@ -114,7 +157,7 @@ export async function TourBooking({
               date: day.date,
               label: dateFormat.format(new Date(day.startsAt)),
               seats: day.seatsLeft,
-              seatsLabel: day.seatsLeft === 0 ? t.soldOut : t.seatsLeft(day.seatsLeft),
+              seatsLabel: etiquetaLugares(day),
             }))}
             labels={{
               field: t.departureLabel,
@@ -131,8 +174,7 @@ export async function TourBooking({
                 <select id="departure" name="departure" defaultValue={selected?.departureId ?? ""}>
                   {upcoming.map((day) => (
                     <option key={day.departureId} value={day.departureId} disabled={day.seatsLeft === 0}>
-                      {dateFormat.format(new Date(day.startsAt))} ·{" "}
-                      {day.seatsLeft === 0 ? t.soldOut : t.seatsLeft(day.seatsLeft)}
+                      {dateFormat.format(new Date(day.startsAt))} · {etiquetaLugares(day)}
                     </option>
                   ))}
                 </select>
@@ -145,23 +187,32 @@ export async function TourBooking({
           <div className="field">
             <label htmlFor="adults">{t.paxAdults}</label>
             <select id="adults" name="adults" defaultValue={String(adults)}>
-              {Array.from({ length: capacity }, (_, index) => index + 1).map((n) => (
+              {Array.from({ length: cupo }, (_, index) => index + 1).map((n) => (
                 <option key={n} value={String(n)}>
                   {n}
                 </option>
               ))}
             </select>
           </div>
-          <div className="field">
-            <label htmlFor="children">{t.paxChildren}</label>
-            <select id="children" name="children" defaultValue={String(children)}>
-              {Array.from({ length: capacity + 1 }, (_, index) => index).map((n) => (
-                <option key={n} value={String(n)}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
+          {preguntaNinos ? (
+            <div className="field">
+              <label htmlFor="children">
+                {/* En un barco el "niño" tiene edades —la Leopard cobra la mitad
+                    de 2 a 6 años— y "Menores" haría pasar por niño a quien
+                    paga como adulto. */}
+                {option?.private && option.childAges
+                  ? t.paxChildrenAges(option.childAges.min, option.childAges.max)
+                  : t.paxChildren}
+              </label>
+              <select id="children" name="children" defaultValue={String(children)}>
+                {Array.from({ length: cupo + 1 }, (_, index) => index).map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           {/* Sin campo de infantes: para quien reserva es lo mismo que un
               menor, y dos casillas que se leen igual hacen dudar en el peor
               momento. El parámetro sigue existiendo del lado del servidor

@@ -11,6 +11,8 @@ export type QuoteLineKind =
   | "nightly" // una noche de hospedaje
   | "occupancy" // huéspedes por encima de la base
   | "pax" // pasajeros de un tour, por tipo
+  | "charter" // el barco entero, para hasta N personas (decisión 0022)
+  | "charter_extra" // pasajeros por encima de los que cubre el barco, por tipo
   | "extra" // complementos de un tour: tirolesa, kayak, buffet
   | "fee" // cargos fijos: limpieza, etc.
   | "discount" // siempre negativo
@@ -156,6 +158,22 @@ export type NightRate = {
 };
 
 export type PaxCounts = { adult: number; child: number; infant: number };
+
+/**
+ * Cómo se cobra una opción privada: el barco entero.
+ *
+ * `basePriceCents` cubre a las primeras `includedPax` personas que ocupan
+ * lugar; de ahí en adelante cada una paga su precio de `TourPricing` por tipo.
+ * `perPaxFeeCents` es la cuota de muelle, que no es del operador: no se
+ * descuenta con cupón ni se grava.
+ */
+export type PrivateCharter = {
+  basePriceCents: number;
+  includedPax: number;
+  /** Personas que caben en el barco. */
+  capacity: number;
+  perPaxFeeCents: number;
+};
 
 export type TourPricing = {
   paxType: keyof PaxCounts;

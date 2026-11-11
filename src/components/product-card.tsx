@@ -23,7 +23,7 @@ export function ProductCard({ item, locale }: { item: CatalogCard; locale: Local
   const kindLabel = { tour: t.filterKindTour, stay: t.filterKindStay, vehicle: t.filterKindVehicle }[
     item.kind
   ];
-  const unit = { tour: t.perPerson, stay: t.perNight, vehicle: t.perDay }[item.kind];
+  const unit = item.perBoat ? t.perBoat : { tour: t.perPerson, stay: t.perNight, vehicle: t.perDay }[item.kind];
 
   return (
     <li className="card">

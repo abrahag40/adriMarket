@@ -81,6 +81,7 @@ export const productsRelations = relations(products, ({one, many}) => ({
 	tourOptions: many(tourOptions),
 	productTags: many(productTags),
 	productTranslations: many(productTranslations),
+	tourSeatHolds: many(tourSeatHolds),
 }));
 
 export const rentalUnitsRelations = relations(rentalUnits, ({one, many}) => ({
@@ -250,6 +251,10 @@ export const tourSeatHoldsRelations = relations(tourSeatHolds, ({one}) => ({
 	tourDeparture: one(tourDepartures, {
 		fields: [tourSeatHolds.departureId],
 		references: [tourDepartures.id]
+	}),
+	product: one(products, {
+		fields: [tourSeatHolds.productId],
+		references: [products.id]
 	}),
 }));
 

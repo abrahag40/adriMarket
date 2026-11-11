@@ -239,11 +239,28 @@ export function OptionForms({
                     {` · cupo ${option.defaultCapacity}`}
                     {option.meetingPoint ? ` · ${option.meetingPoint}` : ""}
                   </span>
-                  <span className="admin-card-meta">
-                    Adulto {adult ? formatMoney(adult.priceCents, "MXN", "es") : "—"}
-                    {child ? ` · Menor ${formatMoney(child.priceCents, "MXN", "es")}` : ""}
-                    {infant ? ` · Infante ${formatMoney(infant.priceCents, "MXN", "es")}` : ""}
-                  </span>
+                  {option.charter ? (
+                    /* Un barco: el precio es del barco y los de pasajero son
+                       del EXTRA. Escribirlo como "Adulto US$100" haría creer a
+                       recepción que eso cuesta subirse (decisión 0022). */
+                    <span className="admin-card-meta">
+                      Barco privado {formatMoney(option.charter.priceCents, option.currency, "es")} hasta{" "}
+                      {option.charter.includedPax} personas
+                      {adult && adult.priceCents > 0
+                        ? ` · extra ${formatMoney(adult.priceCents, option.currency, "es")}`
+                        : ""}
+                      {child ? ` · niño extra ${formatMoney(child.priceCents, option.currency, "es")}` : ""}
+                      {option.charter.perPaxFeeCents > 0
+                        ? ` · muelle ${formatMoney(option.charter.perPaxFeeCents, option.currency, "es")} por persona`
+                        : ""}
+                    </span>
+                  ) : (
+                    <span className="admin-card-meta">
+                      Adulto {adult ? formatMoney(adult.priceCents, option.currency, "es") : "—"}
+                      {child ? ` · Menor ${formatMoney(child.priceCents, option.currency, "es")}` : ""}
+                      {infant ? ` · Infante ${formatMoney(infant.priceCents, option.currency, "es")}` : ""}
+                    </span>
+                  )}
                   <form action={toggle}>
                     <input type="hidden" name="productId" value={productId} />
                     <input type="hidden" name="optionId" value={option.id} />
