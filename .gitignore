@@ -23,3 +23,9 @@ var/media/*
 # corrida concreta, no del proyecto: se regeneran con `npm run test:e2e*`.
 /*.png
 .vercel
+
+# Cloudflare Workers (decisión 0023): lo que compila OpenNext, el estado local
+# de wrangler (R2 e Images simulados) y los secretos de la vista previa local.
+.open-next/
+.wrangler/
+.dev.vars*

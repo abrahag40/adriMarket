@@ -4,7 +4,7 @@ import path from "node:path";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { Readable } from "node:stream";
 
-import { MEDIA_ROOT } from "@/modules/media/images";
+import { IMMUTABLE, MEDIA_ROOT, mediaBucket, mediaContentType } from "@/modules/media/images";
 
 /**
  * Entrega de las fotos subidas desde el panel · S6-1
@@ -19,16 +19,12 @@ import { MEDIA_ROOT } from "@/modules/media/images";
  * transformación en el momento de leer: se abre un archivo ya generado y se
  * manda. En producción esta ruta la reemplaza el CDN sobre el mismo almacén, tal
  * como dice la decisión 0001; lo que se conserva es la forma de las URL.
+ *
+ * **En Cloudflare Workers** (decisión 0023) el almacén es R2: la misma URL
+ * `/media/<archivo>` se lee del bucket en lugar del disco.
  */
 
-const TYPES: Record<string, string> = {
-  ".avif": "image/avif",
-  ".webp": "image/webp",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".svg": "image/svg+xml",
-};
+const NOT_FOUND = () => new Response("no encontrado", { status: 404 });
 
 export async function GET(
   _request: Request,
@@ -36,32 +32,51 @@ export async function GET(
 ) {
   const { path: segments } = await params;
 
+  const bucket = mediaBucket();
+  if (bucket) {
+    // En R2 la llave es el nombre del archivo, sin carpetas: todo lo que no sea
+    // un solo nombre limpio no puede existir, y así no hay ruta que escape.
+    const [name, ...rest] = segments;
+    if (!name || rest.length > 0 || !/^[\w.-]+$/.test(name) || name.startsWith(".")) {
+      return NOT_FOUND();
+    }
+    const object = await bucket.get(name);
+    if (!object) return NOT_FOUND();
+    return new Response(object.body, {
+      headers: {
+        "content-type": object.httpMetadata?.contentType ?? mediaContentType(name),
+        "content-length": String(object.size),
+        etag: object.httpEtag,
+        "cache-control": IMMUTABLE,
+      },
+    });
+  }
+
   // El nombre lo pone el servidor al subir, pero la URL la escribe quien pida:
   // se resuelve y se comprueba que el resultado siga dentro del almacén. Sin
   // esto, `/media/../../.env` es una ruta válida.
   const target = path.resolve(MEDIA_ROOT, ...segments);
   if (target !== MEDIA_ROOT && !target.startsWith(MEDIA_ROOT + path.sep)) {
-    return new Response("no encontrado", { status: 404 });
+    return NOT_FOUND();
   }
 
   let info;
   try {
     info = await stat(target);
   } catch {
-    return new Response("no encontrado", { status: 404 });
+    return NOT_FOUND();
   }
-  if (!info.isFile()) return new Response("no encontrado", { status: 404 });
+  if (!info.isFile()) return NOT_FOUND();
 
-  const type = TYPES[path.extname(target).toLowerCase()] ?? "application/octet-stream";
   const stream = Readable.toWeb(createReadStream(target)) as WebReadableStream<Uint8Array>;
 
   return new Response(stream as unknown as BodyInit, {
     headers: {
-      "content-type": type,
+      "content-type": mediaContentType(target),
       "content-length": String(info.size),
       // El nombre del archivo lleva el identificador y el ancho, así que un
       // archivo dado nunca cambia de contenido: se puede cachear para siempre.
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": IMMUTABLE,
     },
   });
 }

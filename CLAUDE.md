@@ -563,6 +563,15 @@ Están aquí porque cada una se pagó una vez.
   al archivo versionado solo los bloques que cambiaron.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
+- **OpenNext mete el `.env` dentro del Worker.** `npm run cf:build` copia todas
+  las variables de los `.env*` que encuentra a `.open-next/cloudflare/next-env.mjs`,
+  y ese archivo viaja en el Worker. En la laptop eso es `PAYMENT_SIMULATOR=si`, la
+  base local y los secretos de prueba: la trampa de `vercel --prod` del
+  2026-09-07 por otra puerta. Para la vista previa local es justo lo que se
+  quiere; para desplegar, no. Por eso se despliega con `npm run cf:deploy`, que
+  corre `scripts/worker-sin-env.mjs` entre compilar y subir y **se niega** si el
+  Worker trae algo que no sea `NEXT_PUBLIC_*` (`--calibrar` comprueba que de
+  verdad mira). Ver [decisión 0023](docs/decisiones/0023-cloudflare-workers.md).
 
 ---
 
@@ -572,6 +581,21 @@ Están aquí porque cada una se pagó una vez.
 sin dominio propio por ahora — decisión del cliente), con **PostgreSQL
 gestionado en Neon**. El detalle está en
 [`docs/decisiones/0005-vercel-y-blob.md`](docs/decisiones/0005-vercel-y-blob.md).
+
+**El motor también corre en Cloudflare Workers** (decisión 0023), elegido por lo
+que está conectado: Hyperdrive para la base (un cliente por petición), R2 para las
+fotos, Images en lugar de `sharp` y un Cron Trigger para el latido. Sin esas
+piezas, Node y Vercel siguen igual. Vista previa local:
+
+```bash
+NEXT_PUBLIC_SITE_URL=http://127.0.0.1:8787 npm run cf:build
+./scripts/r2-sembrar.sh        # fotos del seed al R2 local
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://postgres:local@127.0.0.1:5444/adrimarket \
+  npm run cf:preview           # http://127.0.0.1:8787 · el latido: curl …/cdn-cgi/local/scheduled
+```
+
+`.dev.vars` lleva `JOBS_SECRET` y `SITE_URL` para el cron. La barra corre igual,
+con `BASE_URL=http://127.0.0.1:8787`.
 
 Antes vivía en Render + Cloudflare
 ([`docs/decisiones/0002-donde-vive-el-sistema.md`](docs/decisiones/0002-donde-vive-el-sistema.md),
