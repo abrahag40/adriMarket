@@ -119,23 +119,24 @@ after(async () => {
 });
 
 describe("reventa: el precio de Alexis más el 2.5 % más Stripe", () => {
-  it("una entrada de 1,500 se vende en 1,617.93 y deja 1,500 para Alexis y 37.50 para ZaharDev", async () => {
+  it("una entrada de 1,500 se vende en 1,618 y deja 1,500 para Alexis y 37.50 más el redondeo para ZaharDev", async () => {
     const { quote, supplierCents } = await quoteTour(tour.productId, tour.departureId, {
       adult: 1,
       child: 0,
       infant: 0,
     });
 
-    assert.equal(quote.total_cents, 161_793, "la tabla de D7: 1,617.93");
+    // La tabla de D7 dice 1,617.93; el sitio exhibe sin centavos, así que se
+    // redondea hacia arriba al peso para que lo exhibido sea lo cobrado.
+    assert.equal(quote.total_cents, 161_800, "1,617.93 al peso");
     assert.equal(supplierCents, 150_000, "a Alexis se le debe su precio completo");
     assert.equal(gatewayFeeCents(quote.total_cents, STRIPE_MX.extranjera), 8_043, "Stripe al 4.1 % + 3, con IVA");
-    assert.equal(siteMarginCents(quote.total_cents, supplierCents, STRIPE_MX.extranjera), 3_750, "37.50 = 2.5 % de 1,500");
+    // 37.50 es el 2.5 % de 1,500; los 7 centavos son el redondeo, menos lo que
+    // Stripe cobra sobre ellos.
+    assert.equal(siteMarginCents(quote.total_cents, supplierCents, STRIPE_MX.extranjera), 3_757);
 
     // Con tarjeta mexicana Stripe cobra menos y la diferencia es de ZaharDev.
-    // La tabla dice 46.89; el modelo redondea la comisión antes del IVA y da un
-    // centavo menos. Cuál de los dos hace Stripe lo dirá la liquidación.
-    const nacional = siteMarginCents(quote.total_cents, supplierCents, STRIPE_MX.nacional);
-    assert.ok(nacional >= 4_688 && nacional <= 4_689, `tarjeta mexicana: ${nacional}`);
+    assert.equal(siteMarginCents(quote.total_cents, supplierCents, STRIPE_MX.nacional), 4_695);
   });
 
   it("la tarjeta, la ficha, el calendario, los extras y el cobro dicen el mismo número", async () => {
@@ -156,6 +157,9 @@ describe("reventa: el precio de Alexis más el 2.5 % más Stripe", () => {
 
     const extras = await listTourExtras(tour.productId, "es");
     assert.equal(extras[0]?.priceCents, snorkel, "el paso de extras");
+
+    // Lo que se exhibe no lleva centavos: así el número de la ficha es el que se cobra.
+    for (const precio of [adulto, nino, snorkel]) assert.equal(precio % 100, 0, `${precio} trae centavos`);
 
     // Y el cobro es exactamente lo exhibido por la cantidad: dos adultos, un
     // niño y el infante en brazos (no ocupa lugar ni lleva snorkel).

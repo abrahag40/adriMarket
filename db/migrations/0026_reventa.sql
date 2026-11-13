@@ -37,7 +37,7 @@ begin;
 
 -- 1. El precio al público -----------------------------------------------------
 --
---   precio = ⌈ (proveedor × (1 + comisión) + fijo × (1 + IVA)) ÷ (1 − tasa × (1 + IVA)) ⌉
+--   precio = ⌈ (proveedor × (1 + comisión) + fijo × (1 + IVA)) ÷ (1 − tasa × (1 + IVA)) ⌉, al peso
 --
 -- El divisor es lo que hace cuadrar el reparto: la pasarela cobra su tasa sobre
 -- el TOTAL, no sobre el precio del proveedor, y el IVA va sobre su comisión.
@@ -52,14 +52,18 @@ begin;
 -- de una vez: la diferencia es del sitio, nunca del huésped de más en un precio
 -- que no se exhibió.
 --
--- **Se redondea hacia arriba**, al centavo: con el redondeo normal el sitio
--- podría quedar medio centavo debajo de su comisión.
+-- **Se redondea hacia arriba, al peso entero.** Hacia arriba, porque con el
+-- redondeo normal el sitio podría quedar debajo de su comisión. Al peso, porque
+-- el sitio exhibe los precios sin centavos (`formatMoney`): con centavos, la
+-- ficha diría «$1,614» y se cobrarían 1,614.28, 28 centavos más que lo exhibido.
+-- Medido el 2026-11-13 en el panel local. Al peso, lo exhibido y lo cobrado son
+-- el mismo número; la diferencia (menos de un peso por precio) es del sitio.
 create or replace function resale_price(p_cents bigint, p_carries_fixed boolean)
 returns bigint
 language sql stable as $$
   select case
     when r.cfg is null or p_cents is null or p_cents = 0 then p_cents
-    else ceil(
+    else 100 * ceil(
       ( p_cents * (1 + (r.cfg ->> 'commission_pct')::numeric / 100)
         + case when p_carries_fixed
                then (r.cfg ->> 'gateway_fixed_cents')::numeric
@@ -67,6 +71,7 @@ language sql stable as $$
                else 0 end )
       / (1 - (r.cfg ->> 'gateway_pct')::numeric / 100
              * (1 + (r.cfg ->> 'gateway_vat_pct')::numeric / 100))
+      / 100
     )::bigint
   end
   from (select (select value from settings where key = 'resale') as cfg) r;

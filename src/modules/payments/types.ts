@@ -72,6 +72,18 @@ export type RefundRequest = {
   reason: string;
 };
 
+/**
+ * Lo que la pasarela cobró **de verdad** en un cargo: de qué país era la
+ * tarjeta y cuánto se quedó, impuestos incluidos. Cualquiera de los tres puede
+ * faltar —la pasarela todavía no lo asienta, o el cargo es de otra moneda— y
+ * entonces se guarda `null`, nunca un supuesto.
+ */
+export type ChargeDetails = {
+  cardCountry: string | null;
+  feeCents: number | null;
+  netCents: number | null;
+};
+
 export interface PaymentProvider {
   readonly name: string;
 
@@ -85,6 +97,13 @@ export interface PaymentProvider {
   verifyWebhook(rawBody: string, signatureHeader: string | null): PaymentEventPayload | null;
 
   refund(request: RefundRequest): Promise<{ providerRef: string }>;
+
+  /**
+   * Lee el cargo de un cobro ya hecho. Es lo que necesita la liquidación de un
+   * sitio que revende (decisión 0026): el precio se calcula con la tasa de
+   * tarjeta extranjera, y aquí se ve cuánto cobró la pasarela en cada venta.
+   */
+  chargeDetails(request: { providerRef: string; amountCents: number; currency: string }): Promise<ChargeDetails>;
 }
 
 /** Error de la pasarela que sí se le puede contar al huésped. */

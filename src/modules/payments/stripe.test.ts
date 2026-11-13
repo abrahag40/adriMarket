@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 
-import { platformFeeCents, StripeProvider } from "./stripe";
+import { parseChargeDetails, platformFeeCents, StripeProvider } from "./stripe";
 
 /**
  * Stripe Connect · cargo directo en la cuenta del cliente con la comisión de la
@@ -99,5 +99,68 @@ describe("Stripe con Connect: cargo directo en la cuenta del cliente", () => {
       refundPlatformFee: true,
     }).refund({ providerRef: "cs_1", amountCents: 85_000, reason: "operador", refundId: "r1" });
     assert.equal(llamadas[1]!.body.get("refund_application_fee"), "true");
+  });
+});
+
+/**
+ * Liquidación de reventa (decisión 0026): qué se lee del cargo.
+ *
+ * La forma es la de la API de Stripe: sesión → `payment_intent` →
+ * `latest_charge` → `payment_method_details.card.country` y
+ * `balance_transaction.fee`, que ya suma la comisión y su IVA (`fee_details`).
+ * https://docs.stripe.com/api/charges/object y /api/balance_transactions/object
+ */
+describe("lo que cobró Stripe de verdad, leído del cargo", () => {
+  const sesion = (charge: unknown) => ({ id: "cs_1", payment_intent: { id: "pi_1", latest_charge: charge } });
+  const cargo = {
+    id: "ch_1",
+    amount: 161_793,
+    currency: "mxn",
+    payment_method_details: { type: "card", card: { brand: "visa", country: "US" } },
+    balance_transaction: {
+      id: "txn_1",
+      amount: 161_793,
+      currency: "mxn",
+      fee: 8_043,
+      fee_details: [
+        { amount: 6_934, currency: "mxn", type: "stripe_fee" },
+        { amount: 1_109, currency: "mxn", type: "tax" },
+      ],
+      net: 153_750,
+    },
+  };
+
+  it("pide la sesión con el cargo y su registro contable en una sola llamada", async () => {
+    interceptar([sesion(cargo)]);
+    const detalle = await new StripeProvider("sk", "whsec").chargeDetails({
+      providerRef: "cs_1",
+      amountCents: 161_793,
+      currency: "MXN",
+    });
+    assert.match(llamadas[0]!.url, /\/checkout\/sessions\/cs_1\?expand\[\]=payment_intent\.latest_charge\.balance_transaction$/);
+    assert.deepEqual(detalle, { cardCountry: "US", feeCents: 8_043, netCents: 153_750 });
+  });
+
+  it("si el registro contable no vino expandido, la comisión queda sin dato, no en cero", () => {
+    assert.deepEqual(parseChargeDetails(sesion({ ...cargo, balance_transaction: "txn_1" }), "MXN"), {
+      cardCountry: "US",
+      feeCents: null,
+      netCents: null,
+    });
+  });
+
+  it("una comisión en otra moneda no se guarda: compararla mezclaría pesos con dólares", () => {
+    const enDolares = { ...cargo, balance_transaction: { ...cargo.balance_transaction, currency: "usd" } };
+    assert.equal(parseChargeDetails(sesion(enDolares), "MXN").feeCents, null);
+  });
+
+  it("sin cargo todavía, nada", () => {
+    assert.deepEqual(parseChargeDetails(sesion(null), "MXN"), { cardCountry: null, feeCents: null, netCents: null });
+    assert.deepEqual(parseChargeDetails({ id: "cs_1", payment_intent: "pi_1" }, "MXN").feeCents, null);
+  });
+
+  it("un país que no es código ISO no se guarda", () => {
+    const raro = { ...cargo, payment_method_details: { card: { country: "usa" } } };
+    assert.equal(parseChargeDetails(sesion(raro), "MXN").cardCountry, null);
   });
 });

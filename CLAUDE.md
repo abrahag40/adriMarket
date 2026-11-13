@@ -78,8 +78,8 @@ extras lo calcule el servidor, que el sitio sirva sin JavaScript, y la
 accesibilidad en los dos temas.
 
 ```bash
-npm run db:test               # 28 garantías del inventario y del dinero, en transacción
-npm run test:integration      # 236 casos: el dominio, la reventa y la caché de páginas (el patrón va entre comillas: ver src/edge/la-suite-entera.test.ts)
+npm run db:test               # 29 garantías del inventario y del dinero, en transacción
+npm run test:integration      # 245 casos: el dominio, la reventa, la liquidación y la caché de páginas (el patrón va entre comillas: ver src/edge/la-suite-entera.test.ts)
 npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build

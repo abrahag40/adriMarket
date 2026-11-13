@@ -1,6 +1,7 @@
 import { verifySignature } from "./signature";
 import {
   PaymentProviderError,
+  type ChargeDetails,
   type CheckoutSession,
   type DepositRequest,
   type PaymentEventPayload,
@@ -250,6 +251,18 @@ export class StripeProvider implements PaymentProvider {
     };
   }
 
+  /**
+   * La sesión de pago, con su intento, su cargo y el registro contable del
+   * cargo expandidos en una sola llamada (tres niveles; Stripe admite cuatro).
+   */
+  async chargeDetails(request: { providerRef: string; amountCents: number; currency: string }): Promise<ChargeDetails> {
+    const session = await this.get(
+      `/checkout/sessions/${encodeURIComponent(request.providerRef)}` +
+        "?expand[]=payment_intent.latest_charge.balance_transaction",
+    );
+    return parseChargeDetails(session, request.currency);
+  }
+
   async refund(request: RefundRequest): Promise<{ providerRef: string }> {
     // La sesión de Checkout no se reembolsa: se reembolsa su intento de pago.
     const session = (await this.get(`/checkout/sessions/${request.providerRef}`)) as {
@@ -282,4 +295,43 @@ export class StripeProvider implements PaymentProvider {
 
     return { providerRef: refund.id ?? "" };
   }
+}
+
+/**
+ * Del objeto de Stripe a lo que guarda la liquidación.
+ *
+ * Los nombres son los de la API: el país viene en
+ * `charge.payment_method_details.card.country` y la comisión en
+ * `balance_transaction.fee`, que ya suma la de Stripe y su IVA
+ * (`fee_details`: `stripe_fee` + `tax`). Si el registro contable está en otra
+ * moneda que el cobro, la comisión no se guarda: compararla sería mezclar
+ * pesos con dólares.
+ */
+export function parseChargeDetails(session: unknown, currency: string): ChargeDetails {
+  type Charge = {
+    payment_method_details?: { card?: { country?: unknown } };
+    balance_transaction?: unknown;
+  };
+  const intent = (session as { payment_intent?: unknown } | null)?.payment_intent;
+  const charge =
+    typeof intent === "object" && intent !== null
+      ? ((intent as { latest_charge?: unknown }).latest_charge as Charge | string | null | undefined)
+      : undefined;
+  if (typeof charge !== "object" || charge === null) {
+    return { cardCountry: null, feeCents: null, netCents: null };
+  }
+
+  const country = charge.payment_method_details?.card?.country;
+  const cardCountry = typeof country === "string" && /^[A-Z]{2}$/.test(country) ? country : null;
+
+  const bt = charge.balance_transaction as { fee?: unknown; net?: unknown; currency?: unknown } | string | null | undefined;
+  const sameCurrency =
+    typeof bt === "object" && bt !== null && typeof bt.currency === "string" &&
+    bt.currency.toLowerCase() === currency.toLowerCase();
+
+  return {
+    cardCountry,
+    feeCents: sameCurrency && typeof bt.fee === "number" ? bt.fee : null,
+    netCents: sameCurrency && typeof bt.net === "number" ? bt.net : null,
+  };
 }

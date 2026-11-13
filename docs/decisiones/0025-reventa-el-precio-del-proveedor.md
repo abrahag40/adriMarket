@@ -19,13 +19,13 @@ función de la base calcula el del huésped:** `resale_price(cents, carries_fixe
 (migración 0026).
 
 ```
-precio = ⌈ (proveedor × (1 + comisión) + fijo × (1 + IVA)) ÷ (1 − tasa × (1 + IVA)) ⌉
+precio = ⌈ (proveedor × (1 + comisión) + fijo × (1 + IVA)) ÷ (1 − tasa × (1 + IVA)) ⌉, al peso entero
 ```
 
 Con la configuración de ZaharDev Tours (2.5 %, Stripe al 4.1 % + MXN 3, IVA del
-16 % sobre la comisión), una entrada de MXN 1,500 se vende en **1,617.93**.
-Después de que Stripe se lleva lo suyo quedan **1,500 para Alexis y 37.50 para
-ZaharDev**.
+16 % sobre la comisión), una entrada de MXN 1,500 da 1,617.93 y **se vende en
+1,618**. Después de que Stripe se lleva lo suyo quedan **1,500 para Alexis y
+37.57 para ZaharDev**: los 37.50 de su comisión más el redondeo.
 
 ### Por qué en la base y una sola vez
 
@@ -67,8 +67,17 @@ Con más de un adulto, el fijo se cobra más de una vez. Esa diferencia es de
 ZaharDev; el huésped paga siempre el número que vio por cada persona. La
 alternativa, un cargo aparte por reserva, sería un cargo que no se exhibió.
 
-Se redondea **hacia arriba**, al centavo: con el redondeo normal, ZaharDev podría
-quedar medio centavo debajo de su comisión.
+Se redondea **hacia arriba y al peso entero**:
+
+- **Hacia arriba**, porque con el redondeo normal ZaharDev podría quedar debajo de
+  su comisión.
+- **Al peso**, porque el sitio exhibe los precios sin centavos (`formatMoney`).
+  La primera versión redondeaba al centavo: la ficha decía «$1,618» y se
+  cobraban 1,617.93. Con un niño de 1,614.28, la ficha decía «$1,614» y se
+  cobraban **28 centavos más que lo exhibido**. Se vio en el panel local el
+  2026-11-13, antes de que llegara a la vista previa. Al peso, lo exhibido y lo
+  cobrado son el mismo número; la diferencia, de menos de un peso por precio,
+  es de ZaharDev.
 
 ### Lo que la base no deja hacer en un sitio que revende
 
@@ -95,14 +104,15 @@ reservar y se actualiza al reprogramar. **Va fuera de `quote` a propósito:**
 ## Cómo se prueba
 
 - **Garantía 28** (`db/tests/guarantees.sql`). Sin configuración no cambia nada.
-  1,500 da 1,617.93. Se rechazan:
+  1,500 da 1,618. Se rechazan:
   - el impuesto sumado aparte, al activar y después;
   - el anticipo menor al 100 %;
   - una configuración imposible.
 
   Y queda bitácora.
 - **`src/modules/pricing/resale.test.ts`**:
-  - el caso de la tabla de D7, hasta el centavo;
+  - el caso de la tabla de D7, al peso;
+  - ningún precio exhibido lleva centavos;
   - la tarjeta, la ficha, el calendario, los extras y el cobro dicen el mismo
     número;
   - **el piso**: en 64 combinaciones de grupo y extras, con tarjeta extranjera y
@@ -126,7 +136,7 @@ reservar y se actualiza al reprogramar. **Va fuera de `quote` a propósito:**
 - **La cuota de muelle lleva la comisión de ZaharDev,** como todo lo que se le
   paga al proveedor. Es de la marina, así que puede decidirse distinto.
 - **Stripe no publica en qué paso redondea.** `gatewayFeeCents()` es un modelo
-  (en la tabla de D7, 46.88 contra 46.89 con tarjeta mexicana). La liquidación
-  guardará la comisión real de cada cargo.
+  La liquidación ([decisión 0026](0026-la-liquidacion-al-proveedor.md)) guarda
+  la comisión real de cada cargo.
 - **Reprogramar no conserva los extras ni el cupón.** Es un defecto anterior a
   esta decisión: `reschedule.ts` vuelve a cotizar sin ellos. Está anotado aparte.
