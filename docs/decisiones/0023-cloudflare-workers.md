@@ -108,13 +108,22 @@ salir.** Se contrata cuando `scripts/cpu-cloudflare.mjs` vea el primer corte.
 
 ## Lo que falta para cerrarla
 
-1. **Stripe en sandbox dentro de workerd**: el webhook firma con HMAC de
-   `node:crypto`. El simulador ya probó el camino del checkout; falta la
-   pasarela real.
+1. ✅ **Stripe en sandbox dentro de workerd** (2026-11-13). La reserva AM-4ZFRYK
+   de la vista previa se pagó con la tarjeta 4242, y el webhook la confirmó
+   dentro del Worker. Ver la decisión 0026.
 2. **Producción, un renglón por sitio** en `wrangler.jsonc` (`env`) y en la
    matriz de `desplegar.yml`. La compuerta corre `worker-sin-env.mjs` y
    `hyperdrive-sin-cache.mjs`, y el sitio necesita su bucket `PAGE_CACHE` con
    la regla de vencimiento.
+   - **ZaharDev Tours, escrito el 2026-11-13.** Está en el bloque `produccion` y
+     en el job `cloudflare` de `desplegar.yml`, que sólo despliega desde la rama
+     por defecto. Sus recursos ya existen: Hyperdrive
+     `2a353bab8542494899f3913b49290d2e` sin caché, y los buckets
+     `zahardev-tours-media` y `zahardev-tours-paginas`, éste con su regla de
+     vencimiento.
+   - Sale con `NOINDEX=si` hasta que estén los textos legales y el catálogo.
+   - Los secretos de Stripe se cargan una vez en el Worker y no como secretos de
+     GitHub: así hay una copia menos de cada llave.
 
 ## Alternativa descartada
 
