@@ -33,6 +33,13 @@ import { gatewayFeeCents, STRIPE_MX } from "@/modules/pricing/resale";
  *
  * Sólo mira los últimos 30 días: un cargo que Stripe no asentó en un mes no lo
  * va a asentar en el siguiente latido, y reintentarlo para siempre es ruido.
+ *
+ * Lo que decide si se vuelve a leer es **la comisión**, no el país. Lo vio la
+ * primera compra contra Stripe de verdad, el 2026-11-13 (AM-4ZFRYK): cuando
+ * llega el webhook, el cargo ya trae su país, pero su registro contable todavía
+ * no existe. El primer intento guardó el país y dejó la comisión en `null`.
+ * Con el filtro anterior, «sin comisión **y** sin país», ese cobro nunca se
+ * volvía a leer, y el panel lo habría enseñado como estimado para siempre.
  */
 export async function captureChargeDetails(
   options: { bookingId?: string; limit?: number } = {},
@@ -50,7 +57,7 @@ export async function captureChargeDetails(
      where b.supplier_cents is not null
        and p.status = 'succeeded'
        and p.provider_ref is not null
-       and p.fee_cents is null and p.card_country is null
+       and p.fee_cents is null
        and p.paid_at > now() - interval '30 days'
        ${options.bookingId ? sql`and p.booking_id = ${options.bookingId}::uuid` : sql``}
      order by p.paid_at

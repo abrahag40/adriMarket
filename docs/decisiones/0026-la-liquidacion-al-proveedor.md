@@ -103,8 +103,21 @@ un cupón o por una tarjeta que cobró más, la fila lo marca.
 
 ## Lo que queda abierto
 
-- **Stripe sandbox.** El código lee los campos que documenta la API, pero
-  nunca habló con Stripe de verdad. Depende de decidir qué cuenta cobra.
+- ~~**Stripe sandbox.**~~ ✅ **Probado el 2026-11-13 en la vista previa**, con la
+  cuenta ZaharDev en modo de prueba. Abraham pagó la reserva AM-4ZFRYK, de
+  MXN 4,852, con la tarjeta 4242.
+  - El webhook confirmó la reserva y el cargo trajo el país.
+  - La comisión **no llegó en ese momento**: Stripe todavía no asentaba el
+    registro contable. Un momento después, la API ya daba 234.24 MXN.
+  - **Eso destapó un defecto.** El reintento buscaba los cobros «sin comisión y
+    sin país», así que un cobro con país y sin comisión no se volvía a leer
+    nunca. Ahora decide sólo la comisión, y `payouts.test.ts` tiene el caso.
+    Se vio fallar con el filtro anterior.
+  - Costo de la corrección: un cobro en otra moneda, cuya comisión nunca
+    cuadra, se vuelve a pedir en cada latido durante 30 días. Son 20 cobros como
+    máximo por vuelta.
+  - La llave restringida con lectura de Balance basta para expandir el
+    registro contable.
 - **Una reserva cancelada después de pagar.** No se liquida aquí. Qué le toca al
   proveedor depende de su política de cancelación, que todavía no existe por
   escrito.

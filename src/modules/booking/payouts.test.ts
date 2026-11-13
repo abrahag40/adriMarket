@@ -114,6 +114,23 @@ describe("liquidación al proveedor", () => {
     assert.equal((await captureChargeDetails({ bookingId })).read, 0);
   });
 
+  it("un cargo con país pero sin comisión se vuelve a leer", async () => {
+    // Es lo que dejó la primera compra contra Stripe de verdad (AM-4ZFRYK,
+    // 2026-11-13). Cuando llega el webhook, el cargo ya sabe su país, pero
+    // Stripe todavía no asienta su registro contable.
+    const bookingId = await reserva({ status: "confirmed", supplierCents: ALEXIS });
+    await db.execute(sql`
+      update payments set card_country = 'US', fee_cents = null, net_cents = null
+       where booking_id = ${bookingId}::uuid
+    `);
+
+    assert.equal((await captureChargeDetails({ bookingId })).read, 1, "el latido lo vuelve a pedir");
+    const pagos = await db.execute<{ fee_cents: string | null }>(sql`
+      select fee_cents::text from payments where booking_id = ${bookingId}::uuid
+    `);
+    assert.equal(pagos[0]!.fee_cents, String(gatewayFeeCents(COBRADO, STRIPE_MX.extranjera)));
+  });
+
   it("la lista dice cuánto transferir y cuánto quedó para el sitio", async () => {
     const bookingId = await reserva({ status: "confirmed", supplierCents: ALEXIS });
     const antes = (await listPayouts()).find((row) => row.bookingId === bookingId);
