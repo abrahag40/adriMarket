@@ -1,6 +1,6 @@
 # 0023 · El motor también corre en Cloudflare Workers
 
-**Fecha:** 2026-11-12 · **Estado:** aceptada; corre en workers.dev, falta Workers Paid · **Decide:** ZaharDev
+**Fecha:** 2026-11-12 · **Estado:** aceptada; corre en workers.dev en el plan gratuito (con la 0024) · **Decide:** ZaharDev
 
 ## Pregunta
 
@@ -100,15 +100,21 @@ auditoría marcaba `link-in-text-block (2)` en páginas distintas cada corrida:
 axe auditaba la página de error. **Hace falta Workers Paid** (USD 5 al mes, con
 30 millones de ms de CPU incluidos). Lo decide quien paga.
 
+**Actualización del mismo día:** con las páginas públicas servidas desde una
+caché en R2 ([decisión 0024](0024-cache-de-paginas-en-r2.md)), la portada y las
+fichas bajaron a 1 ms de CPU. La barra completa pasa en el plan gratuito,
+`audit` incluida, con cero cortes. **Workers Paid deja de ser requisito para
+salir.** Se contrata cuando `scripts/cpu-cloudflare.mjs` vea el primer corte.
+
 ## Lo que falta para cerrarla
 
-1. **Workers Paid** en la cuenta, y volver a correr `audit` contra la vista previa.
-2. **Stripe en sandbox dentro de workerd**: el webhook firma con HMAC de
+1. **Stripe en sandbox dentro de workerd**: el webhook firma con HMAC de
    `node:crypto`. El simulador ya probó el camino del checkout; falta la
    pasarela real.
-3. **Producción, un renglón por sitio** en `wrangler.jsonc` (`env`) y en la
+2. **Producción, un renglón por sitio** en `wrangler.jsonc` (`env`) y en la
    matriz de `desplegar.yml`. La compuerta corre `worker-sin-env.mjs` y
-   `hyperdrive-sin-cache.mjs`.
+   `hyperdrive-sin-cache.mjs`, y el sitio necesita su bucket `PAGE_CACHE` con
+   la regla de vencimiento.
 
 ## Alternativa descartada
 

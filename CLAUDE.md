@@ -79,7 +79,7 @@ accesibilidad en los dos temas.
 
 ```bash
 npm run db:test               # 27 garantías del inventario, en transacción
-npm run test:integration      # 215 casos del dominio
+npm run test:integration      # 226 casos: el dominio y la caché de páginas (el patrón va entre comillas: ver src/edge/la-suite-entera.test.ts)
 npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
@@ -584,8 +584,17 @@ Están aquí porque cada una se pagó una vez.
   mediana. Cloudflare corta al azar, y la barra falla en páginas distintas cada
   corrida: la auditoría marcaba `link-in-text-block (2)`, que eran los dos
   enlaces de la página de error. La pista que lo delata: `curl` repetido a la
-  misma ficha a veces da 200 y a veces 503. Se resuelve con Workers Paid
-  (decisión 0023).
+  misma ficha a veces da 200 y a veces 503. Las páginas públicas ya salen de
+  la caché de R2 en 1 ms (decisión 0024). Lo que no se puede guardar —checkout,
+  panel, latido— sigue pasando de 10 ms. `scripts/cpu-cloudflare.mjs <worker>`
+  cuenta los cortes, y el primero es la señal para Workers Paid.
+- **La caché de páginas es una lista cerrada, y una escritura la invalida
+  entera.** `src/edge/page-cache.ts` sólo guarda portada, listados, destinos y
+  fichas. Una ruta pública nueva se arma siempre hasta que alguien la agregue a
+  `isCacheable` con su prueba. Toda escritura que sale bien sube la versión del
+  catálogo antes de responder; una cambiada a mano con `prod:sql` tarda hasta
+  10 minutos en verse. Para saber si una página vino de la caché: la cabecera
+  `x-cache` dice `HIT` o `MISS`.
 
 ---
 
