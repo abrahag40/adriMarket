@@ -61,12 +61,20 @@
       "workers_dev": true,
       "vars": {
         "NOINDEX": "si",
-        "SITE_URL": "https://zahardev-tours-vista-previa.abrahag40.workers.dev"
+        "SITE_URL": "https://zahardev-tours-vista-previa.abrahag40.workers.dev",
+        "PRIVACY_VERSION": "2026-08",
+        // Sin llaves de Stripe todavía, el simulador es lo que deja recorrer el
+        // checkout. Es un permiso (decisión 0011) y aquí se da a propósito: es
+        // una vista previa con noindex y una base de demostración. Producción
+        // nunca lo lleva, y desplegar.yml lo comprueba.
+        "PAYMENT_SIMULATOR": "si"
       },
+      // Rama `vista-previa` (ep-crimson-bread-bccn0q6y) del proyecto de Neon
+      // `zahardev-tours`, creada el 2026-11-13.
       "hyperdrive": [
         {
           "binding": "HYPERDRIVE",
-          "id": "00000000000000000000000000000000"
+          "id": "a81ffe0130f541d99570b77ee68af86a"
         }
       ],
       "r2_buckets": [

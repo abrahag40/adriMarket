@@ -572,6 +572,20 @@ Están aquí porque cada una se pagó una vez.
   corre `scripts/worker-sin-env.mjs` entre compilar y subir y **se niega** si el
   Worker trae algo que no sea `NEXT_PUBLIC_*` (`--calibrar` comprueba que de
   verdad mira). Ver [decisión 0023](docs/decisiones/0023-cloudflare-workers.md).
+- **Hyperdrive guarda consultas en caché, y nace así.** Por omisión, 60 segundos
+  para toda lectura. El 2026-11-13 recepción creó un bloqueo en la vista previa y
+  la lista del panel siguió sin él, sin botón para liberarlo, mientras la barra
+  local estaba en verde: el Hyperdrive de `wrangler dev` no cachea. La caché es
+  del recurso en Cloudflare, no de `wrangler.jsonc`, así que todo Hyperdrive
+  nuevo se crea con `--caching-disabled` y lo comprueba
+  `scripts/hyperdrive-sin-cache.mjs <entorno>` (`--calibrar` debe fallar).
+- **`503 · error code: 1102` es el límite de CPU de Workers, no un defecto.** El
+  plan gratuito da 10 ms por petición y una página del motor usa 13 ms de
+  mediana. Cloudflare corta al azar, y la barra falla en páginas distintas cada
+  corrida: la auditoría marcaba `link-in-text-block (2)`, que eran los dos
+  enlaces de la página de error. La pista que lo delata: `curl` repetido a la
+  misma ficha a veces da 200 y a veces 503. Se resuelve con Workers Paid
+  (decisión 0023).
 
 ---
 

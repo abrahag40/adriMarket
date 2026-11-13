@@ -1,6 +1,6 @@
 # 0023 · El motor también corre en Cloudflare Workers
 
-**Fecha:** 2026-11-12 · **Estado:** aceptada en local (falta la vista previa en workers.dev) · **Decide:** ZaharDev
+**Fecha:** 2026-11-12 · **Estado:** aceptada; corre en workers.dev, falta Workers Paid · **Decide:** ZaharDev
 
 ## Pregunta
 
@@ -61,20 +61,54 @@ Images simulados por wrangler 4.156.0) y una base recreada desde cero:
 | Latido por el Cron Trigger (`/cdn-cgi/local/scheduled`) | `/api/health` pasa a `ok` |
 | Foto subida desde el panel | variantes AVIF (`ftypavif`) y WebP (`RIFF…WEBP`) en R2, primer intento |
 
+## Lo medido en Cloudflare (2026-11-13)
+
+Vista previa de ZaharDev Tours en `zahardev-tours-vista-previa.abrahag40.workers.dev`
+(entorno `vista-previa` de `wrangler.jsonc`, con `noindex`). La base es la rama
+`vista-previa` del proyecto de Neon `zahardev-tours`, por Hyperdrive. Las fotos
+van en el bucket `zahardev-tours-media-vista-previa`.
+
+| Barra | Resultado |
+|---|---|
+| `db:test` · `test:integration` · `db:bench` contra Neon | 27 · 215 ✔ · sin sobreventa |
+| `smoke.sh` contra el Worker | 169 ✔ |
+| `test:e2e` · `:sme` · `:publicar` contra el Worker | 20 · 25 · 30 ✔. La foto se procesó con Images real y quedó en R2 |
+| `test:e2e:admin` contra el Worker | 18 ✔ **después de apagar la caché de Hyperdrive** (ver abajo) |
+| `audit` contra el Worker | ✘ al azar: ver «el plan gratuito no alcanza» |
+
+**Hyperdrive guarda consultas en caché por omisión, 60 segundos**
+([query caching](https://developers.cloudflare.com/hyperdrive/concepts/query-caching/)).
+Recepción creaba un bloqueo y la lista del panel seguía sin él. Para este motor
+la caché está mal, porque el panel, la disponibilidad y la salud leen lo de
+ahora. Se apagó con `wrangler hyperdrive update <id> --caching-disabled`. Lo
+vigila `scripts/hyperdrive-sin-cache.mjs`, porque la caché es del recurso en
+Cloudflare y un Hyperdrive nuevo nace con ella encendida.
+
+**El plan gratuito de Workers no alcanza.** Analítica de Workers del Worker de
+vista previa, durante la barra:
+
+| Respuesta | Peticiones | CPU p50 | CPU p90 | CPU p99 |
+|---|---|---|---|---|
+| bien | 1,059 | 13 ms | 131 ms | 233 ms |
+| `exceededResources` | 38 | — | — | — |
+
+El plan gratuito da 10 ms de CPU por petición
+([precios](https://developers.cloudflare.com/workers/platform/pricing/)). Cuando
+un Worker se pasa, Cloudflare responde `503 · error code: 1102`. Con
+peticiones repetidas, la ficha de tour falló 7 de 12 veces. Por eso la
+auditoría marcaba `link-in-text-block (2)` en páginas distintas cada corrida:
+axe auditaba la página de error. **Hace falta Workers Paid** (USD 5 al mes, con
+30 millones de ms de CPU incluidos). Lo decide quien paga.
+
 ## Lo que falta para cerrarla
 
-1. **Vista previa en `workers.dev`**: crear la base en Neon, la configuración de
-   Hyperdrive y el bucket de R2. Son recursos en cuentas de ZaharDev: los
-   autoriza quien paga.
-2. **Medir la CPU por petición allá.** El plan gratuito da 10 ms por petición y
-   el de pago, 30 s. En local no se puede medir: workerd no impone el límite.
-3. **Stripe en sandbox dentro de workerd**: el webhook firma con HMAC de
+1. **Workers Paid** en la cuenta, y volver a correr `audit` contra la vista previa.
+2. **Stripe en sandbox dentro de workerd**: el webhook firma con HMAC de
    `node:crypto`. El simulador ya probó el camino del checkout; falta la
    pasarela real.
-4. **Leer el precio de Images** antes de activarlo en producción. Se cobra por
-   transformación única al mes; en local no cuesta.
-5. **Un renglón por sitio** en `wrangler.jsonc` (`env`) y en la matriz de
-   `desplegar.yml`, con `npm run cf:deploy`.
+3. **Producción, un renglón por sitio** en `wrangler.jsonc` (`env`) y en la
+   matriz de `desplegar.yml`. La compuerta corre `worker-sin-env.mjs` y
+   `hyperdrive-sin-cache.mjs`.
 
 ## Alternativa descartada
 
