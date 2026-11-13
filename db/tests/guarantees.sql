@@ -1373,4 +1373,89 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 28. En un sitio que revende, el precio sale de una sola fórmula y se cobra el total
+-- ---------------------------------------------------------------------------
+
+-- Decisión 0025. El catálogo guarda el precio del proveedor y `resale_price()`
+-- calcula el del huésped; todo lector de precios de tour pasa por ella. Lo que
+-- se garantiza aquí es lo que no depende de quién lee: que sin configuración
+-- nada cambia (adriMarket y Conquest), que la fórmula da el número de la tabla
+-- de D7, que una configuración imposible no se guarda, y que en reventa no
+-- puede quedar un saldo en destino —el saldo no pasaría por la pasarela y el
+-- reparto dejaría de cuadrar—.
+
+do $$
+declare
+  v_product uuid := (select id from products where kind = 'tour' order by id limit 1);
+  v_caught  boolean := false;
+begin
+  delete from settings where key = 'resale';
+
+  -- (a) Sin reventa, el precio es el del catálogo y el anticipo el de siempre.
+  update products set deposit_pct = 30 where id = v_product;
+  assert resale_price(150000, true) = 150000, 'FALLO: sin reventa cambió el precio';
+  assert resolve_deposit_pct(v_product) = 30, 'FALLO: sin reventa se ignoró el anticipo del producto';
+
+  -- (b) No se puede revender con un impuesto de tour sumado aparte: también
+  --     pasaría por la pasarela y el sitio cobraría menos que su comisión.
+  begin
+    insert into tax_rates (name, rate, applies_to, included_in_price)
+    values ('IVA aparte, prueba 28', 16, 'tour', false);
+    perform settings_set_resale(2.5, 4.1, 300, 16);
+  exception when sqlstate 'AM005' then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: se activó la reventa con un impuesto sumado aparte';
+  delete from tax_rates where name = 'IVA aparte, prueba 28';
+
+  -- (c) Con el IVA dentro del precio y la configuración de ZaharDev Tours:
+  --     1,500 → 1,617.93 (la tabla de D7).
+  update tax_rates set included_in_price = true;
+  perform settings_set_resale(2.5, 4.1, 300, 16);
+  assert resale_price(150000, true) = 161793, 'FALLO: 1,500 no da 1,617.93';
+  assert resale_price(150000, false) = 161428, 'FALLO: sin el fijo, 1,500 no da 1,614.28';
+  assert resale_price(0, true) = 0, 'FALLO: lo gratis dejó de ser gratis';
+  assert resale_price(null, true) is null, 'FALLO: un precio sin capturar se inventó';
+
+  -- (d) Y ya revendiendo, nadie vuelve a sacar un impuesto del precio.
+  v_caught := false;
+  begin
+    update tax_rates set included_in_price = false where applies_to = 'tour' or applies_to is null;
+  exception when sqlstate 'AM005' then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: con la reventa activa se sacó un impuesto del precio';
+
+  -- (e) Se cobra el total, diga lo que diga el producto, y el panel no puede
+  --     bajar el anticipo global.
+  assert resolve_deposit_pct(v_product) = 100, 'FALLO: en reventa quedó un saldo en destino';
+  v_caught := false;
+  begin
+    perform settings_set_deposit_pct(30);
+  exception when sqlstate 'AM003' then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: se aceptó un anticipo de 30 % en un sitio que revende';
+
+  -- (f) Una configuración imposible no se guarda: con la tasa más su IVA en
+  --     100 % o más no hay precio que alcance.
+  v_caught := false;
+  begin
+    perform settings_set_resale(2.5, 90, 300, 16);
+  exception when sqlstate 'AM005' then
+    v_caught := true;
+  end;
+  assert v_caught, 'FALLO: se guardó una tasa de pasarela imposible';
+  assert resale_price(150000, true) = 161793, 'FALLO: el intento rechazado cambió la configuración';
+
+  -- (g) Y queda en la bitácora quién la cambió.
+  assert exists (select 1 from audit_log where action = 'settings.resale'),
+    'FALLO: cambiar la reventa no dejó rastro en la bitácora';
+
+  delete from settings where key = 'resale';
+  raise notice '✔ 28. en reventa, una sola fórmula y se cobra el total';
+end;
+$$;
+
 rollback;

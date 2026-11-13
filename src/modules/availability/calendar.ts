@@ -173,10 +173,11 @@ export async function tourOptionsOnSale(productId: string, locale: "es" | "en"):
       o.id,
       case when ${locale} = 'en' then coalesce(o.name_en, o.name_es) else o.name_es end as name,
       o.pricing_mode = 'private' as private,
-      case when o.pricing_mode = 'private' then o.private_price_cents
-           else (select pp.price_cents from tour_pax_prices pp
-                  where pp.tour_option_id = o.id and pp.pax_type = 'adult')
-      end as from_cents,
+      -- Por resale_price(): en un sitio que revende, el precio al huésped.
+      resale_price(case when o.pricing_mode = 'private' then o.private_price_cents
+                        else (select pp.price_cents from tour_pax_prices pp
+                               where pp.tour_option_id = o.id and pp.pax_type = 'adult')
+                   end, true) as from_cents,
       exists (select 1 from tour_pax_prices pp
                where pp.tour_option_id = o.id and pp.pax_type = 'child') as has_child,
       (select pp.min_age from tour_pax_prices pp
