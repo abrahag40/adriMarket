@@ -84,6 +84,10 @@ jobs:
       # sirve en las dos:
       #   docker run --rm -v "$PWD":/app -w /app node:22-bookworm \
       #     npm install --package-lock-only --ignore-scripts
+      #
+      # Volvió a pasar el 2026-11-13 (cuatro corridas caídas aquí sin que nadie
+      # las leyera). Desde entonces lo vigila `src/lockfile-completo.test.ts`,
+      # que corre en la barra local y se pone rojo antes de subir.
       - run: npm ci
 
       # ── Compuerta: las migraciones aplican limpias desde cero ──
