@@ -19,11 +19,24 @@
  */
 import openNext from "./.open-next/worker.js";
 
-type Env = { JOBS_SECRET?: string; SITE_URL?: string };
+type Env = { JOBS_SECRET?: string; SITE_URL?: string; NOINDEX?: string };
 type Ctx = { waitUntil(promise: Promise<unknown>): void };
 
 const worker = {
-  fetch: openNext.fetch,
+  /**
+   * Con `NOINDEX=si` —solo las vistas previas en workers.dev— cada respuesta
+   * sale con `X-Robots-Tag: noindex`. Va en la cabecera y no en robots.txt a
+   * propósito: un `Disallow` impide que el buscador vea el `noindex`, y una URL
+   * enlazada desde fuera puede indexarse igual, sin contenido. La cabecera
+   * cubre también lo que no es HTML (el sitemap, las fotos).
+   */
+  async fetch(request: Request, env: Env, ctx: Ctx) {
+    const response = await openNext.fetch(request, env, ctx);
+    if (env.NOINDEX !== "si") return response;
+    const marked = new Response(response.body, response);
+    marked.headers.set("x-robots-tag", "noindex, nofollow");
+    return marked;
+  },
 
   async scheduled(_controller: unknown, env: Env, ctx: Ctx) {
     if (!env.JOBS_SECRET) {

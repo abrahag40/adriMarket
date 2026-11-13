@@ -47,5 +47,40 @@
   },
   "observability": {
     "enabled": true
+  },
+  // Un bloque por sitio. Los bindings y las variables no se heredan del nivel
+  // de arriba en wrangler: cada entorno los declara completos.
+  "env": {
+    // ZaharDev Tours · vista previa en workers.dev, con noindex. Base: rama
+    // `vista-previa` del proyecto de Neon `zahardev-tours`, con el seed de
+    // demostración; la rama `main` queda limpia para producción. Sin cron: el
+    // latido se provoca a mano (o lo provoca smoke.sh), para que la base de
+    // vista previa no gaste horas de cómputo despertando cada 15 minutos.
+    "vista-previa": {
+      "name": "zahardev-tours-vista-previa",
+      "workers_dev": true,
+      "vars": {
+        "NOINDEX": "si",
+        "SITE_URL": "https://zahardev-tours-vista-previa.abrahag40.workers.dev"
+      },
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "00000000000000000000000000000000"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "zahardev-tours-media-vista-previa"
+        }
+      ],
+      "images": {
+        "binding": "IMAGES"
+      },
+      "triggers": {
+        "crons": []
+      }
+    }
   }
 }
