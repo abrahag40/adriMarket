@@ -106,6 +106,65 @@
       "triggers": {
         "crons": []
       }
+    },
+    // ZaharDev Tours · producción en tours.zahardev.com (F3, 2026-11-13).
+    // Se despliega sólo desde la CI (desplegar.yml, job «cloudflare»), nunca
+    // desde la laptop: el runner no tiene `.env`.
+    //
+    // Los secretos (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, JOBS_SECRET) se
+    // cargan una vez con `wrangler secret put --env produccion` y sobreviven a
+    // cada despliegue. No van como secretos de GitHub: sería una copia más de
+    // cada llave, y el número de copias es lo que se puede controlar.
+    "produccion": {
+      "name": "zahardev-tours",
+      "workers_dev": false,
+      // Dominio propio: Cloudflare crea el registro DNS y el certificado.
+      "routes": [
+        {
+          "pattern": "tours.zahardev.com",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "SITE_URL": "https://tours.zahardev.com",
+        "PRIVACY_VERSION": "2026-08",
+        // Se queda fuera de Google mientras falte lo de F2: los textos legales
+        // aprobados y el catálogo de Alexis. Se quita a propósito, en un PR que
+        // diga que ya están.
+        "NOINDEX": "si"
+        // Sin PAYMENT_SIMULATOR, a propósito: producción nunca lo lleva.
+      },
+      // Rama `main` (ep-small-bar-bcdfqvoe) del proyecto de Neon
+      // `zahardev-tours`: sin datos de demostración. Creado con la caché
+      // apagada; hyperdrive-sin-cache.mjs lo vigila en cada despliegue.
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "2a353bab8542494899f3913b49290d2e"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "zahardev-tours-media"
+        },
+        {
+          // Con la regla `borrar-paginas-viejas` (paginas/, 2 días), como el de
+          // la vista previa.
+          "binding": "PAGE_CACHE",
+          "bucket_name": "zahardev-tours-paginas"
+        }
+      ],
+      "version_metadata": {
+        "binding": "CF_VERSION_METADATA"
+      },
+      "images": {
+        "binding": "IMAGES"
+      },
+      // El latido, cada 15 minutos (decisión 0020).
+      "triggers": {
+        "crons": ["*/15 * * * *"]
+      }
     }
   }
 }

@@ -342,3 +342,158 @@ jobs:
             echo "- despliegue: ${{ steps.desplegar.outputs.url }}"
             echo "- sitio: ${{ matrix.url }}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Los sitios en Cloudflare Workers (decisión 0023, F3 de ZaharDev Tours)
+  # ---------------------------------------------------------------------------
+  #
+  # El mismo ciclo que el de Vercel —credenciales → migrar → desplegar →
+  # comprobar—, con `opennextjs-cloudflare` en lugar del CLI de Vercel. Un sitio
+  # nuevo en Cloudflare es un renglón más aquí y su bloque en `wrangler.jsonc`.
+  #
+  # Sólo despliega desde la rama por defecto. El job de Vercel acepta cualquier
+  # `claude/**`, pero aquí no hay alias que proteger: un `wrangler deploy` sirve
+  # en el dominio en cuanto termina, así que un PR no debe llegar hasta aquí.
+  cloudflare:
+    name: Migrar y desplegar · ${{ matrix.sitio }} (Cloudflare)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sitio: zahardev-tours
+            marca: zahardev-tours
+            entorno: produccion
+            url: https://tours.zahardev.com
+            db_secret: DATABASE_URL_ZAHARDEV_TOURS
+            jobs_secret: JOBS_SECRET_ZAHARDEV_TOURS
+            # Una llave de Cloudflare por sitio, con el permiso mínimo de su
+            # Worker, su Hyperdrive y sus buckets.
+            token_secret: CLOUDFLARE_API_TOKEN_ZAHARDEV_TOURS
+
+    concurrency:
+      group: desplegar-${{ matrix.sitio }}
+      cancel-in-progress: false
+
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == github.event.repository.default_branch)
+
+    env:
+      # Es un identificador, no una credencial: sin la llave no sirve de nada.
+      CLOUDFLARE_ACCOUNT_ID: 49fe515d912e8e0b69c18fd4e13db197
+
+    steps:
+      - name: Comprobar credenciales
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets[matrix.token_secret] }}
+          DATABASE_URL: ${{ secrets[matrix.db_secret] }}
+          JOBS_SECRET: ${{ secrets[matrix.jobs_secret] }}
+        run: |
+          falta=0
+          for par in "CLOUDFLARE_API_TOKEN:${{ matrix.token_secret }}" \
+                     "DATABASE_URL:${{ matrix.db_secret }}" \
+                     "JOBS_SECRET:${{ matrix.jobs_secret }}"; do
+            var="${par%%:*}"; secreto="${par#*:}"
+            if [ -z "${!var}" ]; then
+              echo "::error::Falta el secreto $secreto de ${{ matrix.sitio }}: gh secret set $secreto"
+              falta=1
+            fi
+          done
+          [ "$falta" -eq 0 ] || exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Un Hyperdrive nace con la caché encendida y el panel enseñaba datos
+      # viejos (decisión 0023). Es una propiedad del recurso, no del repositorio:
+      # se revisa en cada despliegue.
+      - name: Hyperdrive sin caché
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets[matrix.token_secret] }}
+        run: node scripts/hyperdrive-sin-cache.mjs ${{ matrix.entorno }}
+
+      - name: Migraciones pendientes en producción
+        env:
+          DATABASE_URL: ${{ secrets[matrix.db_secret] }}
+        run: DB_CONFIRM=si ./scripts/db.sh migrate
+
+      # La marca se fija al construir: es una variable `NEXT_PUBLIC_`.
+      # `worker-sin-env.mjs` se niega a subir un paquete que traiga un `.env`.
+      - name: Construir y desplegar a Cloudflare
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets[matrix.token_secret] }}
+          NEXT_PUBLIC_SITE_BRAND: ${{ matrix.marca }}
+        run: |
+          npx opennextjs-cloudflare build
+          node scripts/worker-sin-env.mjs
+          npx opennextjs-cloudflare deploy --env ${{ matrix.entorno }}
+
+      # El latido del cron lo necesita. Va después del despliegue porque el
+      # Worker tiene que existir; volver a ponerlo con el mismo valor no cambia
+      # nada.
+      - name: Secreto del latido
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets[matrix.token_secret] }}
+          JOBS_SECRET: ${{ secrets[matrix.jobs_secret] }}
+        run: printf '%s' "$JOBS_SECRET" | npx wrangler secret put JOBS_SECRET --env ${{ matrix.entorno }}
+
+      - name: Comprobar que lo desplegado sirve
+        shell: bash
+        env:
+          JOBS_SECRET: ${{ secrets[matrix.jobs_secret] }}
+        run: |
+          sitio="${{ matrix.url }}"
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null "$sitio/es" && break
+            sleep 2
+          done
+
+          codigo=$(curl -s -o /tmp/tick.json -w "%{http_code}" -X POST \
+            "$sitio/api/jobs/tick" -H "x-job-secret: ${JOBS_SECRET}")
+          echo "latido provocado → $codigo $(cat /tmp/tick.json)"
+
+          curl -s --max-time 30 "$sitio/api/health" -o /tmp/salud.json
+          python3 -m json.tool /tmp/salud.json
+
+          python3 <<'PY'
+          import json, sys
+          salud = json.load(open("/tmp/salud.json"))
+          checks = salud["checks"]
+          fallos = []
+          detalle = checks.get("payments", {}).get("detail", "(ausente)")
+          if "fingir un pago" in detalle:
+              fallos.append(f"el simulador de pagos está ACTIVO en producción: {detalle}")
+          print(f"pasarela: {detalle}")
+          rojos = [k for k, v in checks.items() if not v["ok"]]
+          if rojos:
+              fallos.append(f"chequeos de salud en rojo: {', '.join(rojos)}")
+          if fallos:
+              for f in fallos:
+                  print(f"::error::{f}")
+              sys.exit(1)
+          print("✔ producción responde, la salud está limpia y nadie puede fingir un pago")
+          PY
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "### Despliegue a producción · ${{ matrix.sitio }} (Cloudflare)"
+            echo
+            echo "- commit: \`${{ github.event.workflow_run.head_sha || github.sha }}\`"
+            echo "- sitio: ${{ matrix.url }}"
+          } >> "$GITHUB_STEP_SUMMARY"
