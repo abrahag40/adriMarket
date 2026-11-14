@@ -26,6 +26,13 @@ Un sitio nuevo es: un renglón en `src/brand.ts` (y su logo en `public/brand/`),
 proyecto de Vercel con su base y su Blob, sus llaves en GitHub, y un renglón en
 cada matriz.
 
+**Un sitio que arranca como réplica de otro** (MarTours salió de Conquest Tours el
+2026-11-05): después de migrar su base, `scripts/clonar-catalogo.sh <origen>
+<destino> <correo>` le copia el catálogo —nunca reservas, huéspedes, pagos ni
+personal— y `scripts/mudar-fotos.ts` sube a su Blob las fotos que seguían en el
+Blob del origen. Los textos de una marca que cobra igual que otra se comparten
+(`COBRO_TOTAL` en `src/brand.ts`), no se copian.
+
 ## Alternativa descartada
 
 **Copiar el repositorio por cliente.** Es lo más rápido el primer día y lo más caro
