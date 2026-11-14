@@ -189,7 +189,8 @@ export async function listTourExtras(productId: string, locale: Locale): Promise
     select id, code,
            ${locale === "en" ? sql`coalesce(name_en, name_es)` : sql`name_es`} as name,
            ${locale === "en" ? sql`coalesce(note_en, note_es)` : sql`note_es`} as note,
-           price_cents::text
+           -- En un sitio que revende, el precio al huésped (decisión 0025).
+           resale_price(price_cents, false)::text as price_cents
       from tour_extras
      where product_id = ${productId}::uuid
        and active
@@ -410,6 +411,15 @@ export type TourQuoteResult = {
   /** Id del cupón aplicado, para poder canjearlo si la reserva se confirma. */
   couponId: string | null;
   /**
+   * Reventa (decisión 0025): lo que se le debe al proveedor por esta reserva —la
+   * suma de sus precios, sin cupón ni impuestos—. `null` en un sitio que no
+   * revende.
+   *
+   * Va fuera de `quote` a propósito: `quote` se le enseña al huésped y viaja
+   * al navegador; esto es el precio neto del proveedor y el margen del sitio.
+   */
+  supplierCents: number | null;
+  /**
    * Extras que de verdad entraron en la cotización, con su precio unitario.
    *
    * Se devuelven resueltos —no los códigos que llegaron— porque es lo que la
@@ -456,6 +466,9 @@ export async function quoteTour(
     private_price_cents: string | null;
     private_included_pax: number | null;
     per_pax_fee_cents: string;
+    private_cost_cents: string | null;
+    per_pax_fee_cost_cents: string;
+    resale: boolean;
   }>(sql`
     select
       d.id as departure_id,
@@ -469,9 +482,14 @@ export async function quoteTour(
       resolve_deposit_pct(p.id) as deposit_pct,
       o.id as option_id,
       o.pricing_mode,
-      o.private_price_cents,
+      -- Lo que paga el huésped pasa por resale_price(); lo que cobra el
+      -- proveedor se lee tal cual, para saber cuánto se le debe.
+      resale_price(o.private_price_cents, true) as private_price_cents,
       o.private_included_pax,
-      o.per_pax_fee_cents
+      resale_price(o.per_pax_fee_cents, false) as per_pax_fee_cents,
+      o.private_price_cents as private_cost_cents,
+      o.per_pax_fee_cents as per_pax_fee_cost_cents,
+      exists (select 1 from settings where key = 'resale') as resale
     from tour_departures d
     join tour_options o on o.id = d.tour_option_id
     join products p on p.id = o.product_id
@@ -489,9 +507,11 @@ export async function quoteTour(
     db.execute<{
       pax_type: TourPricing["paxType"];
       price_cents: string;
+      cost_cents: string;
       counts_toward_capacity: boolean;
     }>(sql`
-      select pax_type, price_cents, counts_toward_capacity
+      select pax_type, resale_price(price_cents, pax_type = 'adult') as price_cents,
+             price_cents as cost_cents, counts_toward_capacity
         from tour_pax_prices
        where tour_option_id = ${departure.option_id}::uuid
     `),
@@ -513,27 +533,32 @@ export async function quoteTour(
       : Promise.resolve<TourExtra[]>([]),
   ]);
 
-  const quote = buildTourQuote({
+  const base = {
     currency: departure.currency,
     pax,
-    prices,
     seatsLeft: Number(departure.seats_left),
     departureOpen: departure.status === "open",
     startsAt: new Date(departure.starts_at),
-    taxes,
     depositPct: Number(departure.deposit_pct),
     now,
+  };
+  const charterDe = (priceCents: string | null, feeCents: string) =>
+    departure.pricing_mode === "private"
+      ? {
+          basePriceCents: Number(priceCents),
+          includedPax: Number(departure.private_included_pax),
+          capacity: Number(departure.capacity),
+          perPaxFeeCents: Number(feeCents),
+        }
+      : null;
+
+  const quote = buildTourQuote({
+    ...base,
+    prices,
+    taxes,
     coupon: couponLookup?.ok ? couponLookup.input : null,
     extras: elegidos,
-    charter:
-      departure.pricing_mode === "private"
-        ? {
-            basePriceCents: Number(departure.private_price_cents),
-            includedPax: Number(departure.private_included_pax),
-            capacity: Number(departure.capacity),
-            perPaxFeeCents: Number(departure.per_pax_fee_cents),
-          }
-        : null,
+    charter: charterDe(departure.private_price_cents, departure.per_pax_fee_cents),
   });
   if (couponLookup && !couponLookup.ok) {
     quote.coupon = { code: couponLookup.code, applied: false, reason: couponLookup.reason };
@@ -544,6 +569,26 @@ export async function quoteTour(
     return price?.countsTowardCapacity ? seats + pax[type] : seats;
   }, 0);
 
+  /* Lo del proveedor sale del MISMO motor, con sus precios: así las cantidades
+     —el infante que no paga, los incluidos en el barco, los extras por lugar
+     ocupado— no tienen una segunda definición que se pueda separar. Sin cupón,
+     porque el proveedor cobra su precio completo, y sin impuestos, porque esos
+     son del fisco. Si el motor no pudo cotizar, ya tronó arriba. */
+  const supplierCents = departure.resale
+    ? buildTourQuote({
+        ...base,
+        prices: priceRows.map((row) => ({
+          paxType: row.pax_type,
+          priceCents: Number(row.cost_cents),
+          countsTowardCapacity: row.counts_toward_capacity,
+        })),
+        taxes: [],
+        coupon: null,
+        extras: await extraCosts(productId, elegidos),
+        charter: charterDe(departure.private_cost_cents, departure.per_pax_fee_cost_cents),
+      }).total_cents
+    : null;
+
   return {
     quote,
     departureId: departure.departure_id,
@@ -551,6 +596,17 @@ export async function quoteTour(
     seatsLeft: Number(departure.seats_left),
     seatsNeeded,
     couponId: couponLookup?.ok ? couponLookup.id : null,
+    supplierCents,
     extras: elegidos,
   };
+}
+
+/** Los extras elegidos, con el precio del proveedor en lugar del precio al huésped. */
+async function extraCosts(productId: string, elegidos: readonly TourExtra[]): Promise<TourExtra[]> {
+  if (elegidos.length === 0) return [];
+  const rows = await db.execute<{ id: string; price_cents: string }>(sql`
+    select id, price_cents from tour_extras where product_id = ${productId}::uuid
+  `);
+  const costo = new Map(rows.map((row) => [row.id, Number(row.price_cents)]));
+  return elegidos.map((extra) => ({ ...extra, priceCents: costo.get(extra.id) ?? 0 }));
 }

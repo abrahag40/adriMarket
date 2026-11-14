@@ -143,6 +143,9 @@ export async function createBookingWithHold(
   let seatsNeeded = 0;
   let couponId: string | null = null;
   let extras: TourExtra[] = [];
+  // Reventa: lo que se le transfiere al proveedor (decisión 0025). Null si el
+  // sitio no revende; las estancias no se revenden.
+  let supplierCents: number | null = null;
 
   /* `input.kind !== "tour"` y no `isRental(input.kind)` a propósito: un
      predicado de tipo estrecha el *campo*, no el objeto que lo contiene, así
@@ -178,6 +181,7 @@ export async function createBookingWithHold(
     // consultó `counts_toward_capacity`. Aquí no se recalcula.
     seatsNeeded = quoted.seatsNeeded;
     couponId = quoted.couponId;
+    supplierCents = quoted.supplierCents;
   }
 
   // Un cupón que se pidió y no se pudo aplicar detiene la reserva.
@@ -223,12 +227,12 @@ export async function createBookingWithHold(
         insert into bookings (customer_id, status, currency, total_cents, deposit_pct,
                               deposit_cents, quote, cancellation_policy_id,
                               cancellation_policy_snapshot, deposit_due_at, locale, source,
-                              coupon_id, coupon_code)
+                              coupon_id, coupon_code, supplier_cents)
         values (${customerId}::uuid, 'hold', ${quote.currency}, ${quote.total_cents},
                 ${quote.deposit_pct}, ${quote.deposit_cents}, ${JSON.stringify(frozen)}::jsonb,
                 ${policy.id}::uuid, ${policy.snapshot ? JSON.stringify(policy.snapshot) : null}::jsonb,
                 now() + make_interval(mins => ${ttl}), ${holder.locale}, 'web',
-                ${couponId}::uuid, ${couponCode})
+                ${couponId}::uuid, ${couponCode}, ${supplierCents}::bigint)
         returning id, code, deposit_due_at
       `);
       const booking = bookings[0]!;

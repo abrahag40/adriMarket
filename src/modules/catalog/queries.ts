@@ -139,16 +139,18 @@ export async function listCatalog(
              and rp.active
              and upper(sr.season) > current_date
         )
+        -- Todo precio de tour que ve el huésped pasa por resale_price(): en un
+        -- sitio que revende, el catálogo guarda el del proveedor (decisión 0025).
         -- Un barco privado se anuncia por lo que cuesta el barco; el precio de
         -- adulto de sus opciones es el del pasajero EXTRA, y anunciarlo sería
         -- un "desde US$100" que nadie paga (decisión 0022).
         when exists (select 1 from tour_options o
                       where o.product_id = p.id and o.active and o.pricing_mode = 'private') then (
-          select min(o.private_price_cents) from tour_options o
+          select resale_price(min(o.private_price_cents), true) from tour_options o
            where o.product_id = p.id and o.active and o.pricing_mode = 'private'
         )
         else (
-          select min(pp.price_cents)
+          select resale_price(min(pp.price_cents), true)
             from tour_pax_prices pp
             join tour_options o on o.id = pp.tour_option_id
            where o.product_id = p.id
@@ -426,9 +428,10 @@ export async function getProductDetail(
       option_count: number;
     }>(sql`
       select o.id, o.duration_minutes, o.meeting_point, o.default_capacity,
-             o.pricing_mode, o.private_included_pax, o.per_pax_fee_cents,
+             o.pricing_mode, o.private_included_pax,
+             resale_price(o.per_pax_fee_cents, false) as per_pax_fee_cents,
              -- El "desde" de un barco es su opción más barata, no la más grande.
-             (select min(x.private_price_cents) from tour_options x
+             (select resale_price(min(x.private_price_cents), true) from tour_options x
                where x.product_id = o.product_id and x.active
                  and x.pricing_mode = 'private') as charter_from_cents,
              (select count(*) from tour_options x
@@ -441,7 +444,7 @@ export async function getProductDetail(
     const option = options[0];
     if (option) {
       const prices = await db.execute<{ pax_type: TourPrice["paxType"]; price_cents: string }>(sql`
-        select pp.pax_type, pp.price_cents
+        select pp.pax_type, resale_price(pp.price_cents, pp.pax_type = 'adult') as price_cents
           from tour_pax_prices pp
          where pp.tour_option_id = ${option.id}::uuid
          order by pp.price_cents desc

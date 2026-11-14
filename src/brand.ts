@@ -87,6 +87,49 @@ const BRANDS: Record<string, Brand> = {
       },
     },
   },
+  "zahardev-tours": {
+    id: "zahardev-tours",
+    name: "ZaharDev Tours",
+    lead: "ZaharDev ",
+    accent: "Tours",
+    tagline: { es: "Tours en el Caribe mexicano", en: "Tours in the Mexican Caribbean" },
+    emailTagline: { es: "Tours en el Caribe mexicano", en: "Tours in the Mexican Caribbean" },
+    // Sin logo hasta que Abraham apruebe uno: el encabezado lleva el nombre.
+    kinds: ["tour"],
+    // ZaharDev revende (decisión 0025): cobra el total al reservar, con el
+    // precio final en la tarjeta. Nada de «saldo en destino».
+    //
+    // BORRADOR del 2026-11-13. Lo que ve un visitante lo aprueba Abraham antes
+    // de publicarse (regla 2 del sitio de ZaharDev). Se evitó a propósito decir
+    // quién opera cada tour y prometer una política de cancelación: las dos
+    // cosas dependen de lo que entregue Alexis.
+    messages: {
+      es: {
+        heroEyebrow: "Pago en línea · precio final",
+        valuePropDepositHeading: "El precio que ves es el que pagas",
+        valuePropDepositBody: "Pagas en línea el total de tu tour: sin cargos agregados al final ni saldo pendiente en destino.",
+        ctaHeading: "Reserva tu próximo tour en el Caribe",
+        ctaBody: "Elige el tour, la fecha y cuántos van. Pagas en línea el precio final y tu lugar queda confirmado.",
+        footerHowBody: "Eliges tu tour y tu fecha, y pagas en línea el precio final.",
+        extrasIntro: "Se paga junto con el tour.",
+        valuePropCancelHeading: "Sin sorpresas",
+        valuePropCancelBody: "Las condiciones del tour quedan escritas en tu reserva desde el momento en que pagas.",
+        perPerson: "por adulto",
+      },
+      en: {
+        heroEyebrow: "Pay online · final price",
+        valuePropDepositHeading: "The price you see is the price you pay",
+        valuePropDepositBody: "You pay the full tour online: no fees added at checkout and no balance due on arrival.",
+        ctaHeading: "Book your next Caribbean tour",
+        ctaBody: "Pick the tour, the date and how many are going. You pay the final price online and your spot is confirmed.",
+        footerHowBody: "Pick your tour and date, and pay the final price online.",
+        extrasIntro: "Paid together with the tour.",
+        valuePropCancelHeading: "No surprises",
+        valuePropCancelBody: "The tour's terms are written into your booking from the moment you pay.",
+        perPerson: "per adult",
+      },
+    },
+  },
 };
 
 export const BRAND_IDS = Object.keys(BRANDS);

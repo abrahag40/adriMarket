@@ -78,8 +78,8 @@ extras lo calcule el servidor, que el sitio sirva sin JavaScript, y la
 accesibilidad en los dos temas.
 
 ```bash
-npm run db:test               # 27 garantías del inventario, en transacción
-npm run test:integration      # 226 casos: el dominio y la caché de páginas (el patrón va entre comillas: ver src/edge/la-suite-entera.test.ts)
+npm run db:test               # 29 garantías del inventario y del dinero, en transacción
+npm run test:integration      # 245 casos: el dominio, la reventa, la liquidación y la caché de páginas (el patrón va entre comillas: ver src/edge/la-suite-entera.test.ts)
 npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
@@ -179,6 +179,13 @@ La selección es **por configuración, no por una bandera de "modo desarrollo"**
   cuentan para su mínimo de compra—. La asimetría es deliberada y reversible
   por cupón con `coupons.applies_to_extras`. Ver
   [decisión 0019](docs/decisiones/0019-el-cupon-no-descuenta-los-extras.md).
+- **Todo precio de tour que ve o paga el huésped se lee por `resale_price()`.**
+  En un sitio que revende (ZaharDev Tours), el catálogo guarda el precio del
+  proveedor y esa función calcula el del huésped. Una consulta nueva que lea
+  `price_cents`, `private_price_cents` o `per_pax_fee_cents` sin pasar por ella
+  exhibe un precio más bajo que el que se cobra. Lo vigila
+  `src/modules/pricing/resale.test.ts`. Ver
+  [decisión 0025](docs/decisiones/0025-reventa-el-precio-del-proveedor.md).
 - **Todo monto es un entero en centavos** (`bigint`) con su moneda explícita.
   Nunca decimales flotantes.
 - **Las noches son `date`** (una noche no es un instante); **las salidas de

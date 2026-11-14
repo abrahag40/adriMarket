@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db, sqlClient } from "@/db/index";
 import { syncFromIntake } from "@/modules/catalog/intake-sync";
 import { expireHolds } from "@/modules/availability/holds";
+import { captureChargeDetails } from "@/modules/booking/payouts";
 import { processMediaJobs } from "@/modules/media/images";
 import { enqueueReminders, processOutbox } from "@/modules/notifications/send";
 
@@ -40,6 +41,11 @@ export async function POST(request: Request) {
   const fichas = await syncFromIntake(sqlClient).catch((e: unknown) => ({
     error: e instanceof Error ? e.message : String(e),
   }));
+  // Reventa (decisión 0026): lo que el webhook no alcanzó a leer del cargo. En
+  // un sitio que no revende no hay nada que leer y no se llama a la pasarela.
+  const cargos = await captureChargeDetails().catch((e: unknown) => ({
+    error: e instanceof Error ? e.message : String(e),
+  }));
 
   // El latido se registra al final y solo si todo corrió. Es lo que hace
   // observable que el worker esté vivo: /api/health lo lee y avisa cuando lleva
@@ -47,8 +53,8 @@ export async function POST(request: Request) {
   // apartados y deja de mandar avisos, en silencio.
   await db.execute(sql`
     select audit_record(null, 'job.tick', 'system', 'tick', null,
-                        ${JSON.stringify({ expired, reminders, outbox, media, fichas })}::jsonb)
+                        ${JSON.stringify({ expired, reminders, outbox, media, fichas, cargos })}::jsonb)
   `);
 
-  return Response.json({ expired, reminders, outbox, media, fichas });
+  return Response.json({ expired, reminders, outbox, media, fichas, cargos });
 }
