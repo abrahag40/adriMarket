@@ -436,6 +436,13 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets[matrix.token_secret] }}
           NEXT_PUBLIC_SITE_BRAND: ${{ matrix.marca }}
+          # `opennextjs-cloudflare deploy` levanta el proxy local de wrangler, y
+          # ése se niega a arrancar sin una cadena «local» para emular Hyperdrive
+          # aunque el despliegue nunca se conecte a ella. En la laptop existía;
+          # en el runner no, y el primer despliegue (2026-11-13) murió ahí. Es
+          # una dirección que no existe a propósito: si algo intentara usarla,
+          # fallaría en vez de tocar una base de verdad.
+          CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE: postgres://sin-uso@127.0.0.1:1/no-existe
         run: |
           npx opennextjs-cloudflare build
           node scripts/worker-sin-env.mjs
