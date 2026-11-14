@@ -130,19 +130,29 @@ export async function rescheduleTour(
     counts.adult = context.seats ?? 1;
   }
 
-  const { quote } = await quoteTour(context.productId, departureId, counts);
+  const { quote, supplierCents } = await quoteTour(context.productId, departureId, counts);
   const frozen = freezeQuoteLabels(quote, context.locale);
 
   try {
-    const rows = await db.execute<{ diff: string }>(sql`
-      select booking_reschedule_tour(
-        ${bookingId}::uuid,
-        ${departureId}::uuid,
-        ${quote.total_cents},
-        ${JSON.stringify(frozen)}::jsonb,
-        ${staffId}
-      )::text as diff
-    `);
+    const rows = await db.transaction(async (tx) => {
+      const diff = await tx.execute<{ diff: string }>(sql`
+        select booking_reschedule_tour(
+          ${bookingId}::uuid,
+          ${departureId}::uuid,
+          ${quote.total_cents},
+          ${JSON.stringify(frozen)}::jsonb,
+          ${staffId}
+        )::text as diff
+      `);
+      // Reventa (decisión 0025): lo que se le debe al proveedor sigue a la
+      // cotización nueva, en la misma transacción que el cambio de salida.
+      if (supplierCents !== null) {
+        await tx.execute(sql`
+          update bookings set supplier_cents = ${supplierCents}::bigint where id = ${bookingId}::uuid
+        `);
+      }
+      return diff;
+    });
     return {
       differenceCents: Number(rows[0]?.diff ?? 0),
       newTotalCents: quote.total_cents,

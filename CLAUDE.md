@@ -78,8 +78,8 @@ extras lo calcule el servidor, que el sitio sirva sin JavaScript, y la
 accesibilidad en los dos temas.
 
 ```bash
-npm run db:test               # 27 garantías del inventario, en transacción
-npm run test:integration      # 215 casos del dominio
+npm run db:test               # 29 garantías del inventario y del dinero, en transacción
+npm run test:integration      # 245 casos: el dominio, la reventa, la liquidación y la caché de páginas (el patrón va entre comillas: ver src/edge/la-suite-entera.test.ts)
 npm run typecheck
 npm run lint
 NEXT_PUBLIC_SITE_URL=http://127.0.0.1:3100 npm run build
@@ -179,6 +179,13 @@ La selección es **por configuración, no por una bandera de "modo desarrollo"**
   cuentan para su mínimo de compra—. La asimetría es deliberada y reversible
   por cupón con `coupons.applies_to_extras`. Ver
   [decisión 0019](docs/decisiones/0019-el-cupon-no-descuenta-los-extras.md).
+- **Todo precio de tour que ve o paga el huésped se lee por `resale_price()`.**
+  En un sitio que revende (ZaharDev Tours), el catálogo guarda el precio del
+  proveedor y esa función calcula el del huésped. Una consulta nueva que lea
+  `price_cents`, `private_price_cents` o `per_pax_fee_cents` sin pasar por ella
+  exhibe un precio más bajo que el que se cobra. Lo vigila
+  `src/modules/pricing/resale.test.ts`. Ver
+  [decisión 0025](docs/decisiones/0025-reventa-el-precio-del-proveedor.md).
 - **Todo monto es un entero en centavos** (`bigint`) con su moneda explícita.
   Nunca decimales flotantes.
 - **Las noches son `date`** (una noche no es un instante); **las salidas de
@@ -563,6 +570,38 @@ Están aquí porque cada una se pagó una vez.
   al archivo versionado solo los bloques que cambiaron.
 - **Las capturas `*.png` de la raíz están en `.gitignore`.** Son evidencia de una
   corrida concreta; se regeneran con `npm run test:e2e*`.
+- **OpenNext mete el `.env` dentro del Worker.** `npm run cf:build` copia todas
+  las variables de los `.env*` que encuentra a `.open-next/cloudflare/next-env.mjs`,
+  y ese archivo viaja en el Worker. En la laptop eso es `PAYMENT_SIMULATOR=si`, la
+  base local y los secretos de prueba: la trampa de `vercel --prod` del
+  2026-09-07 por otra puerta. Para la vista previa local es justo lo que se
+  quiere; para desplegar, no. Por eso se despliega con `npm run cf:deploy`, que
+  corre `scripts/worker-sin-env.mjs` entre compilar y subir y **se niega** si el
+  Worker trae algo que no sea `NEXT_PUBLIC_*` (`--calibrar` comprueba que de
+  verdad mira). Ver [decisión 0023](docs/decisiones/0023-cloudflare-workers.md).
+- **Hyperdrive guarda consultas en caché, y nace así.** Por omisión, 60 segundos
+  para toda lectura. El 2026-11-13 recepción creó un bloqueo en la vista previa y
+  la lista del panel siguió sin él, sin botón para liberarlo, mientras la barra
+  local estaba en verde: el Hyperdrive de `wrangler dev` no cachea. La caché es
+  del recurso en Cloudflare, no de `wrangler.jsonc`, así que todo Hyperdrive
+  nuevo se crea con `--caching-disabled` y lo comprueba
+  `scripts/hyperdrive-sin-cache.mjs <entorno>` (`--calibrar` debe fallar).
+- **`503 · error code: 1102` es el límite de CPU de Workers, no un defecto.** El
+  plan gratuito da 10 ms por petición y una página del motor usa 13 ms de
+  mediana. Cloudflare corta al azar, y la barra falla en páginas distintas cada
+  corrida: la auditoría marcaba `link-in-text-block (2)`, que eran los dos
+  enlaces de la página de error. La pista que lo delata: `curl` repetido a la
+  misma ficha a veces da 200 y a veces 503. Las páginas públicas ya salen de
+  la caché de R2 en 1 ms (decisión 0024). Lo que no se puede guardar —checkout,
+  panel, latido— sigue pasando de 10 ms. `scripts/cpu-cloudflare.mjs <worker>`
+  cuenta los cortes, y el primero es la señal para Workers Paid.
+- **La caché de páginas es una lista cerrada, y una escritura la invalida
+  entera.** `src/edge/page-cache.ts` sólo guarda portada, listados, destinos y
+  fichas. Una ruta pública nueva se arma siempre hasta que alguien la agregue a
+  `isCacheable` con su prueba. Toda escritura que sale bien sube la versión del
+  catálogo antes de responder; una cambiada a mano con `prod:sql` tarda hasta
+  10 minutos en verse. Para saber si una página vino de la caché: la cabecera
+  `x-cache` dice `HIT` o `MISS`.
 
 ---
 
@@ -572,6 +611,21 @@ Están aquí porque cada una se pagó una vez.
 sin dominio propio por ahora — decisión del cliente), con **PostgreSQL
 gestionado en Neon**. El detalle está en
 [`docs/decisiones/0005-vercel-y-blob.md`](docs/decisiones/0005-vercel-y-blob.md).
+
+**El motor también corre en Cloudflare Workers** (decisión 0023), elegido por lo
+que está conectado: Hyperdrive para la base (un cliente por petición), R2 para las
+fotos, Images en lugar de `sharp` y un Cron Trigger para el latido. Sin esas
+piezas, Node y Vercel siguen igual. Vista previa local:
+
+```bash
+NEXT_PUBLIC_SITE_URL=http://127.0.0.1:8787 npm run cf:build
+./scripts/r2-sembrar.sh        # fotos del seed al R2 local
+CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://postgres:local@127.0.0.1:5444/adrimarket \
+  npm run cf:preview           # http://127.0.0.1:8787 · el latido: curl …/cdn-cgi/local/scheduled
+```
+
+`.dev.vars` lleva `JOBS_SECRET` y `SITE_URL` para el cron. La barra corre igual,
+con `BASE_URL=http://127.0.0.1:8787`.
 
 Antes vivía en Render + Cloudflare
 ([`docs/decisiones/0002-donde-vive-el-sistema.md`](docs/decisiones/0002-donde-vive-el-sistema.md),

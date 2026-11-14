@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { siteResells } from "@/modules/booking/payouts";
 import { hasRole, type StaffUser } from "@/modules/identity/auth";
 
 import { signOut } from "./actions";
@@ -11,7 +12,7 @@ const ROLE_LABEL: Record<string, string> = {
   guide: "Guía",
 };
 
-export function AdminNav({ user, active }: { user: StaffUser; active: string }) {
+export async function AdminNav({ user, active }: { user: StaffUser; active: string }) {
   const items = [
     { href: "/admin", label: "Hoy" },
     { href: "/admin/reservas", label: "Reservas" },
@@ -25,6 +26,8 @@ export function AdminNav({ user, active }: { user: StaffUser; active: string }) 
   // solo evita ofrecer una puerta cerrada.
   const managerItems = [
     { href: "/admin/reembolsos", label: "Devoluciones" },
+    // Sólo en un sitio que revende (decisión 0026): lo que se le debe al proveedor.
+    ...((await siteResells()) ? [{ href: "/admin/liquidacion", label: "Liquidación" }] : []),
     { href: "/admin/catalogo", label: "Catálogo" },
     { href: "/admin/ajustes", label: "Ajustes" },
     { href: "/admin/bitacora", label: "Bitácora" },

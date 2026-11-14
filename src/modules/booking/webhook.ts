@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
+import { captureChargeDetails } from "@/modules/booking/payouts";
 import { paymentProvider, type PaymentEventPayload } from "@/modules/payments";
 
 /**
@@ -61,8 +62,9 @@ export async function processPaymentWebhook(
   const bookingId = bookingIdFrom(event);
   const validBookingId = bookingId && UUID.test(bookingId) ? bookingId : null;
 
+  let outcome: WebhookOutcome;
   try {
-    return await db.transaction(async (tx) => {
+    outcome = await db.transaction(async (tx) => {
       // Se registra el evento primero. Si ya existía, la restricción única aborta
       // la transacción y el reintento no produce efectos nuevos.
       await tx.execute(sql`
@@ -199,6 +201,17 @@ export async function processPaymentWebhook(
     }
     throw error;
   }
+
+  // Reventa (decisión 0026): con la reserva ya confirmada, se lee del cargo el
+  // país de la tarjeta y lo que se quedó la pasarela. Va fuera de la
+  // transacción a propósito —es una llamada de red— y no puede tumbar la
+  // confirmación: lo que falle aquí lo reintenta el latido.
+  if (outcome.status === "confirmed") {
+    await captureChargeDetails({ bookingId: outcome.bookingId }).catch((error: unknown) => {
+      console.error("webhook: no se leyó el cargo para la liquidación", error);
+    });
+  }
+  return outcome;
 }
 
 function isUniqueViolation(error: unknown): boolean {

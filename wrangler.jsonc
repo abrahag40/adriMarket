@@ -1,0 +1,170 @@
+// Cloudflare Workers · decisión 0023.
+//
+// Este archivo describe el Worker de un sitio. Lo que es de cada sitio (el
+// nombre, el id de Hyperdrive, el bucket de fotos, el dominio y las variables)
+// va en su propio bloque de `env` cuando el sitio se publica (F3); lo de arriba
+// es lo común y lo que usa la vista previa local.
+//
+// Lo que NO va aquí, nunca: llaves. Los secretos de producción se cargan con
+// `wrangler secret put` desde la CI; en local viven en `.dev.vars` (ignorado).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "adrimarket",
+  // El entry propio envuelve al de OpenNext para agregarle el latido (cron).
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // PostgreSQL (Neon) a través de Hyperdrive. El id real se crea en F3; en
+  // local, la cadena sale de la variable
+  // CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE, no de aquí:
+  // cada máquina tiene la suya y una cadena tecleada en un archivo versionado
+  // es la que un día apunta a la base equivocada (decisión 0007).
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  // Fotos: originales y variantes. En local lo simula wrangler en .wrangler/.
+  // PAGE_CACHE: la caché de páginas públicas (decisión 0024). Sin él, todo se arma.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "adrimarket-media"
+    },
+    {
+      "binding": "PAGE_CACHE",
+      "bucket_name": "adrimarket-paginas"
+    }
+  ],
+  // El id del despliegue entra en la llave de la caché de páginas: una página
+  // guardada con el código anterior pide archivos que ya no existen.
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
+  },
+  // Reemplaza a sharp, que es un binario nativo y no existe en workerd.
+  "images": {
+    "binding": "IMAGES"
+  },
+  // El latido. Cada 15 minutos por la cuota de cómputo de Neon (decisión 0020);
+  // /api/health mide sus alarmas contra eso.
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "observability": {
+    "enabled": true
+  },
+  // Un bloque por sitio. Los bindings y las variables no se heredan del nivel
+  // de arriba en wrangler: cada entorno los declara completos.
+  "env": {
+    // ZaharDev Tours · vista previa en workers.dev, con noindex. Base: rama
+    // `vista-previa` del proyecto de Neon `zahardev-tours`, con el seed de
+    // demostración; la rama `main` queda limpia para producción. Sin cron: el
+    // latido se provoca a mano (o lo provoca smoke.sh), para que la base de
+    // vista previa no gaste horas de cómputo despertando cada 15 minutos.
+    "vista-previa": {
+      "name": "zahardev-tours-vista-previa",
+      "workers_dev": true,
+      "vars": {
+        "NOINDEX": "si",
+        "SITE_URL": "https://zahardev-tours-vista-previa.abrahag40.workers.dev",
+        "PRIVACY_VERSION": "2026-08",
+        // Sin llaves de Stripe todavía, el simulador es lo que deja recorrer el
+        // checkout. Es un permiso (decisión 0011) y aquí se da a propósito: es
+        // una vista previa con noindex y una base de demostración. Producción
+        // nunca lo lleva, y desplegar.yml lo comprueba.
+        "PAYMENT_SIMULATOR": "si"
+      },
+      // Rama `vista-previa` (ep-crimson-bread-bccn0q6y) del proyecto de Neon
+      // `zahardev-tours`, creada el 2026-11-13.
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "a81ffe0130f541d99570b77ee68af86a"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "zahardev-tours-media-vista-previa"
+        },
+        {
+          "binding": "PAGE_CACHE",
+          "bucket_name": "zahardev-tours-paginas-vista-previa"
+        }
+      ],
+      "version_metadata": {
+        "binding": "CF_VERSION_METADATA"
+      },
+      "images": {
+        "binding": "IMAGES"
+      },
+      "triggers": {
+        "crons": []
+      }
+    },
+    // ZaharDev Tours · producción en tours.zahardev.com (F3, 2026-11-13).
+    // Se despliega sólo desde la CI (desplegar.yml, job «cloudflare»), nunca
+    // desde la laptop: el runner no tiene `.env`.
+    //
+    // Los secretos (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, JOBS_SECRET) se
+    // cargan una vez con `wrangler secret put --env produccion` y sobreviven a
+    // cada despliegue. No van como secretos de GitHub: sería una copia más de
+    // cada llave, y el número de copias es lo que se puede controlar.
+    "produccion": {
+      "name": "zahardev-tours",
+      "workers_dev": false,
+      // Dominio propio: Cloudflare crea el registro DNS y el certificado.
+      "routes": [
+        {
+          "pattern": "tours.zahardev.com",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "SITE_URL": "https://tours.zahardev.com",
+        "PRIVACY_VERSION": "2026-08",
+        // Se queda fuera de Google mientras falte lo de F2: los textos legales
+        // aprobados y el catálogo de Alexis. Se quita a propósito, en un PR que
+        // diga que ya están.
+        "NOINDEX": "si"
+        // Sin PAYMENT_SIMULATOR, a propósito: producción nunca lo lleva.
+      },
+      // Rama `main` (ep-small-bar-bcdfqvoe) del proyecto de Neon
+      // `zahardev-tours`: sin datos de demostración. Creado con la caché
+      // apagada; hyperdrive-sin-cache.mjs lo vigila en cada despliegue.
+      "hyperdrive": [
+        {
+          "binding": "HYPERDRIVE",
+          "id": "2a353bab8542494899f3913b49290d2e"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "zahardev-tours-media"
+        },
+        {
+          // Con la regla `borrar-paginas-viejas` (paginas/, 2 días), como el de
+          // la vista previa.
+          "binding": "PAGE_CACHE",
+          "bucket_name": "zahardev-tours-paginas"
+        }
+      ],
+      "version_metadata": {
+        "binding": "CF_VERSION_METADATA"
+      },
+      "images": {
+        "binding": "IMAGES"
+      },
+      // El latido, cada 15 minutos (decisión 0020).
+      "triggers": {
+        "crons": ["*/15 * * * *"]
+      }
+    }
+  }
+}

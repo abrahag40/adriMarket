@@ -2,11 +2,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { put, del } from "@vercel/blob";
 import { sql } from "drizzle-orm";
-import sharp from "sharp";
 
 import { db } from "@/db/index";
+import { cloudflare, type ImagesBindingLike, type R2BucketLike } from "@/runtime";
 
 /**
  * Subida y procesamiento de fotos · S6-1, y Vercel Blob después del Sprint 7
@@ -29,7 +28,34 @@ import { db } from "@/db/index";
  * con `BLOB_READ_WRITE_TOKEN` se usa Vercel Blob; sin él, disco local. No es una
  * bandera de "modo desarrollo" — es lo que hace falta para correr en Vercel, cuyo
  * sistema de archivos es efímero y no se comparte entre invocaciones.
+ *
+ * **En Cloudflare Workers** ([decisión 0023](../../../docs/decisiones/0023-cloudflare-workers.md))
+ * las fotos van a R2 (binding `MEDIA`) y se procesan con el binding `IMAGES` en
+ * lugar de `sharp`, que es un binario nativo y no existe en workerd. Por eso
+ * `sharp` y `@vercel/blob` se cargan **al usarse** y no al importar este módulo:
+ * con un `import` estático, cualquier ruta que lo tocara —la entrega de fotos, el
+ * panel— tronaría en el Worker antes de hacer nada.
  */
+
+/** Tipo de contenido por extensión: lo usan el almacén al guardar y la ruta al servir. */
+const TYPES: Record<string, string> = {
+  ".avif": "image/avif",
+  ".webp": "image/webp",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+};
+
+export function mediaContentType(filename: string): string {
+  return TYPES[path.extname(filename).toLowerCase()] ?? "application/octet-stream";
+}
+
+/**
+ * Un archivo del almacén nunca cambia de contenido —su nombre lleva el
+ * identificador y el ancho—, así que se puede cachear para siempre.
+ */
+export const IMMUTABLE = "public, max-age=31536000, immutable";
 
 /**
  * Dónde se guardan los archivos: local o Vercel Blob, resuelto por configuración.
@@ -78,6 +104,7 @@ class BlobStorage implements MediaStorage {
     // foto—, el reintento chocaba con "this blob already exists" y no terminaba
     // nunca. Pasó el 2026-10-23 con las primeras fotos de Conquest Tours.
     // Sobrescribir es seguro: el mismo nombre siempre lleva los mismos bytes.
+    const { put } = await import("@vercel/blob");
     const blob = await put(filename, bytes, {
       access: "public",
       addRandomSuffix: false,
@@ -93,14 +120,115 @@ class BlobStorage implements MediaStorage {
   }
 
   async remove(url: string): Promise<void> {
+    const { del } = await import("@vercel/blob");
     await del(url).catch(() => {
       // Igual que en local: si ya no está, el objetivo se cumplió igual.
     });
   }
 }
 
+/**
+ * R2, en Cloudflare Workers. La URL que se guarda en la base es la misma que en
+ * disco —`/media/<archivo>`— y la sirve la misma ruta, que en el Worker lee del
+ * bucket: así una base puede mudarse entre disco y R2 sin reescribir URLs.
+ */
+class R2Storage implements MediaStorage {
+  readonly name = "r2";
+
+  constructor(private readonly bucket: R2BucketLike) {}
+
+  async save(filename: string, bytes: Buffer): Promise<string> {
+    // Mismo nombre, mismos bytes (ver BlobStorage): sobrescribir es seguro.
+    await this.bucket.put(filename, bytes, {
+      httpMetadata: { contentType: mediaContentType(filename), cacheControl: IMMUTABLE },
+    });
+    return `/media/${filename}`;
+  }
+
+  async read(url: string): Promise<Buffer> {
+    const object = await this.bucket.get(path.basename(url));
+    if (!object) throw new Error(`r2: no existe ${url}`);
+    return Buffer.from(await object.arrayBuffer());
+  }
+
+  async remove(url: string): Promise<void> {
+    await this.bucket.delete(path.basename(url));
+  }
+}
+
 export function mediaStorage(): MediaStorage {
+  const cf = cloudflare();
+  if (cf) {
+    // En el Worker no hay disco que sirva de respaldo: sin bucket, la foto se
+    // "guardaría" en un sistema de archivos que desaparece con la petición.
+    if (!cf.env.MEDIA) throw new Error("Falta el binding MEDIA (R2) en el Worker.");
+    return new R2Storage(cf.env.MEDIA);
+  }
   return process.env.BLOB_READ_WRITE_TOKEN ? new BlobStorage() : new LocalStorage();
+}
+
+/** El bucket de fotos si el sistema corre en Workers, para la ruta que las sirve. */
+export function mediaBucket(): R2BucketLike | null {
+  return cloudflare()?.env.MEDIA ?? null;
+}
+
+/**
+ * Leer y recodificar imágenes. Dos implementaciones con el mismo contrato:
+ * `sharp` en Node e Images en Cloudflare. Lo que cambia entre ellas es quién
+ * hace el trabajo, no qué se le pide: los mismos anchos, formatos y calidades.
+ */
+type Encoder = (width: number, format: (typeof FORMATS)[number], quality: number) => Promise<Buffer>;
+
+type ImageCodec = {
+  probe(bytes: Buffer): Promise<{ width?: number; height?: number; format: string }>;
+  /** Abre el original una vez; cada variante sale del mismo original abierto. */
+  open(bytes: Buffer): Promise<Encoder>;
+};
+
+const sharpCodec: ImageCodec = {
+  async probe(bytes) {
+    const { default: sharp } = await import("sharp");
+    const meta = await sharp(bytes).metadata();
+    return { width: meta.width, height: meta.height, format: meta.format ?? "" };
+  },
+  async open(bytes) {
+    const { default: sharp } = await import("sharp");
+    const image = sharp(bytes);
+    return (width, format, quality) =>
+      image.clone().resize({ width, withoutEnlargement: true }).toFormat(format, { quality }).toBuffer();
+  },
+};
+
+function imagesCodec(images: ImagesBindingLike): ImageCodec {
+  // El binding consume un flujo por llamada: no hay original "abierto" que
+  // reutilizar, así que cada variante vuelve a leer los mismos bytes en memoria.
+  const stream = (bytes: Buffer) => new Blob([new Uint8Array(bytes)]).stream();
+  return {
+    async probe(bytes) {
+      const info = await images.info(stream(bytes));
+      // Images responde el tipo MIME ("image/png"); sharp, el nombre ("png").
+      return { width: info.width, height: info.height, format: info.format.replace(/^image\//, "") };
+    },
+    async open(bytes) {
+      return async (width, format, quality) => {
+        // Los anchos ya vienen filtrados por debajo del original: aquí nunca se agranda.
+        const result = await images
+          .input(stream(bytes))
+          .transform({ width })
+          .output({ format: `image/${format}`, quality });
+        return Buffer.from(await result.response().arrayBuffer());
+      };
+    },
+  };
+}
+
+function imageCodec(): ImageCodec {
+  const cf = cloudflare();
+  if (cf) {
+    if (!cf.env.IMAGES) throw new Error("Falta el binding IMAGES en el Worker.");
+    return imagesCodec(cf.env.IMAGES);
+  }
+  return sharpCodec;
 }
 
 /** Anchos de la decisión 0001. */
@@ -153,9 +281,9 @@ export async function uploadImage(
     throw new MediaError("La foto pesa más de 25 MB. Bájale la resolución antes de subirla.");
   }
 
-  let meta: sharp.Metadata;
+  let meta: Awaited<ReturnType<ImageCodec["probe"]>>;
   try {
-    meta = await sharp(file.bytes).metadata();
+    meta = await imageCodec().probe(file.bytes);
   } catch {
     throw new MediaError("Ese archivo no es una imagen que se pueda procesar.");
   }
@@ -226,6 +354,7 @@ export async function processMediaJobs(limit = 4): Promise<MediaReport> {
   `);
 
   const storage = mediaStorage();
+  const codec = imageCodec();
 
   for (const job of jobs) {
     try {
@@ -233,7 +362,7 @@ export async function processMediaJobs(limit = 4): Promise<MediaReport> {
       // latido puede correr en una instancia distinta a la que recibió la
       // subida, así que nunca se puede asumir que el original sigue en disco.
       const original = await storage.read(job.original_url);
-      const image = sharp(original);
+      const encode = await codec.open(original);
       const variants: Record<string, Record<string, string>> = {};
 
       // Nunca por encima del ancho original.
@@ -244,11 +373,7 @@ export async function processMediaJobs(limit = 4): Promise<MediaReport> {
         variants[format] = {};
         for (const width of widths) {
           const name = `${path.basename(job.original_url).replace(/-original\.\w+$/, "")}-${width}.${format}`;
-          const buffer = await image
-            .clone()
-            .resize({ width, withoutEnlargement: true })
-            .toFormat(format, { quality: format === "avif" ? 50 : 72 })
-            .toBuffer();
+          const buffer = await encode(width, format, format === "avif" ? 50 : 72);
           variants[format]![String(width)] = await storage.save(name, buffer);
         }
       }

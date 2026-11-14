@@ -24,6 +24,9 @@ const config = [
       // `npm run lint` recorre el clon entero —incluido su node_modules— y
       // reporta miles de problemas que no son de este árbol.
       ".claude/worktrees/**",
+      // Lo que compila OpenNext y el estado local de wrangler (decisión 0023).
+      ".open-next/**",
+      ".wrangler/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

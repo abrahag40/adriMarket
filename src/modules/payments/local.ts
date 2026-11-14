@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 
+import { gatewayFeeCents, STRIPE_MX } from "@/modules/pricing/resale";
+
 import { signPayload, verifySignature } from "./signature";
 import type {
+  ChargeDetails,
   CheckoutSession,
   DepositRequest,
   PaymentEventPayload,
@@ -64,6 +67,17 @@ export class LocalProvider implements PaymentProvider {
       body,
       signature: signPayload(body, this.webhookSecret, Math.floor(Date.now() / 1000)),
     };
+  }
+
+  /**
+   * El simulador no tiene cargo que leer: responde lo que cobraría Stripe con
+   * una tarjeta extranjera, la peor para el margen. Sirve para recorrer la
+   * liquidación entera en local y en la vista previa; el panel marca estos
+   * cobros como simulados (`payments.provider = 'local'`).
+   */
+  async chargeDetails(request: { providerRef: string; amountCents: number; currency: string }): Promise<ChargeDetails> {
+    const feeCents = gatewayFeeCents(request.amountCents, STRIPE_MX.extranjera);
+    return { cardCountry: "US", feeCents, netCents: request.amountCents - feeCents };
   }
 
   verifyWebhook(rawBody: string, signatureHeader: string | null): PaymentEventPayload | null {
