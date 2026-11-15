@@ -19,7 +19,8 @@ import { uploadImage } from "@/modules/media/images";
  *
  * Repetirlo no duplica: una foto con el mismo peso en bytes en ese tour se salta.
  * Sin BLOB_READ_WRITE_TOKEN se niega, porque guardaría en el disco de esta máquina
- * y producción apuntaría a archivos que no existen.
+ * y producción apuntaría a archivos que no existen. La excepción es una base local
+ * (127.0.0.1 o localhost): ahí el disco es lo correcto.
  */
 type Plan = { slug: string; files: { path: string; alt_es: string; alt_en?: string }[] }[];
 
@@ -28,7 +29,13 @@ if (!archivo || !process.env.DATABASE_URL) {
   console.error("Uso: subir-fotos.ts plan.json (con DATABASE_URL)");
   process.exit(2);
 }
-if (!process.env.BLOB_READ_WRITE_TOKEN) {
+// Contra una base local, el disco local es justo lo correcto: es como sube las
+// fotos el panel en desarrollo, y sirve para armar una vista previa con las
+// fotos reales de un cliente antes de tener su llave de Blob. Contra cualquier
+// otra base, sin llave las fotos quedarían en esta máquina y el sitio apuntaría
+// a archivos que no existen.
+const baseLocal = /@(127\.0\.0\.1|localhost)[:/]/.test(process.env.DATABASE_URL);
+if (!process.env.BLOB_READ_WRITE_TOKEN && !baseLocal) {
   console.error("Falta BLOB_READ_WRITE_TOKEN: sin él las fotos se quedarían en este disco.");
   process.exit(2);
 }
