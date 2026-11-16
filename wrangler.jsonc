@@ -131,7 +131,13 @@
         // Se queda fuera de Google mientras falte lo de F2: los textos legales
         // aprobados y el catálogo de Alexis. Se quita a propósito, en un PR que
         // diga que ya están.
-        "NOINDEX": "si"
+        "NOINDEX": "si",
+        // Los avisos salen por Resend desde el dominio compartido de ZaharDev,
+        // con la llave RESEND_API_KEY de este sitio (secreto del Worker, sólo
+        // envía y sólo desde service.zahardev.com). Las respuestas del cliente
+        // llegan a ZaharDev, que es quien vende. Decidido por Abraham el 2026-11-15.
+        "MAIL_FROM": "ZaharDev Tours <reservas@service.zahardev.com>",
+        "MAIL_REPLY_TO": "contacto@zahardev.com"
         // Sin PAYMENT_SIMULATOR, a propósito: producción nunca lo lleva.
       },
       // Rama `main` (ep-small-bar-bcdfqvoe) del proyecto de Neon
