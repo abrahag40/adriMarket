@@ -92,6 +92,14 @@ jobs:
             # Una llave de Vercel por sitio, con alcance a SU proyecto: la llave de
             # un cliente no puede tocar el sitio de otro.
             token_secret: VERCEL_TOKEN
+          # Réplica de Conquest Tours para demostración (2026-11-05), en su
+          # propio proyecto, base y Blob.
+          - sitio: martours
+            url: https://martours.vercel.app
+            db_secret: DATABASE_URL_MARTOURS
+            jobs_secret: JOBS_SECRET_MARTOURS
+            project_var: VERCEL_PROJECT_ID_MARTOURS
+            token_secret: VERCEL_TOKEN_MARTOURS
 
     # Dos despliegues a la vez sobre la misma base y el mismo proyecto no tienen
     # sentido, y el segundo podría adelantar al primero. Uno por sitio.

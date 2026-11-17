@@ -47,6 +47,9 @@ jobs:
           - sitio: conquest-tours
             url: https://conquest-tours.vercel.app
             jobs_secret: JOBS_SECRET_CONQUEST_TOURS
+          - sitio: martours
+            url: https://martours.vercel.app
+            jobs_secret: JOBS_SECRET_MARTOURS
     # Un arranque nuevo reemplaza cualquier bucle anterior del mismo sitio que
     # siga vivo: no hace falta que convivan dos, y así nunca se pisan llamando al
     # latido al mismo tiempo.

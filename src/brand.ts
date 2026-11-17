@@ -35,6 +35,42 @@ export type Brand = {
   messages?: Partial<Record<Locale, Partial<Messages>>>;
 };
 
+/**
+ * Textos de un operador que cobra el total al reservar (settings.deposit = 100)
+ * y reserva directo con quien organiza el tour: no hay «saldo en destino» que
+ * prometer. Los usan Conquest Tours y MarTours, que es su réplica.
+ */
+const COBRO_TOTAL: Brand["messages"] = {
+  es: {
+    heroEyebrow: "Reserva directo con el operador",
+    valuePropDepositHeading: "Reserva directo con el operador",
+    valuePropDepositBody: "Tratas con quien organiza el tour: sin intermediarios y sin cargos ocultos.",
+    ctaHeading: "Reserva tu próximo tour en el Caribe",
+    ctaBody: "Elige el tour, la fecha y cuántos van. Tratas directo con quien lo organiza, sin cargos ocultos.",
+    footerHowBody: "Eliges tu tour y tu fecha, y reservas directo con el operador.",
+    extrasIntro: "Se paga junto con el tour.",
+    // Conquest no tiene cancelación: «Cancelación clara» sugería que sí.
+    valuePropCancelHeading: "Sin sorpresas",
+    valuePropCancelBody: "Las condiciones del tour quedan escritas en tu reserva desde el momento en que pagas.",
+    // El precio de la tarjeta es el de adulto: dicho así, sin «Desde».
+    fromPrice: "",
+    perPerson: "por adulto",
+  },
+  en: {
+    heroEyebrow: "Book directly with the operator",
+    valuePropDepositHeading: "Book directly with the operator",
+    valuePropDepositBody: "You deal with the people who run the tour: no middlemen and no hidden fees.",
+    ctaHeading: "Book your next Caribbean tour",
+    ctaBody: "Pick the tour, the date and how many are going. You deal directly with the people who run it, no hidden fees.",
+    footerHowBody: "Pick your tour and date, and book directly with the operator.",
+    extrasIntro: "Paid together with the tour.",
+    valuePropCancelHeading: "No surprises",
+    valuePropCancelBody: "The tour's terms are written into your booking from the moment you pay.",
+    fromPrice: "",
+    perPerson: "per adult",
+  },
+};
+
 const BRANDS: Record<string, Brand> = {
   adrimarket: {
     id: "adrimarket",
@@ -54,38 +90,22 @@ const BRANDS: Record<string, Brand> = {
     emailTagline: { es: "Tours en el Caribe mexicano", en: "Tours in the Mexican Caribbean" },
     logo: { src: "/brand/conquest-tours.png", width: 176, height: 176 },
     kinds: ["tour"],
-    // Conquest cobra el total al reservar (settings.deposit = 100) y reserva
-    // directo con el operador: no hay «saldo en destino» que prometer.
-    messages: {
-      es: {
-        heroEyebrow: "Reserva directo con el operador",
-        valuePropDepositHeading: "Reserva directo con el operador",
-        valuePropDepositBody: "Tratas con quien organiza el tour: sin intermediarios y sin cargos ocultos.",
-        ctaHeading: "Reserva tu próximo tour en el Caribe",
-        ctaBody: "Elige el tour, la fecha y cuántos van. Tratas directo con quien lo organiza, sin cargos ocultos.",
-        footerHowBody: "Eliges tu tour y tu fecha, y reservas directo con el operador.",
-        extrasIntro: "Se paga junto con el tour.",
-        // Conquest no tiene cancelación: «Cancelación clara» sugería que sí.
-        valuePropCancelHeading: "Sin sorpresas",
-        valuePropCancelBody: "Las condiciones del tour quedan escritas en tu reserva desde el momento en que pagas.",
-        // El precio de la tarjeta es el de adulto: dicho así, sin «Desde».
-        fromPrice: "",
-        perPerson: "por adulto",
-      },
-      en: {
-        heroEyebrow: "Book directly with the operator",
-        valuePropDepositHeading: "Book directly with the operator",
-        valuePropDepositBody: "You deal with the people who run the tour: no middlemen and no hidden fees.",
-        ctaHeading: "Book your next Caribbean tour",
-        ctaBody: "Pick the tour, the date and how many are going. You deal directly with the people who run it, no hidden fees.",
-        footerHowBody: "Pick your tour and date, and book directly with the operator.",
-        extrasIntro: "Paid together with the tour.",
-        valuePropCancelHeading: "No surprises",
-        valuePropCancelBody: "The tour's terms are written into your booking from the moment you pay.",
-        fromPrice: "",
-        perPerson: "per adult",
-      },
-    },
+    // Conquest cobra el total al reservar: ver COBRO_TOTAL.
+    messages: COBRO_TOTAL,
+  },
+  // MarTours es una réplica de Conquest Tours en su propio ambiente: su
+  // proyecto de Vercel, su base de Neon y su Blob (decisión 0020). Mismo
+  // catálogo y mismo cobro; cambia el nombre. Sin logo: el encabezado lleva
+  // solo el nombre.
+  martours: {
+    id: "martours",
+    name: "MarTours",
+    lead: "Mar",
+    accent: "Tours",
+    tagline: { es: "Tours en el Caribe mexicano", en: "Tours in the Mexican Caribbean" },
+    emailTagline: { es: "Tours en el Caribe mexicano", en: "Tours in the Mexican Caribbean" },
+    kinds: ["tour"],
+    messages: COBRO_TOTAL,
   },
   "zahardev-tours": {
     id: "zahardev-tours",
