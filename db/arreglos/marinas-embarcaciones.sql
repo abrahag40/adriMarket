@@ -13,8 +13,9 @@
 -- tulum, cozumel, isla-mujeres, puerto-morelos…). Si es uno nuevo —Puerto
 -- Aventuras, por ejemplo— se agrega primero con su zona horaria.
 --
--- Solo escribe donde todavía no hay nada: un punto de encuentro corregido a mano
--- desde el panel no se pisa. Se niega a correr con la lista vacía, porque "no
+-- Solo escribe donde no hay nada, o donde está el texto provisional de
+-- `publicar-barcos-adri.sql`: un punto de encuentro corregido a mano desde el
+-- panel no se pisa. Se niega a correr con la lista vacía, porque "no
 -- pasó nada" se lee igual que "salió bien".
 -- ---------------------------------------------------------------------------
 
@@ -61,7 +62,9 @@ update tour_options o
   from emb_marina m
   join products p on p.slug = m.slug
  where o.product_id = p.id
-   and o.meeting_point is null;
+   and (o.meeting_point is null
+        -- El texto provisional de publicar-barcos-adri.sql sí se reemplaza.
+        or o.meeting_point like 'Marina por confirmar%');
 
 -- Las salidas se generaron con la zona de Quintana Roo, que es la de cualquier
 -- marina del Caribe mexicano: cambiar el destino no las corre de hora.
