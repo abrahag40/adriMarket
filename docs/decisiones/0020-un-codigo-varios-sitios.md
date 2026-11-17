@@ -55,6 +55,11 @@ plataforma en un solo pago, sin mensualidad.
 - **Hacer cada tarea en su momento**, no por latido: el correo de confirmación al
   confirmar el pago, y liberar un apartado vencido cuando otro cliente pide ese
   lugar. Con eso el latido puede espaciarse a horas.
+  - **El enlace de acceso al panel ya sale en el acto** (2026-11-17). Caducaba en
+    15 minutos y el latido corría cada 15, así que podía llegar vencido. Pasó el
+    2026-11-15 con la primera cuenta del cliente, y hubo que relanzar el latido a
+    mano. Ahora la acción lo manda con `after()` por el mismo camino de la
+    bandeja (`processOutbox(1, { id })`); si falla, el latido lo reintenta.
 - **Las visitas también despiertan la base.** Con campañas de pago y visitas todo
   el día, la cuota gratuita no alcanza con ningún latido: cachear las páginas
   públicas del catálogo para que una visita no toque la base.

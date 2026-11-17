@@ -485,7 +485,19 @@ function renderTemplate(
   }
 }
 
-export async function processOutbox(limit = 25): Promise<OutboxReport> {
+/**
+ * Despacha la bandeja de salida: lo pendiente y lo que toca reintentar.
+ *
+ * `solo` limita la pasada a un aviso, por su id. Existe para lo que no puede
+ * esperar al latido —el enlace de acceso caduca en 15 minutos y el latido corre
+ * cada 15 (decisión 0020), así que podía llegar ya vencido—: quien lo encola lo
+ * manda en el acto por este mismo camino, y si falla queda en la bandeja como
+ * cualquier otro, con su reintento y su espera creciente.
+ */
+export async function processOutbox(
+  limit = 25,
+  solo?: { id: string },
+): Promise<OutboxReport> {
   const report: OutboxReport = { sent: 0, failed: 0, dead: 0 };
   const mail = transport();
   const wa = whatsappTransport();
@@ -510,6 +522,7 @@ export async function processOutbox(limit = 25): Promise<OutboxReport> {
       from outbox
      where status in ('pending', 'failed')
        and next_attempt_at <= now()
+       and (${solo?.id ?? null}::uuid is null or id = ${solo?.id ?? null}::uuid)
      order by next_attempt_at
      limit ${limit}
      for update skip locked

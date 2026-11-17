@@ -2,10 +2,12 @@
 
 import { brand } from "@/brand";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/index";
 import { requestLoginLink } from "@/modules/identity/auth";
+import { processOutbox } from "@/modules/notifications/send";
 import { absoluteUrl } from "@/site";
 
 /**
@@ -16,6 +18,16 @@ import { absoluteUrl } from "@/site";
  *
  * El enlace se manda por la bandeja de salida, igual que las confirmaciones: si
  * el proveedor de correo está caído, se reintenta en lugar de perderse.
+ *
+ * **Y se manda en el acto, no en el siguiente latido.** El enlace caduca en 15
+ * minutos y el latido corre cada 15 (decisión 0020): esperándolo, podía llegar
+ * ya vencido. Pasó el 2026-11-15 con la primera cuenta del cliente, y hubo que
+ * relanzar el latido a mano para que le llegara.
+ *
+ * El envío va en `after()`, después de responder, y no antes del `return`: si
+ * la respuesta tardara lo que tarda el correo solo cuando la cuenta existe, el
+ * tiempo de respuesta delataría quién es del equipo, que es justo lo que el
+ * mensaje idéntico de arriba evita.
  */
 export async function requestAccess(
   _previous: { sent: boolean },
@@ -30,7 +42,7 @@ export async function requestAccess(
   const link = await requestLoginLink(email, ip);
 
   if (link) {
-    await db.execute(sql`
+    const encolado = await db.execute<{ id: string }>(sql`
       insert into outbox (channel, template, locale, to_address, payload, dedupe_key)
       values ('email', 'staff_login_link', 'es', ${email},
               ${JSON.stringify({
@@ -44,7 +56,21 @@ export async function requestAccess(
                 },
               })}::jsonb,
               ${`staff-login:${link.staffId}:${Date.now()}`})
+      returning id
     `);
+
+    const id = encolado[0]?.id;
+    if (id) {
+      after(async () => {
+        // Un fallo aquí no se pierde: el aviso sigue en la bandeja y el latido
+        // lo reintenta. Solo se deja constancia en el log.
+        try {
+          await processOutbox(1, { id });
+        } catch (error) {
+          console.error("[acceso] el envío inmediato del enlace falló; queda para el latido", error);
+        }
+      });
+    }
   }
 
   return { sent: true };
